@@ -1,5 +1,5 @@
 # 1. Build Stage
-FROM eclipse-temurin:21-jdk-focal AS build
+FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN ./gradlew clean bootJar --no-daemon
 
 # 2. Run Stage
-FROM eclipse-temurin:21-jdk-focal
+FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
 
