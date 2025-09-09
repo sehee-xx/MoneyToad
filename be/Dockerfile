@@ -3,8 +3,11 @@ FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /app
 
-# Gradle wrapper 포함한 프로젝트 복사
+# 프로젝트 전체 복사
 COPY . .
+
+# gradlew 실행 권한 부여
+RUN chmod +x ./gradlew
 
 # Gradle 빌드
 RUN ./gradlew clean bootJar --no-daemon
