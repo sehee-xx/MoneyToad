@@ -1,14 +1,69 @@
-version: '3.8'
-
 services:
-  fastapi:
-    build: .
-    container_name: ai-service
+  # API Gateway - 통합 API 진입점
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway-service
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
     environment:
       - PYTHONUNBUFFERED=1
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./gateway:/app
+    networks:
+      - ai-network
+    depends_on:
+      - classifier
+      - analysis
     restart: unless-stopped
+
+  # Classifier Service - 비용 분류
+  classifier:
+    build:
+      context: ./classifier
+      dockerfile: Dockerfile
+    container_name: classifier-service
+    # ports:
+    #   - "8001:8001"  # Internal only, accessed via gateway
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_HOST=redis
+    volumes:
+      - ./classifier:/app
+    networks:
+      - ai-network
+    restart: unless-stopped
+
+  # Analysis Service - 데이터 분석
+  analysis:
+    build:
+      context: ./analysis
+      dockerfile: Dockerfile
+    container_name: analysis-service
+    # ports:
+    #   - "8002:8002"  # Internal only, accessed via gateway
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_HOST=redis
+    volumes:
+      - ./analysis:/app
+    networks:
+      - ai-network
+    restart: unless-stopped
+
+  # Redis - 캐싱 및 임시 저장소
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ai-network
+    restart: unless-stopped
+
+networks:
+  ai-network:
+    driver: bridge
