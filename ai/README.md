@@ -15,14 +15,14 @@ AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT AP
          │   (Gateway Service)  │    단일 진입점
          └──────────┬───────────┘
                     │
-      ┌─────────────┼─────────────┐
-      │             │             │
-      ▼             ▼             ▼
-┌──────────┐  ┌──────────┐  ┌──────────┐
-│Classifier│  │ Analysis │  │  Redis   │
-│ Service  │  │ Service  │  │  Cache   │
-│  (8001)  │  │  (8002)  │  │  (6379)  │
-└──────────┘  └──────────┘  └──────────┘
+         ┌──────────┴──────────┐
+         │                     │
+         ▼                     ▼
+┌──────────────┐      ┌──────────────┐
+│  Classifier  │      │   Analysis   │
+│   Service    │      │   Service    │
+│   (8001)     │      │   (8002)     │
+└──────────────┘      └──────────────┘
 ```
 
 ## 🚀 Services
@@ -52,8 +52,6 @@ AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT AP
 - 트렌드 분석
 - AI 기반 인사이트 생성
 
-### 3. Redis Cache (내부 포트 6379)
-**캐싱 및 작업 큐** - 비동기 작업 관리 및 성능 최적화
 
 ## 📦 Quick Start
 
@@ -198,10 +196,6 @@ OPENAI_MODEL=gpt-4-turbo-preview
 OPENAI_MAX_TOKENS=200
 OPENAI_TEMPERATURE=0.3
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
-
 # 로깅
 LOG_LEVEL=INFO
 
@@ -238,5 +232,5 @@ S3_BUCKET_NAME=fintech-data-bucket
 - OpenAI API 키는 환경 변수로 안전하게 관리
 - 내부 서비스는 Docker 네트워크 내에서만 접근 가능
 - CORS 설정으로 허가된 도메인만 접근
-- 민감한 데이터는 Redis에 임시 저장 후 자동 삭제
+- 민감한 데이터 보호를 위한 보안 정책 적용
 

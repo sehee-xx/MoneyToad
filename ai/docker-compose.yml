@@ -29,7 +29,6 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - REDIS_HOST=redis
     volumes:
       - ./classifier:/app
     networks:
@@ -42,24 +41,11 @@ services:
       context: ./analysis
       dockerfile: Dockerfile
     container_name: analysis-service
-    # ports:
-    #   - "8002:8002"  # Internal only, accessed via gateway
     environment:
       - PYTHONUNBUFFERED=1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - REDIS_HOST=redis
     volumes:
       - ./analysis:/app
-    networks:
-      - ai-network
-    restart: unless-stopped
-
-  # Redis - 캐싱 및 임시 저장소
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
     networks:
       - ai-network
     restart: unless-stopped

@@ -14,10 +14,6 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
     
-    # Redis
-    REDIS_HOST: str = "redis"
-    REDIS_PORT: int = 6379
-    
     # Analysis Settings
     MAX_DATA_POINTS: int = 10000
     CONFIDENCE_THRESHOLD: float = 0.8

@@ -16,10 +16,6 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: Optional[str] = None
     
-    # Redis for job queue
-    REDIS_HOST: Optional[str] = None
-    REDIS_PORT: int = 6379
-    
     # S3 Configuration
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
