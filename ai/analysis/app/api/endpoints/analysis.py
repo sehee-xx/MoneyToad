@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import datetime
 import uuid
 
-from app.models.schemas import AnalysisResponse, AnalysisJob
+from app.models.schemas import AnalysisResponse, AnalysisJob, AnalysisResult, FinancialSummary, SpendingByCategory, MonthlyTrend, MerchantAnalysis
 from app.services.analysis_service import AnalysisService
 
 router = APIRouter()
@@ -61,26 +61,72 @@ async def analyze_csv(
         job_id = str(uuid.uuid4())
         
         # TODO: Implement actual analysis logic
-        # For now, just return placeholder response
+        # This is a placeholder structure showing what the analysis will return
         
-        # If background processing is needed:
-        # background_tasks.add_task(
-        #     analysis_service.process_csv,
-        #     job_id=job_id,
-        #     csv_data=df.to_dict('records'),
-        #     analysis_type=analysis_type
-        # )
+        # Placeholder analysis results
+        analysis_results = AnalysisResult(
+            summary=FinancialSummary(
+                total_income=0.0,  # TODO: Calculate from df
+                total_expenses=0.0,  # TODO: Calculate from df
+                net_savings=0.0,  # TODO: Calculate from df
+                average_daily_spending=0.0,  # TODO: Calculate from df
+                largest_expense={
+                    "merchant": "TODO",
+                    "amount": 0.0,
+                    "date": "TODO"
+                },
+                most_frequent_merchant="TODO"
+            ),
+            spending_by_category=[
+                # TODO: Group transactions by category and calculate
+                SpendingByCategory(
+                    category="Food & Dining",
+                    amount=0.0,
+                    percentage=0.0,
+                    transaction_count=0
+                )
+            ],
+            monthly_trends=[
+                # TODO: Group by month and calculate trends
+                MonthlyTrend(
+                    month="2025-01",
+                    total_spending=0.0,
+                    income=0.0,
+                    net_savings=0.0
+                )
+            ],
+            top_merchants=[
+                # TODO: Aggregate by merchant and sort
+                MerchantAnalysis(
+                    merchant="TODO",
+                    total_spent=0.0,
+                    frequency=0,
+                    average_transaction=0.0
+                )
+            ],
+            insights=[
+                # TODO: Generate insights based on analysis
+                "Your spending analysis will appear here",
+                "Category breakdown will be calculated",
+                "Saving recommendations will be provided"
+            ],
+            analysis_period={
+                "start_date": df['date'].min() if 'date' in df.columns else "TODO",
+                "end_date": df['date'].max() if 'date' in df.columns else "TODO"
+            }
+        )
         
         return AnalysisResponse(
             job_id=job_id,
-            status="processing",
-            message=f"CSV file '{file.filename}' received successfully. Analysis started.",
+            status="completed",
+            message=f"CSV file '{file.filename}' analyzed successfully.",
             file_info={
                 "filename": file.filename,
                 "rows": len(df),
                 "columns": len(df.columns),
                 "size_bytes": file_size
             },
+            results=analysis_results,
             created_at=datetime.utcnow()
         )
         
