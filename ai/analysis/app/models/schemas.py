@@ -55,7 +55,6 @@ class AnalysisResponse(BaseModel):
     status: JobStatus
     message: str
     file_info: Optional[Dict[str, Any]] = None
-    results: Optional[AnalysisResult] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

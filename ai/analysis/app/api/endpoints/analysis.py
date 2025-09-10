@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
 import pandas as pd
 import io
@@ -10,6 +10,131 @@ from app.models.schemas import AnalysisResponse, AnalysisJob, AnalysisResult, Fi
 from app.services.analysis_service import AnalysisService
 
 router = APIRouter()
+
+
+@router.get("/", response_model=AnalysisResult)
+async def get_analysis(
+    user_id: Optional[str] = Query(None, description="User ID for analysis"),
+    period: Optional[str] = Query("30d", description="Analysis period (7d, 30d, 90d, 1y, all)"),
+    category: Optional[str] = Query(None, description="Filter by specific category")
+):
+    """
+    Get financial analysis results
+    
+    Args:
+        user_id: User ID to analyze (optional)
+        period: Time period for analysis (default: 30d)
+        category: Filter results by specific category (optional)
+    
+    Returns:
+        Complete financial analysis results
+    """
+    
+    # TODO: Implement actual data fetching and analysis logic
+    # This is a placeholder structure showing what the analysis will return
+    
+    # Placeholder analysis results
+    analysis_results = AnalysisResult(
+        summary=FinancialSummary(
+            total_income=15000.00,  # TODO: Calculate from actual data
+            total_expenses=8500.00,  # TODO: Calculate from actual data
+            net_savings=6500.00,  # TODO: Calculate from actual data
+            average_daily_spending=283.33,  # TODO: Calculate from actual data
+            largest_expense={
+                "merchant": "Apple Store",
+                "amount": 1299.00,
+                "date": "2025-01-15",
+                "category": "Electronics"
+            },
+            most_frequent_merchant="Starbucks"
+        ),
+        spending_by_category=[
+            SpendingByCategory(
+                category="Food & Dining",
+                amount=2500.00,
+                percentage=29.4,
+                transaction_count=45
+            ),
+            SpendingByCategory(
+                category="Transportation",
+                amount=1200.00,
+                percentage=14.1,
+                transaction_count=20
+            ),
+            SpendingByCategory(
+                category="Shopping",
+                amount=2800.00,
+                percentage=32.9,
+                transaction_count=15
+            ),
+            SpendingByCategory(
+                category="Entertainment",
+                amount=800.00,
+                percentage=9.4,
+                transaction_count=8
+            ),
+            SpendingByCategory(
+                category="Utilities",
+                amount=1200.00,
+                percentage=14.1,
+                transaction_count=5
+            )
+        ],
+        monthly_trends=[
+            MonthlyTrend(
+                month="2024-11",
+                total_spending=7800.00,
+                income=15000.00,
+                net_savings=7200.00
+            ),
+            MonthlyTrend(
+                month="2024-12",
+                total_spending=9200.00,
+                income=15000.00,
+                net_savings=5800.00
+            ),
+            MonthlyTrend(
+                month="2025-01",
+                total_spending=8500.00,
+                income=15000.00,
+                net_savings=6500.00
+            )
+        ],
+        top_merchants=[
+            MerchantAnalysis(
+                merchant="Starbucks",
+                total_spent=450.00,
+                frequency=25,
+                average_transaction=18.00
+            ),
+            MerchantAnalysis(
+                merchant="Amazon",
+                total_spent=1200.00,
+                frequency=8,
+                average_transaction=150.00
+            ),
+            MerchantAnalysis(
+                merchant="Whole Foods",
+                total_spent=800.00,
+                frequency=12,
+                average_transaction=66.67
+            )
+        ],
+        insights=[
+            f"Your spending is within budget for the {period} period",
+            "Food & Dining is your highest spending category at 29.4%",
+            "You've saved $6,500 this month - great job!",
+            "Consider reducing Shopping expenses to increase savings",
+            "Your most frequent transaction is at Starbucks (25 times)"
+        ],
+        analysis_period={
+            "start_date": "2024-12-15",
+            "end_date": "2025-01-15",
+            "period": period
+        }
+    )
+    
+    return analysis_results
 
 
 @router.post("/", response_model=AnalysisResponse)
@@ -61,72 +186,26 @@ async def analyze_csv(
         job_id = str(uuid.uuid4())
         
         # TODO: Implement actual analysis logic
-        # This is a placeholder structure showing what the analysis will return
+        # For now, just return placeholder response
         
-        # Placeholder analysis results
-        analysis_results = AnalysisResult(
-            summary=FinancialSummary(
-                total_income=0.0,  # TODO: Calculate from df
-                total_expenses=0.0,  # TODO: Calculate from df
-                net_savings=0.0,  # TODO: Calculate from df
-                average_daily_spending=0.0,  # TODO: Calculate from df
-                largest_expense={
-                    "merchant": "TODO",
-                    "amount": 0.0,
-                    "date": "TODO"
-                },
-                most_frequent_merchant="TODO"
-            ),
-            spending_by_category=[
-                # TODO: Group transactions by category and calculate
-                SpendingByCategory(
-                    category="Food & Dining",
-                    amount=0.0,
-                    percentage=0.0,
-                    transaction_count=0
-                )
-            ],
-            monthly_trends=[
-                # TODO: Group by month and calculate trends
-                MonthlyTrend(
-                    month="2025-01",
-                    total_spending=0.0,
-                    income=0.0,
-                    net_savings=0.0
-                )
-            ],
-            top_merchants=[
-                # TODO: Aggregate by merchant and sort
-                MerchantAnalysis(
-                    merchant="TODO",
-                    total_spent=0.0,
-                    frequency=0,
-                    average_transaction=0.0
-                )
-            ],
-            insights=[
-                # TODO: Generate insights based on analysis
-                "Your spending analysis will appear here",
-                "Category breakdown will be calculated",
-                "Saving recommendations will be provided"
-            ],
-            analysis_period={
-                "start_date": df['date'].min() if 'date' in df.columns else "TODO",
-                "end_date": df['date'].max() if 'date' in df.columns else "TODO"
-            }
-        )
+        # If background processing is needed:
+        # background_tasks.add_task(
+        #     analysis_service.process_csv,
+        #     job_id=job_id,
+        #     csv_data=df.to_dict('records'),
+        #     analysis_type=analysis_type
+        # )
         
         return AnalysisResponse(
             job_id=job_id,
-            status="completed",
-            message=f"CSV file '{file.filename}' analyzed successfully.",
+            status="processing",
+            message=f"CSV file '{file.filename}' received successfully. Analysis started.",
             file_info={
                 "filename": file.filename,
                 "rows": len(df),
                 "columns": len(df.columns),
                 "size_bytes": file_size
             },
-            results=analysis_results,
             created_at=datetime.utcnow()
         )
         
