@@ -16,10 +16,9 @@ app = FastAPI(
     title="AI Fintech API Gateway",
     description="Unified API Gateway for AI Fintech Microservices",
     version="1.0.0",
-    root_path="/ai",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    docs_url="/ai/docs",
+    redoc_url="/ai/redoc",
+    openapi_url="/ai/openapi.json"
 )
 
 # CORS configuration
@@ -182,9 +181,9 @@ async def root():
             }
         },
         "documentation": {
-            "swagger": "/docs",
-            "redoc": "/redoc",
-            "openapi": "/openapi.json"
+            "swagger": "/ai/docs",
+            "redoc": "/ai/redoc",
+            "openapi": "/ai/openapi.json"
         }
     }
 
