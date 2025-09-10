@@ -16,6 +16,7 @@ app = FastAPI(
     title="AI Fintech API Gateway",
     description="Unified API Gateway for AI Fintech Microservices",
     version="1.0.0",
+    root_path="/ai",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
