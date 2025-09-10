@@ -274,7 +274,7 @@ async def proxy_request(
     headers.pop("host", None)
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             # Get request body if present
             body = None
             if method in ["POST", "PUT", "PATCH"]:
@@ -344,6 +344,20 @@ async def proxy_classifier_root(request: Request):
     )
 
 
+@app.api_route(
+    "/ai/classify/",
+    methods=["GET", "POST"],
+    include_in_schema=False
+)
+async def proxy_classifier_root_slash(request: Request):
+    return await proxy_request(
+        service="classifier",
+        path="ai/classify",
+        request=request,
+        method=request.method
+    )
+
+
 # Proxy routes for analysis service
 @app.api_route(
     "/ai/analysis/{path:path}",
@@ -365,6 +379,20 @@ async def proxy_analysis(path: str, request: Request):
     include_in_schema=False
 )
 async def proxy_analysis_root(request: Request):
+    return await proxy_request(
+        service="analysis",
+        path="ai/analysis",
+        request=request,
+        method=request.method
+    )
+
+
+@app.api_route(
+    "/ai/analysis/",
+    methods=["POST"],
+    include_in_schema=False
+)
+async def proxy_analysis_root_slash(request: Request):
     return await proxy_request(
         service="analysis",
         path="ai/analysis",
