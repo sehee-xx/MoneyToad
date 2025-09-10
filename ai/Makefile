@@ -1,7 +1,7 @@
 .PHONY: help build up down logs test clean migrate deploy
 
 # Variables
-DOCKER_COMPOSE = docker-compose
+DOCKER_COMPOSE = docker compose
 DOCKER_COMPOSE_PROD = docker-compose -f deployments/prod/docker-compose.prod.yml
 PYTHON = python3
 PIP = pip3
