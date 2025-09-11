@@ -2,16 +2,15 @@ import { useState, useEffect } from "react";
 import Lottie from "lottie-react";
 
 // --- 이미지 & 애니메이션 ---
-import cryingKongjwi from "./leakPot/cryingKongjwi.png";
-import happyKongjwi from "./leakPot/happyKongjwi.png";
-import happyToad from "./leakPot/happyToad.png";
-import angryToad from "./leakPot/angryToad.png";
-import bgImage from "./leakPot/joseon-bg.png";
-import customPointer from "./leakPot/money.png";
-import paper from "./leakPot/paper.png";
-import potImage from "./leakPot/pot.png";
-import waterAnim from "./leakPot/waterac.json";
-import broken from "./leakPot/broken.png";
+const cryingKongjwi = "/leakPot/cryingKongjwi.png";
+const happyKongjwi  = "/leakPot/happyKongjwi.png";
+const happyToad     = "/leakPot/happyToad.png";
+const angryToad     = "/leakPot/angryToad.png";
+const bgImage       = "/leakPot/joseon-bg.png";
+const customPointer = "/leakPot/money.png";
+const paper         = "/leakPot/paper.png";
+const potImage      = "/leakPot/pot.png";
+const broken        = "/leakPot/broken.png";
 
 // --- 타입 정의 ---
 interface Category {
@@ -110,6 +109,14 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   totalLeak,
   formatter,
 }) => {
+  const [waterAnim, setWaterAnim] = useState<any | null>(null);
+  useEffect(() => {
+    fetch("/leakPot/water.json")
+      .then((r) => r.json())
+      .then(setWaterAnim)
+      .catch(console.error);
+  }, []);
+  
   const hasLeak = leakingCategories.length > 0;
   const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -411,7 +418,7 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
 };
 
 // --- 메인 App ---
-export default function App() {
+export default function LeakPotPage() {
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [leakingCategories, setLeakingCategories] = useState<LeakingCategory[]>(
     []

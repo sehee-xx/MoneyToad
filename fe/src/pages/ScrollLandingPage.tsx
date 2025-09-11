@@ -1,5 +1,6 @@
 // src/pages/ScrollLandingPage.tsx
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 type Page = {
   id: number;
@@ -13,6 +14,7 @@ export default function ScrollLandingPage() {
   const [isScrolling, setIsScrolling] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef(0);
+  const navigate = useNavigate();
 
   const pages: Page[] = [
     {
@@ -96,7 +98,7 @@ export default function ScrollLandingPage() {
     <div ref={containerRef} className="dk-landing">
       <button
         className="dk-login"
-        onClick={() => alert("로그인 페이지로 이동")}
+        onClick={() => navigate("/leak")}
       >
         로그인
       </button>
