@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
+import com.potg.don.auth.dto.AccessTokenResponse;
 import com.potg.don.auth.jwt.JwtUtil;
 import com.potg.don.auth.jwt.RefreshTokenStore;
 import com.potg.don.user.entity.User;
@@ -17,6 +18,20 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
@@ -24,16 +39,14 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 	private final UserRepository userRepository;
 	private final JwtUtil jwtUtil;
 	private final RefreshTokenStore refreshStore;
-
-	@Value("${app.oauth2.success-redirect}")
-	private String successRedirect;
+	private final ObjectMapper objectMapper; // JSON 변환을 위해 추가
 
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
 		Authentication authentication) throws IOException, ServletException {
 		CustomOAuth2User o = (CustomOAuth2User) authentication.getPrincipal();
 
-		// 가입 or 조회
+		// 가입 또는 조회
 		User user = userRepository.findByEmail(o.getEmail())
 			.orElseGet(() -> userRepository.save(User.builder()
 				.email(o.getEmail())
@@ -43,14 +56,34 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 				.build()));
 
 		// JWT 생성
-		String access  = jwtUtil.createAccessToken(user.getId(), user.getEmail());
-		String refresh = jwtUtil.createRefreshToken(user.getId());
+		String accessToken = jwtUtil.createAccessToken(user.getId(), user.getEmail());
+		String refreshToken = jwtUtil.createRefreshToken(user.getId());
 
-		// Refresh -> Redis 저장 (RT:<userId> = token)
-		refreshStore.save(user.getId(), refresh, jwtUtil.getRefreshTtlSeconds());
+		// Refresh Token -> Redis 저장 (RT:<userId> = token)
+		refreshStore.save(user.getId(), refreshToken, jwtUtil.getRefreshTtlSeconds());
 
-		// 프론트로 전달 (옵션1: 쿼리로 이동) — 보안상 운영은 HttpOnly 쿠키 권장
-		String redirectUrl = String.format("%s?accessToken=%s&refreshToken=%s", successRedirect, access, refresh);
-		response.sendRedirect(redirectUrl);
+		// --- 응답 방식 변경 ---
+		// 1. Refresh Token을 HttpOnly 쿠키에 담기
+		Cookie refreshTokenCookie = CookieUtil.createCookie(
+			"refreshToken",
+			refreshToken,
+			(int) jwtUtil.getRefreshTtlSeconds()
+		);
+		response.addCookie(refreshTokenCookie);
+
+		// 2. Access Token을 JSON 응답 본문에 담기
+		sendAccessTokenResponse(response, accessToken);
+	}
+
+	private void sendAccessTokenResponse(HttpServletResponse response, String accessToken) throws IOException {
+		response.setStatus(HttpServletResponse.SC_OK);
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+		// AccessTokenResponse DTO를 사용하여 JSON 응답 생성
+		AccessTokenResponse tokenResponse = new AccessTokenResponse(accessToken);
+
+		String responseBody = objectMapper.writeValueAsString(tokenResponse);
+		response.getWriter().write(responseBody);
 	}
 }
