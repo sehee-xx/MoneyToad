@@ -7,7 +7,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<ScrollLandingPage />} />
-      <Route path="/leak" element={<LeakPotPage />} />
+      <Route path="/pot/:month" element={<LeakPotPage />} />
     </Routes>
   );
 }
