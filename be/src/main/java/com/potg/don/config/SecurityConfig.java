@@ -54,7 +54,7 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		var c = new CorsConfiguration();
-		c.setAllowedOrigins(List.of("http://localhost:3000")); // 필요 도메인 추가
+		c.setAllowedOrigins(List.of("http://localhost:3000", "")); // 필요 도메인 추가
 		c.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 		c.setAllowedHeaders(List.of("*"));
 		c.setAllowCredentials(true);
