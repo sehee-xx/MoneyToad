@@ -1,0 +1,36 @@
+package com.potg.don.user.entity;
+
+import com.potg.don.global.entity.BaseTimeEntity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Builder
+public class User extends BaseTimeEntity {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@Column(nullable=false, length=255, unique = true)
+	private String email;
+
+	@Column(nullable=false, length=100)
+	private String name;
+
+	// 최초 로그인 때는 빈 값(null)로 두고, 이후 사용자 입력으로 업데이트
+	@Column(length=20)
+	private String gender;  // "MALE"/"FEMALE"/"OTHER" 등 자유 문자열
+
+	@Column
+	private Integer age;    // nullable
+
+	public static User user() {
+		return User.builder()
+
+			.build();
+	}
+}
