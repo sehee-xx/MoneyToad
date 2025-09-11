@@ -15,6 +15,7 @@ export default function ScrollLandingPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef(0);
   const navigate = useNavigate();
+  const today = String(new Date().getMonth() + 1).padStart(2, "0");
 
   const pages: Page[] = [
     {
@@ -98,7 +99,7 @@ export default function ScrollLandingPage() {
     <div ref={containerRef} className="dk-landing">
       <button
         className="dk-login"
-        onClick={() => navigate("/leak")}
+        onClick={() => navigate(`/pot/${today}`)}
       >
         로그인
       </button>
