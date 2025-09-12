@@ -1,8 +1,9 @@
 // src/pages/LeakPotPage.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import Header from "../components/Header";
+import "./LeakPotPage.css";
 
 // --- 이미지 & 애니메이션 ---
 const cryingKongjwi = "/leakPot/cryingKongjwi.png";
@@ -17,10 +18,6 @@ const broken        = "/leakPot/broken.png";
 // 월 토큰 이미지
 const monthGood     = "/leakPot/good.png";
 const monthBad      = "/leakPot/bad.png";
-
-// 월 숫자 배경 컬러
-const MONTH_BAD_BG  = "#28427B"; // 누수 시
-const MONTH_GOOD_BG = "#FFC83E"; // 정상 시
 
 // --- 타입 정의 ---
 interface Category { id: string; name: string; spending: number; threshold: number; }
@@ -95,75 +92,24 @@ const MonthNavigation: React.FC<MonthNavigationProps> = ({
 
   return (
     <div className="month-navigation">
-      {/* 다른 전역 CSS는 건드리지 않고, 여기에서만 가로 12칸 풀폭을 인라인 지정 */}
-      <div
-        className="month-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(12, 1fr)",
-          gap: 6,
-          width: "100%",
-          maxWidth: "none",
-        }}
-      >
+      <div className="month-grid">
         {MONTHS.map((m) => {
           const active = currentMonth === m.value;
           const leaked = isLeaked(m.value);
-
-          // 이미지 스케일: 기본은 축소, 현재 달은 확대(테두리 없이)
-          const imgScalePercent = active ? 100 : 60;
-
           return (
             <button
               key={m.value}
               onClick={() => onMonthChange(m.value)}
               aria-label={`${m.label}${leaked ? " (누수)" : ""}`}
-              style={{
-                position: "relative",
-                background: "transparent",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                width: "100%",
-                aspectRatio: "1 / 1",
-                borderRadius: "9999px",
-                // 강조 효과는 크기 차이만 사용 (테두리/그림자 제거)
-                outline: "none",
-                boxShadow: "none",
-                // 가운데 정렬을 위해 그리드 사용
-                display: "grid",
-                placeItems: "center",
-              }}
+              className={`month-button ${active ? "active" : ""}`}
             >
               <img
                 src={leaked ? monthBad : monthGood}
                 alt={leaked ? "누수" : "정상"}
-                style={{
-                  width: `${imgScalePercent}%`,
-                  height: "auto",
-                  display: "block",
-                  // 활성 효과를 좀 더 자연스럽게
-                  transition: "width .18s ease",
-                }}
+                className="month-img"
                 draggable={false}
               />
-              {/* 월 숫자 배경색: 누수(#28427B) / 정상(#FFC83E) */}
-              <span
-                style={{
-                  position: "absolute",
-                  right: "8%",
-                  top: "8%",
-                  background: leaked ? MONTH_BAD_BG : MONTH_GOOD_BG,
-                  color: leaked ? "#fff" : "#333",
-                  fontWeight: 700,
-                  padding: "2px 6px",
-                  borderRadius: 2,
-                  fontSize: "clamp(10px, 1.6vw, 14px)",
-                  lineHeight: 1,
-                  userSelect: "none",
-                  boxShadow: "0 1px 2px rgba(0,0,0,.25)",
-                }}
-              >
+              <span className={`month-badge ${leaked ? "leaked" : "good"}`}>
                 {m.label}
               </span>
             </button>
@@ -227,10 +173,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   return (
     <div className="pot-container" onMouseMove={handleMouseMove}>
       {tooltip.visible && (
-        <div
-          className="tooltip"
-          style={{ left: tooltip.x + 15, top: tooltip.y, transform: "translateY(-100%)" }}
-        >
+        <div className="tooltip" style={{ left: tooltip.x + 15, top: tooltip.y }}>
           {tooltip.content}
         </div>
       )}
@@ -247,7 +190,6 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
           className="pot-svg"
           preserveAspectRatio="xMidYMax meet"
-          style={{ overflow: "visible" }}
         >
           <defs>
             <radialGradient id="puddleGradient" cx="50%" cy="30%" r="70%">
@@ -299,11 +241,11 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
                 <image
                   key={cat.id}
                   href={broken}
+                  className="crack"
                   x={(-450 / 2) * crackScale + x}
                   y={(-450 / 2) * crackScale + y}
                   width={450 * crackScale}
                   height={450 * crackScale}
-                  style={{ opacity: 0.9, pointerEvents: "all" }}
                   onMouseEnter={(e) => handleMouseOver(e, cat)}
                   onMouseLeave={handleMouseOut}
                 />
@@ -329,7 +271,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
                   height={450 * baseScale}
                   style={{ overflow: "visible", pointerEvents: "none" }}
                 >
-                  <div className="water-animation" style={{ transform: `scaleX(${isLeft ? -1 : 1})`, opacity: WATER_ALPHA }}>
+                  <div className={`water-animation ${isLeft ? "flip" : ""}`}>
                     {waterAnim && (
                       <Lottie
                         animationData={waterAnim}
@@ -407,6 +349,12 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
 };
 
 // --- 메인 App ---
+type RootVars = React.CSSProperties & {
+  "--bg"?: string;
+  "--paper"?: string;
+  "--pointer"?: string;
+};
+
 const LeakPotPage = () => {
   const { month } = useParams();
   const navigate = useNavigate();
@@ -444,74 +392,24 @@ const LeakPotPage = () => {
     setTotalLeak(currentTotalLeak);
   }, [categories]);
 
-  useEffect(() => {
-    const styleElement = document.createElement("style");
-    styleElement.innerHTML = `
-      @font-face {
-        font-family: 'Joseon100Years';
-        src: url('https://gcore.jsdelivr.net/gh/projectnoonnu/noonfonts_2206-02@1.0/ChosunCentennial.woff2') format('woff2');
-      }
-      .app-container{ width:100vw;height:100vh;display:flex;flex-direction:column;font-family:'Joseon100Years',serif;overflow:hidden;background-image:url('${bgImage}');background-size:cover;background-position:center;}
-      .header{ background:transparent; padding:0 40px; z-index:100;}
-      .nav{ display:flex; justify-content:center; gap:48px; max-width:800px; margin:0 auto;}
-      .nav-item{ color:#f5f5f4; text-decoration:none; padding:20px 16px; font-weight:500; font-size:18px; transition:all .2s ease; border-bottom:2px solid transparent;}
-      .nav-item:hover{ color:#fbbf24; }
-      .month-navigation{ background:transparent; z-index:99; padding: 0 100px}
-      .month-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; max-width:600px; margin:0 auto; }
-      @media (min-width:768px){ .month-grid{ grid-template-columns:repeat(12,1fr);} }
-      .month-button{ background:transparent; border:2px solid rgba(120,113,108,.3); border-radius:8px; padding:8px 12px; font-family:'Joseon100Years',serif; font-size:14px; font-weight:500; color:#57534e; cursor:pointer; transition:all .2s ease;}
-      .month-button:hover{ background:rgba(120,113,108,.1); border-color:#78716c; color:#292524; }
-      .month-button.active{ background:#a12a2a; border-color:#a12a2a; color:#fff; font-weight:bold; }
-      .main-container{ flex:1; display:flex; flex-direction:column; align-items:end; justify-content:center; gap:32px; position:relative; overflow:visible;}
-      @media (min-width:768px){ .main-container{ flex-direction:row; } }
-      .pot-container{ position:absolute; inset:0; display:flex; align-items:end; justify-content:center; pointer-events:none;}
-      .tooltip{ position:absolute; z-index:50; padding:8px; font-size:14px; background:rgba(0,0,0,.7); color:#fff; border-radius:6px; pointer-events:none;}
-      .characters{ position:absolute; bottom:0; left:0; display:flex; align-items:end; z-index:1;}
-      .kongjwi{ width:328px; height:auto; object-fit:contain; filter:drop-shadow(0 25px 25px rgba(0,0,0,.15)); position:relative; z-index:10;}
-      @media (min-width:768px){ .kongjwi{ width:384px; } }
-      .toad{ width:192px; height:auto; object-fit:contain; filter:drop-shadow(0 25px 25px rgba(0,0,0,.15)); margin-left:-56px; position:relative; z-index:10;}
-      @media (min-width:768px){ .toad{ width:224px; } }
-      .pot-svg-container{ width:100%; height:100%; position:relative;}
-      .pot-svg{ position:absolute; inset:0; width:100%; height:100%;}
-      .water-animation{ width:100%; height:100%; position:relative; transform-origin:50% 50%; pointer-events:none;}
-      .control-panel{ position:relative; z-index:20; display:flex; flex-direction:column; width:40vw; max-width:500px; min-width:380px; height:70vh; padding:0 20px; max-height:800px; background-image:url('${paper}'); background-size:100% 100%; background-repeat:no-repeat; background-position:center;}
-      @media (min-width:768px){ .control-panel{ position:absolute; right:40px; bottom:24px; } }
-      .panel-title{ font-size:28px; font-weight:bold; margin-top:80px; padding-top:16px; padding-bottom:0; color:#292524; text-align:center; flex-shrink:0;}
-      .sliders-container{ flex-grow:1; overflow-y:auto; padding:10px 80px; scrollbar-width:none; -ms-overflow-style:none;}
-      .sliders-container::-webkit-scrollbar{ width:0; height:0;}
-      .slider-item{ padding:12px 0; border-bottom:1px solid rgba(120,113,108,.2);}
-      .slider-item:last-child{ border-bottom:none;}
-      .slider-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
-      .slider-label{ font-weight:bold; font-size:16px; transition:color .2s; color:#292524;}
-      .slider-label.leaking{ color:#a12a2a;}
-      .slider-amounts{ text-align:right; font-size:12px; font-weight:500; color:#57534e; flex-shrink:0; margin-left:8px;}
-      .current-spending{ font-weight:bold; color:#292524;}
-      .current-spending.leaking{ color:#a12a2a;}
-      .slider-container{ position:relative; height:32px; display:flex; align-items:center;}
-      .slider-track{ position:absolute; top:50%; transform:translateY(-50%); width:100%; height:6px; background:#d6d3d1; border-radius:9999px; overflow:hidden;}
-      .slider-fill-normal{ position:absolute; top:50%; transform:translateY(-50%); height:6px; border-radius:9999px; background:#5a7e63;}
-      .slider-fill-leak{ position:absolute; top:50%; transform:translateY(-50%); height:6px; background:#a12a2a; border-radius:9999px; clip-path:inset(0 round 9999px);}
-      .custom-slider{ width:100%; position:absolute; top:0; left:0; height:100%; -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer; --thumb-size:48px; --track-size:12px;}
-      .custom-slider:focus{ outline:none;}
-      .custom-slider::-webkit-slider-runnable-track{ height:var(--track-size); background:transparent;}
-      .custom-slider::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:var(--thumb-size); height:var(--thumb-size); margin-top:calc((var(--thumb-size) - var(--track-size)) / -2); background-image:url('${customPointer}'); background-size:contain; background-position:center; background-repeat:no-repeat; border:none; cursor:pointer;}
-      .summary{ margin-top:0; margin-bottom:60px; font-size:18px; text-align:center; flex-shrink:0;}
-      .summary-leak{ font-weight:bold; color:#a12a2a;}
-      .summary-good{ font-weight:bold; color:#166534;}
-    `;
-    document.head.appendChild(styleElement);
-    return () => { if (styleElement.parentNode) document.head.removeChild(styleElement); };
-  }, []);
-
-  const handleThresholdChange = (id: string, newThreshold: number): void =>
-    setCategories((prev) => prev.map((cat) => (cat.id === id ? { ...cat, threshold: newThreshold } : cat)));
-
   // 현재 달의 누수 여부에 따라 월 토큰 표시
   const hasLeakThisMonth = leakingCategories.length > 0;
   const leakedMonths: number[] = hasLeakThisMonth ? [currentMonth] : [];
 
+  const rootVars: RootVars = {
+    "--bg": `url(${bgImage})`,
+    "--paper": `url(${paper})`,
+    "--pointer": `url(${customPointer})`,
+  };
+
+  const handleThresholdChange = useCallback((id: string, newThreshold: number) => {
+  setCategories(prev =>
+    prev.map(cat => (cat.id === id ? { ...cat, threshold: newThreshold } : cat))
+  );
+}, []);
+
   return (
-    <div className="app-container">
+    <div className="app-container" style={rootVars}>
       <Header />
       <MonthNavigation
         currentMonth={currentMonth}
