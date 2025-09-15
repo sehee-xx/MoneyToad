@@ -34,8 +34,7 @@ public class UserService {
 		User me = userRepository.findById(principal.getId())
 			.orElseThrow(() -> new IllegalStateException("User not found"));
 
-		me.setGender(req.gender());
-		me.setAge(req.age());
+		me.updateUser(req.gender(), req.age());
 
 		// 변경감지로 반영되지만, 명시적으로 save 해도 무방
 		return userRepository.save(me);
