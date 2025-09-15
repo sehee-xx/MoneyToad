@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class JenkinsTestController {
 
-    @GetMapping("/api/test")
+    @GetMapping("/test")
     public String Test() {
         return "Hello World";
     }
