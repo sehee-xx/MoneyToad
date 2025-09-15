@@ -6,12 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "users", indexes = {
-	@Index(name = "idx_users_email", columnList = "email", unique = true)
-})
+@Table(name = "users")
 @Getter
-@Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
 public class User extends BaseTimeEntity {
 
 	@Id
@@ -30,4 +26,16 @@ public class User extends BaseTimeEntity {
 
 	@Column
 	private Integer age;    // nullable
+
+	public static User createUser(String email, String name) {
+		User user = new User();
+		user.email = email;
+		user.name = name;
+		return user;
+	}
+
+	public void updateUser(String gender, int age) {
+		this.gender = gender;
+		this.age = age;
+	}
 }
