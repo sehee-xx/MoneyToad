@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./ScrollLandingPage.css";
+import { Link } from "react-router-dom";
 
 type Page = {
   id: number;
@@ -17,7 +18,6 @@ type TrackVars = React.CSSProperties & {
 type PageVars = React.CSSProperties & {
   "--bg"?: string;
 };
-
 export default function ScrollLandingPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -70,7 +70,8 @@ export default function ScrollLandingPage() {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (isScrolling) return;
-      if (e.deltaY > 0 && currentPage < total - 1) scrollToPage(currentPage + 1);
+      if (e.deltaY > 0 && currentPage < total - 1)
+        scrollToPage(currentPage + 1);
       else if (e.deltaY < 0 && currentPage > 0) scrollToPage(currentPage - 1);
     };
 
@@ -89,8 +90,10 @@ export default function ScrollLandingPage() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isScrolling) return;
-      if (e.key === "ArrowDown" && currentPage < total - 1) scrollToPage(currentPage + 1);
-      else if (e.key === "ArrowUp" && currentPage > 0) scrollToPage(currentPage - 1);
+      if (e.key === "ArrowDown" && currentPage < total - 1)
+        scrollToPage(currentPage + 1);
+      else if (e.key === "ArrowUp" && currentPage > 0)
+        scrollToPage(currentPage - 1);
     };
 
     const el = containerRef.current;
