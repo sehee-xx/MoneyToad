@@ -1,3 +1,3 @@
-package com.potg.don.auth.dto;
+package com.potg.don.user.dto.request;
 
 public record UpdateProfileRequest(String gender, Integer age) {}
