@@ -21,7 +21,7 @@ export default function UserInfoInputPage() {
   const navigate = useNavigate();
 
   // Fog
-  const [fogGone, setFogGone] = useState(false);
+  const [, setFogGone] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setFogGone(true), 1200);
     return () => clearTimeout(t);
