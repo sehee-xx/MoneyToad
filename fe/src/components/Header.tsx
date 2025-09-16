@@ -23,7 +23,7 @@ export default function Header() {
         <NavLink to="/" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
           두꺼비의 조언
         </NavLink>
-        <NavLink to="/" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
+        <NavLink to="/mypage" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
           콩쥐의 곳간
         </NavLink>
       </nav>
