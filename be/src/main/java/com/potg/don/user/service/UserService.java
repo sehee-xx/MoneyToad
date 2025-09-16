@@ -16,7 +16,7 @@ public class UserService {
 	private final UserRepository userRepository;
 
 	/** 인증된 사용자(me) 기준, 최신 상태로 재조회하여 반환 */
-	public User getMe(User principal) {
+	public User getUser(User principal) {
 		if (principal == null) {
 			throw new IllegalStateException("Unauthenticated user");
 		}
@@ -26,7 +26,7 @@ public class UserService {
 
 	/** 성별/나이 업데이트 */
 	@Transactional
-	public User updateMyProfile(User principal, UpdateProfileRequest req) {
+	public User updateUser(User principal, UpdateProfileRequest req) {
 		if (principal == null) {
 			throw new IllegalStateException("Unauthenticated user");
 		}

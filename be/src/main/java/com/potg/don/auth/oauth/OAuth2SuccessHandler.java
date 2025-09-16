@@ -3,10 +3,9 @@ package com.potg.don.auth.oauth;
 import java.io.IOException;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
-import com.potg.don.auth.dto.AccessTokenResponse;
 import com.potg.don.auth.jwt.JwtUtil;
 import com.potg.don.auth.jwt.RefreshTokenStore;
 import com.potg.don.user.entity.User;
@@ -21,13 +20,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.Cookie;
 
-import org.springframework.http.MediaType;
-
-import java.nio.charset.StandardCharsets;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @RequiredArgsConstructor
-public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
 	private final UserRepository userRepository;
 	private final JwtUtil jwtUtil;
@@ -39,39 +36,31 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 		Authentication authentication) throws IOException, ServletException {
 		CustomOAuth2User o = (CustomOAuth2User)authentication.getPrincipal();
 
-		// 가입 또는 조회
+		// 1. 사용자 정보로 DB에서 유저 조회 또는 신규 생성
 		User user = userRepository.findByEmail(o.getEmail())
 			.orElseGet(() -> userRepository.save(User.createUser(o.getEmail(), o.getName())));
 
-		// JWT 생성
+		// 2. Access Token, Refresh Token 생성
 		String accessToken = jwtUtil.createAccessToken(user.getId(), user.getEmail());
 		String refreshToken = jwtUtil.createRefreshToken(user.getId());
 
-		// Refresh Token -> Redis 저장 (RT:<userId> = token)
+		// 3. Refresh Token을 Redis에 저장
 		refreshStore.save(user.getId(), refreshToken, jwtUtil.getRefreshTtlSeconds());
 
-		// --- 응답 방식 변경 ---
-		// 1. Refresh Token을 HttpOnly 쿠키에 담기
+		// 4. Refresh Token을 HttpOnly 쿠키에 담기
 		Cookie refreshTokenCookie = CookieUtil.createCookie(
 			"refreshToken",
 			refreshToken,
 			(int)jwtUtil.getRefreshTtlSeconds()
 		);
-		response.addCookie(refreshTokenCookie);
+		response.addCookie(refreshTokenCookie); // response에 쿠키 추가
 
-		// 2. Access Token을 JSON 응답 본문에 담기
-		sendAccessTokenResponse(response, accessToken);
-	}
+		// 5. Access Token을 쿼리 파라미터에 담아 프론트엔드로 리디렉션
+		String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:5173/auth/callback") // 리디렉션될 프론트엔드 URL
+			.queryParam("accessToken", accessToken)
+			.build().toUriString();
 
-	private void sendAccessTokenResponse(HttpServletResponse response, String accessToken) throws IOException {
-		response.setStatus(HttpServletResponse.SC_OK);
-		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-
-		// AccessTokenResponse DTO를 사용하여 JSON 응답 생성
-		AccessTokenResponse tokenResponse = new AccessTokenResponse(accessToken);
-
-		String responseBody = objectMapper.writeValueAsString(tokenResponse);
-		response.getWriter().write(responseBody);
+		// 6. 지정된 URL로 리디렉션 실행
+		getRedirectStrategy().sendRedirect(request, response, targetUrl);
 	}
 }
