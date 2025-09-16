@@ -28,7 +28,6 @@ public class UserController {
 	public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal CustomUserDetails me) {
 		if (me == null) return ResponseEntity.status(401).build();
 		User user = userService.getUser(me.getUserId());
-		System.out.println(user.getName());
 		return ResponseEntity.ok(UserResponse.from(user));
 	}
 
