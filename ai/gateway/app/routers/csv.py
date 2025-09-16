@@ -9,7 +9,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, File, Form, UploadFile, Query, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import Response
 
-from app.deps.auth import Role, get_current_role, require_admin, require_user
+from app.deps.auth import Role, require_admin, require_user
+from typing import Literal
+from fastapi import Query as QueryParam
 from app.models.schemas import (
     FileInfo, StatusResponse, ErrorResponse, 
     UploadResponse, Status

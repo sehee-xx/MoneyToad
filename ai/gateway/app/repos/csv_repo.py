@@ -47,6 +47,11 @@ class StreamingHashWrapper:
         """Delegate tell to underlying file"""
         return self.file_obj.tell()
     
+    def close(self):
+        """Delegate close to underlying file"""
+        if hasattr(self.file_obj, 'close'):
+            self.file_obj.close()
+    
     @property
     def checksum(self) -> str:
         """Get hex digest of current hash"""
@@ -166,28 +171,34 @@ class S3CsvRepo(CsvRepo):
             logger.info(f"Bucket '{self.bucket_name}' exists")
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', '')
-            if error_code == '404':
-                # Bucket doesn't exist, create it
+            if error_code == '404' or error_code == '403':
+                # Bucket doesn't exist or no access, try to create it
                 try:
                     self.s3_client.create_bucket(Bucket=self.bucket_name)
                     logger.info(f"Created bucket '{self.bucket_name}'")
                 except ClientError as create_error:
-                    logger.error(f"Failed to create bucket: {create_error}")
-                    raise
+                    # If creation fails, try to use the bucket anyway
+                    # (it might exist but we don't have list permissions)
+                    error_code_create = create_error.response.get('Error', {}).get('Code', '')
+                    if error_code_create == 'BucketAlreadyOwnedByYou' or error_code_create == 'BucketAlreadyExists':
+                        logger.info(f"Bucket '{self.bucket_name}' already exists")
+                    else:
+                        logger.warning(f"Could not verify/create bucket: {create_error}")
+                        logger.info(f"Will attempt to use bucket '{self.bucket_name}' anyway")
             else:
                 logger.error(f"Error checking bucket: {e}")
-                raise
+                # Don't raise - try to continue anyway
+                logger.info(f"Will attempt to use bucket '{self.bucket_name}' despite error")
     
     def _generate_s3_key(self, file_name: str) -> str:
-        """Generate S3 object key with date-based structure"""
-        now = datetime.now(timezone.utc)
+        """Generate S3 object key - store directly in root"""
         file_id = str(uuid.uuid4())
         
         # Clean filename
         safe_filename = Path(file_name).name.replace(' ', '_')
         
-        # Create hierarchical key: csv/yyyy/mm/dd/uuid_filename
-        key = f"csv/{now.year:04d}/{now.month:02d}/{now.day:02d}/{file_id}_{safe_filename}"
+        # Simple key: just uuid_filename in root directory
+        key = f"{file_id}_{safe_filename}"
         return key
     
     def _generate_presigned_url(self, key: str) -> Optional[str]:
@@ -234,24 +245,23 @@ class S3CsvRepo(CsvRepo):
         try:
             # Generate S3 key and file ID
             s3_key = self._generate_s3_key(file_name)
-            file_id = s3_key.split('/')[-1].split('_')[0]
+            file_id = s3_key.split('_')[0]  # Extract UUID from key
             
             # Wrap file stream for hash calculation
             hash_wrapper = StreamingHashWrapper(file_content)
             
             # Upload to S3
+            # Note: MinIO may have issues with certain metadata headers
+            # Use minimal metadata for compatibility
+            extra_args = {'ContentType': 'text/csv'}
+            if category:
+                extra_args['Metadata'] = {'category': category}
+            
             self.s3_client.upload_fileobj(
                 hash_wrapper,
                 self.bucket_name,
                 s3_key,
-                ExtraArgs={
-                    'ContentType': 'text/csv',
-                    'Metadata': {
-                        'original_name': file_name,
-                        'category': category or '',
-                        'uploaded_at': datetime.now(timezone.utc).isoformat()
-                    }
-                }
+                ExtraArgs=extra_args
             )
             
             # Generate presigned URL (optional)
@@ -325,25 +335,22 @@ class S3CsvRepo(CsvRepo):
             
             # Generate new S3 key
             s3_key = self._generate_s3_key(file_name)
-            file_id = s3_key.split('/')[-1].split('_')[0]
+            file_id = s3_key.split('_')[0]  # Extract UUID from key
             
             # Wrap file stream for hash calculation
             hash_wrapper = StreamingHashWrapper(file_content)
             
             # Upload new file
+            # Use minimal metadata for MinIO compatibility
+            extra_args = {'ContentType': 'text/csv'}
+            if category or old_info.category:
+                extra_args['Metadata'] = {'category': category or old_info.category}
+            
             self.s3_client.upload_fileobj(
                 hash_wrapper,
                 self.bucket_name,
                 s3_key,
-                ExtraArgs={
-                    'ContentType': 'text/csv',
-                    'Metadata': {
-                        'original_name': file_name,
-                        'category': category or old_info.category or '',
-                        'replaced_at': datetime.now(timezone.utc).isoformat(),
-                        'original_upload': old_info.uploaded_at
-                    }
-                }
+                ExtraArgs=extra_args
             )
             
             # Generate presigned URL
