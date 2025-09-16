@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import "./ScrollLandingPage.css";
 
 type Page = {
@@ -17,15 +16,11 @@ type TrackVars = React.CSSProperties & {
 type PageVars = React.CSSProperties & {
   "--bg"?: string;
 };
-
 export default function ScrollLandingPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
-  const [loggingIn, setLoggingIn] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef(0);
-  const navigate = useNavigate();
-  const today = String(new Date().getMonth() + 1).padStart(2, "0");
 
   const pages: Page[] = [
     {
@@ -70,7 +65,8 @@ export default function ScrollLandingPage() {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (isScrolling) return;
-      if (e.deltaY > 0 && currentPage < total - 1) scrollToPage(currentPage + 1);
+      if (e.deltaY > 0 && currentPage < total - 1)
+        scrollToPage(currentPage + 1);
       else if (e.deltaY < 0 && currentPage > 0) scrollToPage(currentPage - 1);
     };
 
@@ -89,8 +85,10 @@ export default function ScrollLandingPage() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isScrolling) return;
-      if (e.key === "ArrowDown" && currentPage < total - 1) scrollToPage(currentPage + 1);
-      else if (e.key === "ArrowUp" && currentPage > 0) scrollToPage(currentPage - 1);
+      if (e.key === "ArrowDown" && currentPage < total - 1)
+        scrollToPage(currentPage + 1);
+      else if (e.key === "ArrowUp" && currentPage > 0)
+        scrollToPage(currentPage - 1);
     };
 
     const el = containerRef.current;
@@ -115,27 +113,13 @@ export default function ScrollLandingPage() {
   };
 
   const handleLogin = async () => {
-    if (loggingIn) return;
-    setLoggingIn(true);
-    try {
-      // TODO: 여기에 싸피 로그인(OAuth) 붙이기
-      // await yourGoogleLogin();
-
-      const saved = localStorage.getItem("userInfo");
-      if (!saved) {
-        navigate("/userInfo");
-      } else {
-        navigate(`/pot/${today}`);
-      }
-    } finally {
-      setLoggingIn(false);
-    }
+    window.location.href = `https://j13a409.p.ssafy.io/api/oauth2/authorization/ssafy`;
   };
 
   return (
     <div ref={containerRef} className="dk-landing">
       <button className="dk-login" onClick={handleLogin}>
-        {loggingIn ? "확인 중..." : "로그인"}
+        로그인
       </button>
 
       {/* 슬라이드 트랙 */}

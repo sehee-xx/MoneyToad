@@ -35,11 +35,11 @@ body { overflow: hidden; } /* 바디 스크롤 잠금 */
   cursor: pointer;
   transition: transform .2s ease, background .2s ease;
   background: none;
+  border-radius: 10px;
 }
 .dk-login:hover {
   background: rgba(255,255,255,0.25);
   transform: scale(1.04);
-  border-radius: 10px;
 }
 
 /* 트랙 */
