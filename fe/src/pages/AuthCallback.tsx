@@ -1,23 +1,37 @@
-// src/pages/AuthCallback.tsx
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get(
-      "accessToken"
-    );
+    const handleAuth = async () => {
+      const token = new URLSearchParams(window.location.search).get(
+        "accessToken"
+      );
 
-    if (token) {
+      if (!token) {
+        console.error("No access token found in URL");
+        navigate("/", { replace: true });
+        return;
+      }
+
       useAuthStore.getState().setAccessToken(token);
 
+      const userInfo = localStorage.getItem("userInfo");
+
+      if (userInfo) {
+        const month = new Date().getMonth() + 1;
+        navigate(`/pot/${month}`, { replace: true });
+        return;
+      }
+
       navigate("/userInfo", { replace: true });
-    }
-  }, [navigate, location.pathname]);
+    };
+
+    handleAuth();
+  }, [navigate]);
 
   return null;
 }
