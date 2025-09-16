@@ -8,13 +8,16 @@ from typing import Optional, Dict, Any
 import logging
 import asyncio
 
+# Import CSV router
+from app.routers import csv
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AI Fintech API Gateway",
-    description="Unified API Gateway for AI Fintech Microservices",
+    description="Unified API Gateway for AI Fintech Microservices with CSV Management",
     version="1.0.0",
     docs_url="/ai/docs",
     redoc_url="/ai/redoc",
@@ -29,6 +32,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include CSV router
+app.include_router(csv.router, tags=["CSV Management"])
 
 # Service endpoints
 SERVICES = {
@@ -158,6 +164,7 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
     # Add tags description
     merged['tags'] = [
         {"name": "Gateway", "description": "API Gateway endpoints"},
+        {"name": "CSV Management", "description": "CSV file upload and management endpoints"},
         {"name": SERVICES['classifier']['name'], "description": "Expense classification endpoints"},
         {"name": SERVICES['analysis']['name'], "description": "Financial analysis endpoints"}
     ]
