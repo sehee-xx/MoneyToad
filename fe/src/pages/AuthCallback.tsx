@@ -1,37 +1,37 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const ran = useRef(false); // StrictMode에서 이펙트 2회 실행 보호
 
   useEffect(() => {
-    const handleAuth = async () => {
-      const token = new URLSearchParams(window.location.search).get(
-        "accessToken"
-      );
+    if (ran.current) return;
+    ran.current = true;
 
-      if (!token) {
-        console.error("No access token found in URL");
-        navigate("/", { replace: true });
-        return;
-      }
+    const params = new URLSearchParams(search);
+    const token = params.get("accessToken");
 
-      useAuthStore.getState().setAccessToken(token);
+    if (!token) {
+      console.error("No access token found in URL");
+      navigate("/", { replace: true });
+      return;
+    }
 
-      const userInfo = localStorage.getItem("userInfo");
+    // 토큰 저장 (Zustand persist → localStorage)
+    useAuthStore.getState().setAccessToken(token);
 
-      if (userInfo) {
-        const month = new Date().getMonth() + 1;
-        navigate(`/pot/${month}`, { replace: true });
-        return;
-      }
+    const hasUserInfo = !!localStorage.getItem("userInfo");
+    if (hasUserInfo) {
+      const month = String(new Date().getMonth() + 1);
+      navigate(`/pot/${month}`, { replace: true });
+      return;
+    }
 
-      navigate("/userInfo", { replace: true });
-    };
-
-    handleAuth();
-  }, [navigate]);
+    navigate("/userInfo", { replace: true });
+  }, [navigate, search]);
 
   return null;
 }
