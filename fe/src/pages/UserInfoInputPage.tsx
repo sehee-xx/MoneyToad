@@ -43,13 +43,13 @@ export default function UserInfoInputPage() {
   const question = useMemo(() => {
     switch (step) {
       case "intro":
-        return "반갑구나! 지금부터 너의 성별, 나이, 계좌 정보를 물을 게다.\n네 장독대를 맞춤으로 꾸미고, 지출을 계산하는 데 쓰일 것이니 안심하거라.";
+        return "반갑구나! 지금부터 너의 성별, 나이, 카드 정보를 물을 게다.\n네 장독대를 맞춤으로 꾸미고, 지출을 계산하는 데 쓰일 것이니 안심하거라.";
       case "gender":
         return "먼저 성별을 고르거라.";
       case "age":
         return "다음은 나이를 입력하거라. 숫자만! 예: 20";
       case "account":
-        return "마지막으로 계좌 정보다.\n계좌번호(4-4-4-4)와\nCVC(3자리)만 적어주면 된다.";
+        return "마지막으로 카드 정보다.\n카드번호(4-4-4-4)와\nCVC(3자리)만 적어주면 된다.";
       default:
         return "";
     }
