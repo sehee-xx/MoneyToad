@@ -1,5 +1,5 @@
 import React from 'react';
-import SsafyIconSvg from '../../public/SSAFY_icon.svg?react';
+import SsafyIconSvg from '../assets/SSAFY_icon.svg?react';
 
 interface SsafyIconProps {
   width?: number | string;
