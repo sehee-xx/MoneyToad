@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.potg.don.auth.dto.UpdateProfileRequest;
+import com.potg.don.auth.entity.CustomUserDetails;
+import com.potg.don.user.dto.request.UpdateProfileRequest;
+import com.potg.don.user.dto.response.UserResponse;
 import com.potg.don.user.entity.User;
 import com.potg.don.user.service.UserService;
 
@@ -21,17 +23,19 @@ public class UserController {
 
 	private final UserService userService;
 
-	@GetMapping("/me")
-	public ResponseEntity<User> getUser(@AuthenticationPrincipal User me) {
+	@GetMapping("")
+	public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal CustomUserDetails me) {
 		if (me == null) return ResponseEntity.status(401).build();
-		return ResponseEntity.ok(userService.getUser(me));
+		User user = userService.getUser(me.getUserId());
+		System.out.println(user.getName());
+		return ResponseEntity.ok(UserResponse.from(user));
 	}
 
-	// 최초 로그인 후 gender/age 입력
-	@PutMapping("/me")
-	public ResponseEntity<User> updateUser(@AuthenticationPrincipal User me,
+	@PutMapping("")
+	public ResponseEntity<UserResponse> updateUser(@AuthenticationPrincipal CustomUserDetails me,
 		@RequestBody UpdateProfileRequest req) {
 		if (me == null) return ResponseEntity.status(401).build();
-		return ResponseEntity.ok(userService.updateUser(me, req));
+		User updatedUser = userService.updateUser(me.getUserId(), req);
+		return ResponseEntity.ok(UserResponse.from(updatedUser));
 	}
 }

@@ -1,3 +1,3 @@
 package com.potg.don.auth.dto;
 
-public record ReissueRequest(Long userId, String refreshToken) {}
+public record ReissueRequest(String refreshToken) {}

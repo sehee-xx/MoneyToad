@@ -29,7 +29,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 	private final UserRepository userRepository;
 	private final JwtUtil jwtUtil;
 	private final RefreshTokenStore refreshStore;
-	private final ObjectMapper objectMapper; // JSON 변환을 위해 추가
 
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
