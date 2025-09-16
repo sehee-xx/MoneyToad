@@ -69,18 +69,6 @@ html { scroll-behavior: smooth; }
 .jp-toolbar{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
 .jp-toolbar label{ font-weight:700; }
 
-.jp-select{
-  appearance: none;
-  padding: 8px 36px 8px 12px;
-  border-radius:12px; border:2px solid #c8b896;
-  background:
-    url("/charts/chevron-down.svg") right 10px center/16px no-repeat,
-    #fffaf0;
-  font-weight:700; color:#3a2e22;
-  box-shadow: inset 0 2px 0 rgba(255,255,255,.7);
-}
-.jp-select:focus{ outline:none; box-shadow:0 0 0 4px rgba(191,174,141,.25); }
-
 /* 표 */
 .jp-table{ width:100%; border-collapse:collapse; font-size:14px; }
 .jp-table th, .jp-table td{ padding:8px 6px; border-top:1px solid #efe6d3; }

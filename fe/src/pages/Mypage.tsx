@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
-import "./MyPage.css";
+import "./Mypage.css";
 
 type Phase = "CLOSED" | "OPEN" | "SITTING" | "PAPER";
 type Gender = "여성" | "남성" | "";
