@@ -87,10 +87,10 @@
 .hint{
   position: absolute;
   left: 50%;
-  bottom: 16px;
+  bottom: 30px;
   transform: translateX(-50%);
   color: #f7e0b0;
-  font-size: 14px;
+  font-size: 24px;
   letter-spacing: .02em;
   text-shadow: 0 1px 2px #0008;
   background: #00000033;
@@ -146,7 +146,7 @@
   flex: 0 0 auto;
   display: flex; justify-content: space-between; align-items: center;
   margin: 0;
-  color: #3b2a12; font-weight: 700; font-size: 18px;
+  color: #3b2a12; font-weight: 700; font-size: 24px;
 }
 
 
@@ -168,7 +168,7 @@
   border-radius:12px;
   padding:14px;
 }
-.paper-block h3{ margin:0 0 8px; font-size:15px; color:#5a4526; }
+.paper-block h3{ margin:0 0 8px; font-size:17px; color:#5a4526; }
 
 .grid.two{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 @media (max-width: 720px){
@@ -181,7 +181,7 @@
 }
 
 .field{ display:grid; gap:6px; }
-.field > span{ color:#5a4526; font-size:13px; }
+.field > span{ color:#5a4526; font-size:16px; }
 
 .input{
   height:40px;
@@ -223,7 +223,7 @@
 }
 
 .kv{ display:grid; grid-template-columns:80px 1fr; gap:6px; }
-.kv .k{ color:#6e5731; font-size:13px; }
+.kv .k{ color:#6e5731; font-size:16px; }
 .kv .v{ color:#2f2616; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
