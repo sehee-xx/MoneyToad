@@ -34,12 +34,12 @@ app.add_middleware(
 SERVICES = {
     "classifier": {
         "url": "http://classifier:8001",
-        "prefix": "/ai/classify",
+        "prefix": "/api/ai/classify",
         "name": "Expense Classifier"
     },
     "analysis": {
         "url": "http://analysis:8002", 
-        "prefix": "/ai/analysis",
+        "prefix": "/api/ai/analysis",
         "name": "Financial Analysis"
     }
 }
@@ -126,9 +126,12 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
                     
                 # Adjust the path to include service prefix if not already present
                 if not path.startswith(prefix):
-                    if path.startswith('/ai/'):
-                        # Path already has /ai/ prefix, use as is
+                    if path.startswith('/api/ai/'):
+                        # Path already has /api/ai/ prefix, use as is
                         new_path = path
+                    elif path.startswith('/ai/'):
+                        # Convert /ai/ to /api/ai/
+                        new_path = path.replace('/ai/', '/api/ai/', 1)
                     else:
                         # Add the service prefix
                         new_path = f"{prefix}{path}"
@@ -317,7 +320,7 @@ async def proxy_request(
 
 # Proxy routes for classifier service
 @app.api_route(
-    "/ai/classify/{path:path}",
+    "/api/ai/classify/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     include_in_schema=False  # We'll include the actual endpoints from the service
 )
@@ -331,7 +334,7 @@ async def proxy_classifier(path: str, request: Request):
 
 
 @app.api_route(
-    "/ai/classify",
+    "/api/ai/classify",
     methods=["GET", "POST"],
     include_in_schema=False
 )
@@ -345,7 +348,7 @@ async def proxy_classifier_root(request: Request):
 
 
 @app.api_route(
-    "/ai/classify/",
+    "/api/ai/classify/",
     methods=["GET", "POST"],
     include_in_schema=False
 )
@@ -360,7 +363,7 @@ async def proxy_classifier_root_slash(request: Request):
 
 # Proxy routes for analysis service
 @app.api_route(
-    "/ai/analysis/{path:path}",
+    "/api/ai/analysis/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     include_in_schema=False
 )
@@ -374,7 +377,7 @@ async def proxy_analysis(path: str, request: Request):
 
 
 @app.api_route(
-    "/ai/analysis",
+    "/api/ai/analysis",
     methods=["POST"],
     include_in_schema=False
 )
@@ -388,7 +391,7 @@ async def proxy_analysis_root(request: Request):
 
 
 @app.api_route(
-    "/ai/analysis/",
+    "/api/ai/analysis/",
     methods=["POST"],
     include_in_schema=False
 )
