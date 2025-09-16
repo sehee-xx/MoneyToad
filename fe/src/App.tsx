@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import ScrollLandingPage from "./pages/ScrollLandingPage";
 import LeakPotPage from "./pages/LeakPotPage";
 import UserInfoInputPage from "./pages/UserInfoInputPage";
+import ChartPage from "./pages/ChartPage";
 
 export default function App() {
   return (
@@ -10,6 +11,7 @@ export default function App() {
       <Route path="/" element={<ScrollLandingPage />} />
       <Route path="/userInfo" element={<UserInfoInputPage />} />
       <Route path="/pot/:month" element={<LeakPotPage />} />
+      <Route path="chart" element={<ChartPage />} />
     </Routes>
   );
 }
