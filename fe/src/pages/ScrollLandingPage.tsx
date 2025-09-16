@@ -21,6 +21,7 @@ type PageVars = React.CSSProperties & {
 export default function ScrollLandingPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef(0);
   const navigate = useNavigate();
@@ -113,10 +114,28 @@ export default function ScrollLandingPage() {
     "--offset": `${currentPage * 100}vh`,
   };
 
+  const handleLogin = async () => {
+    if (loggingIn) return;
+    setLoggingIn(true);
+    try {
+      // TODO: 여기에 싸피 로그인(OAuth) 붙이기
+      // await yourGoogleLogin();
+
+      const saved = localStorage.getItem("userInfo");
+      if (!saved) {
+        navigate("/userInfo");
+      } else {
+        navigate(`/pot/${today}`);
+      }
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
   return (
     <div ref={containerRef} className="dk-landing">
-      <button className="dk-login" onClick={() => navigate(`/pot/${today}`)}>
-        로그인
+      <button className="dk-login" onClick={handleLogin}>
+        {loggingIn ? "확인 중..." : "로그인"}
       </button>
 
       {/* 슬라이드 트랙 */}
