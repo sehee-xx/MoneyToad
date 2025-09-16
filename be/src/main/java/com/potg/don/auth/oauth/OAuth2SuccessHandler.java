@@ -55,7 +55,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 		response.addCookie(refreshTokenCookie); // response에 쿠키 추가
 
 		// 5. Access Token을 쿼리 파라미터에 담아 프론트엔드로 리디렉션
-		String targetUrl = UriComponentsBuilder.fromUriString("https://j13a409.p.ssafy.io:3002/auth/callback") // 리디렉션될 프론트엔드 URL
+		String targetUrl = UriComponentsBuilder.fromUriString("https://localhost:5173/auth/callback") // 리디렉션될 프론트엔드 URL
 			.queryParam("accessToken", accessToken)
 			.build().toUriString();
 

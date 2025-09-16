@@ -3,6 +3,7 @@ package com.potg.don.user.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,11 +28,10 @@ public class UserController {
 	public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal CustomUserDetails me) {
 		if (me == null) return ResponseEntity.status(401).build();
 		User user = userService.getUser(me.getUserId());
-		System.out.println(user.getName());
 		return ResponseEntity.ok(UserResponse.from(user));
 	}
 
-	@PutMapping("")
+	@PatchMapping("")
 	public ResponseEntity<UserResponse> updateUser(@AuthenticationPrincipal CustomUserDetails me,
 		@RequestBody UpdateProfileRequest req) {
 		if (me == null) return ResponseEntity.status(401).build();
