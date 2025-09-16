@@ -24,7 +24,7 @@ public class UserController {
 	@GetMapping("/me")
 	public ResponseEntity<User> getUser(@AuthenticationPrincipal User me) {
 		if (me == null) return ResponseEntity.status(401).build();
-		return ResponseEntity.ok(userService.getMe(me));
+		return ResponseEntity.ok(userService.getUser(me));
 	}
 
 	// 최초 로그인 후 gender/age 입력
@@ -32,6 +32,6 @@ public class UserController {
 	public ResponseEntity<User> updateUser(@AuthenticationPrincipal User me,
 		@RequestBody UpdateProfileRequest req) {
 		if (me == null) return ResponseEntity.status(401).build();
-		return ResponseEntity.ok(userService.updateMyProfile(me, req));
+		return ResponseEntity.ok(userService.updateUser(me, req));
 	}
 }
