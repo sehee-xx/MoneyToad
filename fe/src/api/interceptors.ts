@@ -1,5 +1,6 @@
 import type { AxiosInstance } from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { reissueToken } from './services/auth';
 
 export const setupAuthInterceptor = (axiosInstance: AxiosInstance) => {
   let isRefreshing = false;
@@ -31,7 +32,6 @@ export const setupAuthInterceptor = (axiosInstance: AxiosInstance) => {
 
         try {
           // reissue 엔드포인트로 POST 요청
-          const { reissueToken } = await import('./services/auth');
           const { accessToken } = await reissueToken();
 
           // 새 토큰으로 store 업데이트
