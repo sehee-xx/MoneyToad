@@ -33,6 +33,8 @@ public class CardService {
 
 	@Transactional
 	public void deleteCard(Long userId) {
-		cardRepository.deleteByUserId(userId);
+		Card cardToDelete = cardRepository.findByUserId(userId)
+			.orElseThrow(() -> new EntityNotFoundException("삭제할 카드를 찾을 수 없습니다."));
+		cardRepository.delete(cardToDelete);
 	}
 }

@@ -1,5 +1,6 @@
 package com.potg.don.user.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -20,11 +21,8 @@ public class UserService {
 	 * 인증된 사용자(me) 기준, 최신 상태로 재조회하여 반환
 	 */
 	public User getUser(Long userId) {
-		if (userId == null) {
-			throw new IllegalStateException("Unauthenticated user");
-		}
 		return userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalStateException("User not found"));
+			.orElseThrow(() -> new EntityNotFoundException("ID: " + userId + "에 해당하는 사용자를 찾을 수 없습니다."));
 	}
 
 	/**
@@ -32,16 +30,8 @@ public class UserService {
 	 */
 	@Transactional
 	public User updateUser(Long userId, UpdateProfileRequest req) {
-		if (userId == null) {
-			throw new IllegalStateException("Unauthenticated user");
-		}
-		// 최신 엔티티 로드 후 수정
-		User me = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalStateException("User not found"));
-
-		me.updateUser(req.gender(), req.age());
-
-		// 변경감지로 반영되지만, 명시적으로 save 해도 무방
-		return userRepository.save(me);
+		User userToUpdate = getUser(userId);
+		userToUpdate.updateUser(req.gender(), req.age());
+		return userRepository.save(userToUpdate);
 	}
 }
