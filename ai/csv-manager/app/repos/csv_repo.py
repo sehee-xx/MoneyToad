@@ -316,6 +316,9 @@ class S3CsvRepo(CsvRepo):
             # Get old metadata
             old_info = self._metadata[file_name]
             
+            # Keep the same file_id but generate new S3 key
+            file_id = old_info.file_id
+            
             # Delete old S3 object (optional - could keep for versioning)
             if old_info.s3_key:
                 try:
@@ -326,9 +329,9 @@ class S3CsvRepo(CsvRepo):
                 except Exception as e:
                     logger.warning(f"Failed to delete old object: {e}")
             
-            # Generate new S3 key
-            s3_key = self._generate_s3_key(file_name)
-            file_id = s3_key.split('_')[0]  # Extract UUID from key
+            # Generate new S3 key with existing file_id
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+            s3_key = f"{file_id}_{timestamp}_{file_name}"
             
             # Wrap file stream for hash calculation
             hash_wrapper = StreamingHashWrapper(file_content)
@@ -359,16 +362,12 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Update metadata
+            # Update metadata (file_id remains the same)
             self._metadata[file_name] = file_info
             self._metadata_by_id[file_id] = file_info
-            if old_info.file_id in self._metadata_by_id:
-                del self._metadata_by_id[old_info.file_id]
             
-            # Reset status
+            # Reset status (file_id remains the same)
             self._status[file_id] = "ingesting"
-            if old_info.file_id in self._status:
-                del self._status[old_info.file_id]
             
             logger.info(f"Replaced file '{file_name}' with new S3 key '{s3_key}'")
             
