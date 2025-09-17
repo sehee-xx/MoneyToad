@@ -104,10 +104,8 @@ curl -X POST "http://localhost:8000/api/ai/csv/upload" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@transactions.csv"
 
-# 분석 요청 - Gateway 경유
-curl -X POST "http://localhost:8000/api/ai/analysis/" \
-  -F "file=@transactions.csv" \
-  -F "analysis_type=comprehensive"
+# 데이터 분석 요청 - Gateway 경유
+curl -X POST "http://localhost:8000/api/ai/data/analyze?file_id=abc-123-def"
 ```
 
 ### Python 예제
@@ -135,15 +133,20 @@ with open('transactions.csv', 'rb') as f:
     )
     print(response.json())
 
-# CSV 파일 분석
-with open('transactions.csv', 'rb') as f:
-    response = requests.post(
-        "http://localhost:8000/api/ai/analysis/",
-        files={'file': f},
-        params={'analysis_type': 'spending'}
-    )
-    job_id = response.json()['job_id']
-    print(f"Analysis job started: {job_id}")
+# 데이터 분석 시작
+response = requests.post(
+    "http://localhost:8000/api/ai/data/analyze",
+    params={'file_id': 'abc-123-def'}
+)
+analysis_id = response.json()['analysis_id']
+print(f"Analysis started: {analysis_id}")
+
+# 분석 리포트 조회
+response = requests.get(
+    "http://localhost:8000/api/ai/data/report",
+    params={'file_id': 'abc-123-def', 'year': 2024, 'month': 1}
+)
+print(response.json())
 ```
 
 ## 📁 Project Structure

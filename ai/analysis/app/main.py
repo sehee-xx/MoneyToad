@@ -5,9 +5,9 @@ from app.api.router import api_router
 from app.core.config import settings
 
 app = FastAPI(
-    title="Financial Analysis Service",
+    title="Data Analysis Service",
     version="1.0.0",
-    description="CSV-based financial data analysis"
+    description="Financial data analysis and leak calculation"
 )
 
 app.add_middleware(
@@ -24,9 +24,14 @@ app.include_router(api_router, prefix="/ai")
 @app.get("/")
 async def root():
     return {
-        "service": "Financial Analysis",
+        "service": "Data Analysis",
         "version": "1.0.0",
-        "endpoint": "/ai/analysis - POST CSV file for analysis"
+        "endpoints": {
+            "leak_calculation": "POST /ai/data/",
+            "get_leak": "GET /ai/data/leak",
+            "trigger_analysis": "POST /ai/data/analyze",
+            "get_report": "GET /ai/data/report"
+        }
     }
 
 

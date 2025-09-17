@@ -43,8 +43,8 @@ SERVICES = {
     },
     "analysis": {
         "url": "http://analysis:8002", 
-        "prefix": "/api/ai/analysis",
-        "name": "Financial Analysis"
+        "prefix": "/api/ai/data",
+        "name": "Data Analysis"
     },
     "csv-manager": {
         "url": "http://csv-manager:8003",
@@ -169,7 +169,7 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
         {"name": "Gateway", "description": "API Gateway endpoints"},
         {"name": SERVICES['csv-manager']['name'], "description": "CSV file upload and management endpoints"},
         {"name": SERVICES['classifier']['name'], "description": "Expense classification endpoints"},
-        {"name": SERVICES['analysis']['name'], "description": "Financial analysis endpoints"}
+        {"name": SERVICES['analysis']['name'], "description": "Data analysis endpoints"}
     ]
     
     return merged
@@ -197,7 +197,7 @@ async def root():
             "analysis": {
                 "name": SERVICES['analysis']['name'],
                 "prefix": SERVICES['analysis']['prefix'],
-                "docs": "/docs#tag/Financial-Analysis"
+                "docs": "/docs#tag/Data-Analysis"
             },
             "csv-manager": {
                 "name": SERVICES['csv-manager']['name'],
@@ -383,44 +383,44 @@ async def proxy_classifier_root_slash(request: Request):
     )
 
 
-# Proxy routes for analysis service
+# Proxy routes for analysis service (data endpoints)
 @app.api_route(
-    "/api/ai/analysis/{path:path}",
+    "/api/ai/data/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     include_in_schema=False
 )
-async def proxy_analysis(path: str, request: Request):
+async def proxy_data(path: str, request: Request):
     return await proxy_request(
         service="analysis",
-        path=f"ai/analysis/{path}" if path else "ai/analysis",
+        path=f"ai/data/{path}" if path else "ai/data",
         request=request,
         method=request.method
     )
 
 
 @app.api_route(
-    "/api/ai/analysis",
-    methods=["POST"],
+    "/api/ai/data",
+    methods=["GET", "POST"],
     include_in_schema=False
 )
-async def proxy_analysis_root(request: Request):
+async def proxy_data_root(request: Request):
     return await proxy_request(
         service="analysis",
-        path="ai/analysis",
+        path="ai/data",
         request=request,
         method=request.method
     )
 
 
 @app.api_route(
-    "/api/ai/analysis/",
-    methods=["POST"],
+    "/api/ai/data/",
+    methods=["GET", "POST"],
     include_in_schema=False
 )
-async def proxy_analysis_root_slash(request: Request):
+async def proxy_data_root_slash(request: Request):
     return await proxy_request(
         service="analysis",
-        path="ai/analysis",
+        path="ai/data",
         request=request,
         method=request.method
     )

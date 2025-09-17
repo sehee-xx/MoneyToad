@@ -24,8 +24,8 @@ Gateway는 다음 서비스들로 요청을 자동 라우팅합니다:
 #### Classifier Service (비용 분류)
 - `/api/ai/classify/*` → Classifier Service (8001)
 
-#### Analysis Service (데이터 분석)  
-- `/api/ai/analysis/*` → Analysis Service (8002)
+#### Data Analysis Service (데이터 분석)  
+- `/api/ai/data/*` → Analysis Service (8002)
 
 #### CSV Manager Service (파일 관리)
 - `/api/ai/csv/*` → CSV Manager Service (8003)
@@ -58,11 +58,9 @@ curl -X POST "http://localhost:8000/api/ai/csv/upload" \
   -F "file=@transactions.csv"
 ```
 
-### 지출 분석 (Gateway 경유)
+### 데이터 분석 (Gateway 경유)
 ```bash
-curl -X POST "http://localhost:8000/api/ai/analysis/" \
-  -F "file=@transactions.csv" \
-  -F "analysis_type=spending"
+curl -X POST "http://localhost:8000/api/ai/data/analyze?file_id=abc-123-def"
 ```
 
 ## 아키텍처
@@ -86,5 +84,5 @@ Client → Gateway (8000) → Classifier (8001)
 | Service | Internal Port | Path Prefix | Description |
 |---------|--------------|-------------|-------------|
 | Classifier | 8001 | `/api/ai/classify` | 비용 분류 |
-| Analysis | 8002 | `/api/ai/analysis` | 데이터 분석 |
+| Analysis | 8002 | `/api/ai/data` | 데이터 분석 |
 | CSV Manager | 8003 | `/api/ai/csv` | 파일 관리 |
