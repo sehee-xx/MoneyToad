@@ -162,13 +162,13 @@ async def upload_csv(
 
 
 @router.delete(
-    "/delete/{file_id}",
+    "/delete",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete CSV file",
     description="Delete a CSV file from storage by file ID (Admin only)"
 )
 async def delete_csv(
-    file_id: str,
+    file_id: str = Query(..., description="File ID to delete"),
     role: Role = Depends(require_admin),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> Response:
@@ -228,14 +228,14 @@ async def delete_csv(
 
 
 @router.put(
-    "/replace/{file_id}",
+    "/change",
     response_model=FileInfo,
     summary="Replace CSV file",
     description="Replace an existing CSV file by file ID (Admin only)"
 )
 async def replace_csv(
     background_tasks: BackgroundTasks,
-    file_id: str,
+    file_id: str = Query(..., description="File ID to replace"),
     file: UploadFile = File(..., description="New CSV file"),
     role: Role = Depends(require_admin),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
@@ -315,13 +315,13 @@ async def replace_csv(
 
 
 @router.get(
-    "/status/{file_id}",
+    "/status",
     response_model=StatusResponse,
     summary="Get CSV processing status",
     description="Get the current processing status of a CSV file by file ID (Admin/User)"
 )
 async def get_csv_status(
-    file_id: str,
+    file_id: str = Query(..., description="File ID to check status"),
     role: Role = Depends(require_user),  # Both admin and user allowed
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> StatusResponse:
@@ -382,13 +382,13 @@ async def get_csv_status(
 
 
 @router.get(
-    "/file/{file_id}",
+    "/file",
     response_model=FileInfo,
     summary="Get file info",
     description="Get file information by file ID (Admin/User)"
 )
 async def get_file_info(
-    file_id: str,
+    file_id: str = Query(..., description="File ID to retrieve"),
     role: Role = Depends(require_user),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> FileInfo:

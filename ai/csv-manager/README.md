@@ -52,7 +52,7 @@ file: transactions.csv
 
 ### 파일 삭제
 ```bash
-DELETE /api/ai/csv/delete?csv_file=transactions.csv
+DELETE /api/ai/csv/delete?file_id=abc-123
 Authorization: Bearer <admin_token>
 
 # Response: 204 No Content
@@ -60,7 +60,7 @@ Authorization: Bearer <admin_token>
 
 ### 파일 교체
 ```bash
-PUT /api/ai/csv/change?csv_file=transactions.csv
+PUT /api/ai/csv/change?file_id=abc-123
 Authorization: Bearer <admin_token>
 Content-Type: multipart/form-data
 
@@ -78,7 +78,7 @@ file: new_transactions.csv
 
 ### 상태 확인
 ```bash
-GET /api/ai/csv/status?csv_file=transactions.csv
+GET /api/ai/csv/status?file_id=abc-123
 Authorization: Bearer <user_token>
 
 # Response
