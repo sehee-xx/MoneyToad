@@ -66,6 +66,9 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DB=${REDIS_DB:-0}
     volumes:
       - ./csv-manager:/app
     networks:

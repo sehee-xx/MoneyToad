@@ -16,6 +16,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 from app.core.config import settings
 from app.models.schemas import FileInfo, Status
+from app.repos.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -103,18 +104,15 @@ class CsvRepo(ABC):
 class S3CsvRepo(CsvRepo):
     """
     CSV Repository implementation using MinIO/S3 for storage.
-    File metadata and status are kept in memory (can be replaced with DB/Redis).
+    File metadata and status are persisted in Redis.
     """
     
     def __init__(self):
-        """Initialize S3 client and ensure bucket exists"""
+        """Initialize S3 client, Redis client, and ensure bucket exists"""
         self.bucket_name = settings.MINIO_BUCKET
         
-        # In-memory storage for metadata and status
-        # In production, replace with database or Redis
-        self._metadata: Dict[str, FileInfo] = {}  # key: file_name
-        self._metadata_by_id: Dict[str, FileInfo] = {}  # key: file_id
-        self._status: Dict[str, Status] = {}  # key: file_id
+        # Use Redis for persistent storage
+        self.redis_client = get_redis_client()
         
         # Configure S3 client for MinIO
         self.s3_client = self._create_s3_client()
@@ -274,12 +272,12 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Store metadata
-            self._metadata[file_name] = file_info
-            self._metadata_by_id[file_id] = file_info
+            # Store metadata in Redis
+            metadata_dict = file_info.model_dump()
+            self.redis_client.set_file_metadata(file_name, metadata_dict)
             
-            # Set initial status
-            self._status[file_id] = "ingesting"
+            # Set initial status in Redis
+            self.redis_client.set_status(file_id, "ingesting")
             
             logger.info(f"Uploaded file '{file_name}' to S3 key '{s3_key}' (size: {hash_wrapper.size} bytes)")
             
@@ -308,13 +306,14 @@ class S3CsvRepo(CsvRepo):
             ValueError: If file doesn't exist
             Exception: For S3 operation failures
         """
-        # Check if file exists
-        if file_name not in self._metadata:
+        # Check if file exists in Redis
+        old_metadata = self.redis_client.get_file_metadata(file_name)
+        if not old_metadata:
             raise ValueError(f"File '{file_name}' not found. Use upload_file for new files.")
         
         try:
-            # Get old metadata
-            old_info = self._metadata[file_name]
+            # Convert dict to FileInfo
+            old_info = FileInfo(**old_metadata)
             
             # Keep the same file_id but generate new S3 key
             file_id = old_info.file_id
@@ -362,12 +361,12 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Update metadata (file_id remains the same)
-            self._metadata[file_name] = file_info
-            self._metadata_by_id[file_id] = file_info
+            # Update metadata in Redis (file_id remains the same)
+            metadata_dict = file_info.model_dump()
+            self.redis_client.set_file_metadata(file_name, metadata_dict)
             
-            # Reset status (file_id remains the same)
-            self._status[file_id] = "ingesting"
+            # Reset status in Redis (file_id remains the same)
+            self.redis_client.set_status(file_id, "ingesting")
             
             logger.info(f"Replaced file '{file_name}' with new S3 key '{s3_key}'")
             
@@ -390,12 +389,13 @@ class S3CsvRepo(CsvRepo):
         Raises:
             ValueError: If file doesn't exist
         """
-        # Check if file exists
-        if file_name not in self._metadata:
+        # Check if file exists in Redis
+        metadata = self.redis_client.get_file_metadata(file_name)
+        if not metadata:
             raise ValueError(f"File '{file_name}' not found")
         
         try:
-            file_info = self._metadata[file_name]
+            file_info = FileInfo(**metadata)
             
             # Delete from S3
             if file_info.s3_key:
@@ -405,11 +405,9 @@ class S3CsvRepo(CsvRepo):
                 )
                 logger.info(f"Deleted S3 object: {file_info.s3_key}")
             
-            # Remove metadata and status
-            del self._metadata[file_name]
-            if file_info.file_id in self._metadata_by_id:
-                del self._metadata_by_id[file_info.file_id]
-            self._status.pop(file_info.file_id, None)
+            # Remove metadata and status from Redis
+            self.redis_client.delete_file_metadata(file_name, file_info.file_id)
+            self.redis_client.delete_status(file_info.file_id)
             
             logger.info(f"Deleted file '{file_name}' completely")
             return True
@@ -420,53 +418,59 @@ class S3CsvRepo(CsvRepo):
     
     async def get_file_info(self, file_name: str) -> Optional[FileInfo]:
         """Get file metadata by filename"""
-        return self._metadata.get(file_name)
+        metadata = self.redis_client.get_file_metadata(file_name)
+        return FileInfo(**metadata) if metadata else None
     
     async def get_file_info_by_id(self, file_id: str) -> Optional[FileInfo]:
         """Get file metadata by file_id"""
-        return self._metadata_by_id.get(file_id)
+        metadata = self.redis_client.get_file_metadata_by_id(file_id)
+        return FileInfo(**metadata) if metadata else None
     
     async def delete_file_by_id(self, file_id: str) -> bool:
         """Delete a CSV file by file_id"""
-        file_info = self._metadata_by_id.get(file_id)
-        if file_info:
+        metadata = self.redis_client.get_file_metadata_by_id(file_id)
+        if metadata:
+            file_info = FileInfo(**metadata)
             return await self.delete_file(file_info.csv_file)
         raise ValueError(f"File with id '{file_id}' not found")
     
     async def replace_file_by_id(self, file_id: str, file_content: BinaryIO) -> FileInfo:
         """Replace a CSV file by file_id"""
-        file_info = self._metadata_by_id.get(file_id)
-        if file_info:
+        metadata = self.redis_client.get_file_metadata_by_id(file_id)
+        if metadata:
+            file_info = FileInfo(**metadata)
             return await self.replace_file(file_info.csv_file, file_content)
         raise ValueError(f"File with id '{file_id}' not found")
     
     async def set_status(self, file_name: str, status: Status) -> bool:
         """Set processing status for a file by filename"""
-        file_info = self._metadata.get(file_name)
-        if file_info:
-            self._status[file_info.file_id] = status
+        metadata = self.redis_client.get_file_metadata(file_name)
+        if metadata:
+            file_info = FileInfo(**metadata)
+            self.redis_client.set_status(file_info.file_id, status)
             logger.debug(f"Set status for '{file_name}' (id: {file_info.file_id}) to '{status}'")
             return True
         return False
     
     async def set_status_by_id(self, file_id: str, status: Status) -> bool:
         """Set processing status for a file by file_id"""
-        if file_id in self._metadata_by_id:
-            self._status[file_id] = status
+        if self.redis_client.get_file_metadata_by_id(file_id):
+            self.redis_client.set_status(file_id, status)
             logger.debug(f"Set status for file_id '{file_id}' to '{status}'")
             return True
         return False
     
     async def get_status(self, file_name: str) -> Optional[Status]:
         """Get current processing status by filename"""
-        file_info = self._metadata.get(file_name)
-        if file_info:
-            return self._status.get(file_info.file_id, "none")
+        metadata = self.redis_client.get_file_metadata(file_name)
+        if metadata:
+            file_info = FileInfo(**metadata)
+            return self.redis_client.get_status(file_info.file_id)
         return None
     
     async def get_status_by_id(self, file_id: str) -> Optional[Status]:
         """Get current processing status by file_id"""
-        return self._status.get(file_id, "none")
+        return self.redis_client.get_status(file_id)
 
 
 # Singleton instance
