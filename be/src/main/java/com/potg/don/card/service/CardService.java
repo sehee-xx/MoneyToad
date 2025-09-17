@@ -19,7 +19,6 @@ public class CardService {
 	private final CardRepository cardRepository;
 	private final UserRepository userRepository;
 
-
 	public Card registerCard(Long userId, CardRequest request) {
 		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new EntityNotFoundException("해당 ID의 사용자를 찾을 수 없습니다: " + userId));

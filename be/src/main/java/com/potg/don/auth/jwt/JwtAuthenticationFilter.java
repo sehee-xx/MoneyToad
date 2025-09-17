@@ -72,7 +72,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 					// 3. SecurityContext에 Authentication 객체 저장
 					SecurityContextHolder.getContext().setAuthentication(authentication);
-					log.info("Successfully authenticated user: {}, uri: {}", userDetails.getUsername(), request.getRequestURI());
+					log.info("Successfully authenticated user: {}, uri: {}", userDetails.getUsername(),
+						request.getRequestURI());
 				}
 			} catch (Exception e) {
 				// 토큰 관련 예외는 로그로 남겨서 디버깅이 용이하도록 함
@@ -86,6 +87,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	/**
 	 * 요청 헤더에서 "Bearer " 접두사를 제거하고 토큰을 추출합니다.
+	 *
 	 * @param request HttpServletRequest
 	 * @return 추출된 토큰 문자열 (없으면 null)
 	 */

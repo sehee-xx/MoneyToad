@@ -1,8 +1,11 @@
 package com.potg.don.global.entity;
 
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
+
 import lombok.Getter;
+
 import org.hibernate.annotations.CreationTimestamp;
 
 @MappedSuperclass

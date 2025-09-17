@@ -18,7 +18,9 @@ public class CustomOAuth2User implements OAuth2User {
 	private final Map<String, Object> attributes;
 
 	@Override
-	public Map<String, Object> getAttributes() { return attributes; }
+	public Map<String, Object> getAttributes() {
+		return attributes;
+	}
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
