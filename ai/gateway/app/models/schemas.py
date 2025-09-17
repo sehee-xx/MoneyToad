@@ -12,7 +12,6 @@ class FileInfo(BaseModel):
     """File information and metadata"""
     csv_file: str = Field(..., description="Original filename")
     file_id: str = Field(..., description="Unique file identifier")
-    category: Optional[str] = Field(None, description="File category")
     checksum: Optional[str] = Field(None, description="SHA-256 checksum")
     size_bytes: int = Field(..., description="File size in bytes")
     uploaded_at: str = Field(..., description="ISO 8601 UTC timestamp of initial upload")
@@ -24,7 +23,6 @@ class FileInfo(BaseModel):
 class StatusResponse(BaseModel):
     """Status response for CSV processing"""
     csv_file: str = Field(..., description="Filename")
-    category: Optional[str] = Field(None, description="File category")
     status: Status = Field(..., description="Current processing status")
     progress: Optional[int] = Field(None, description="Progress percentage (0-100)")
     last_updated: Optional[str] = Field(None, description="Last status update timestamp")

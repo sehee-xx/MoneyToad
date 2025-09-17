@@ -65,8 +65,7 @@ class CsvRepo(ABC):
     async def upload_file(
         self, 
         file_name: str, 
-        file_content: BinaryIO, 
-        category: Optional[str] = None
+        file_content: BinaryIO
     ) -> FileInfo:
         """Upload a new CSV file"""
         pass
@@ -75,8 +74,7 @@ class CsvRepo(ABC):
     async def replace_file(
         self, 
         file_name: str, 
-        file_content: BinaryIO, 
-        category: Optional[str] = None
+        file_content: BinaryIO
     ) -> FileInfo:
         """Replace an existing CSV file"""
         pass
@@ -220,8 +218,7 @@ class S3CsvRepo(CsvRepo):
     async def upload_file(
         self, 
         file_name: str, 
-        file_content: BinaryIO, 
-        category: Optional[str] = None
+        file_content: BinaryIO
     ) -> FileInfo:
         """
         Upload a new CSV file to MinIO/S3.
@@ -229,7 +226,6 @@ class S3CsvRepo(CsvRepo):
         Args:
             file_name: Original filename
             file_content: Binary file content
-            category: Optional category for the file
         
         Returns:
             FileInfo with upload details
@@ -254,8 +250,6 @@ class S3CsvRepo(CsvRepo):
             # Note: MinIO may have issues with certain metadata headers
             # Use minimal metadata for compatibility
             extra_args = {'ContentType': 'text/csv'}
-            if category:
-                extra_args['Metadata'] = {'category': category}
             
             self.s3_client.upload_fileobj(
                 hash_wrapper,
@@ -271,7 +265,6 @@ class S3CsvRepo(CsvRepo):
             file_info = FileInfo(
                 csv_file=file_name,
                 file_id=file_id,
-                category=category,
                 checksum=hash_wrapper.checksum,
                 size_bytes=hash_wrapper.size,
                 uploaded_at=datetime.now(timezone.utc).isoformat(),
@@ -297,8 +290,7 @@ class S3CsvRepo(CsvRepo):
     async def replace_file(
         self, 
         file_name: str, 
-        file_content: BinaryIO, 
-        category: Optional[str] = None
+        file_content: BinaryIO
     ) -> FileInfo:
         """
         Replace an existing CSV file in MinIO/S3.
@@ -306,7 +298,6 @@ class S3CsvRepo(CsvRepo):
         Args:
             file_name: Original filename to replace
             file_content: New binary file content
-            category: Optional new category
         
         Returns:
             FileInfo with updated details
@@ -343,8 +334,6 @@ class S3CsvRepo(CsvRepo):
             # Upload new file
             # Use minimal metadata for MinIO compatibility
             extra_args = {'ContentType': 'text/csv'}
-            if category or old_info.category:
-                extra_args['Metadata'] = {'category': category or old_info.category}
             
             self.s3_client.upload_fileobj(
                 hash_wrapper,
@@ -360,7 +349,6 @@ class S3CsvRepo(CsvRepo):
             file_info = FileInfo(
                 csv_file=file_name,
                 file_id=file_id,
-                category=category or old_info.category,
                 checksum=hash_wrapper.checksum,
                 size_bytes=hash_wrapper.size,
                 uploaded_at=old_info.uploaded_at,  # Keep original upload time

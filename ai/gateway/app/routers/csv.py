@@ -91,7 +91,6 @@ async def auto_clear_status(
 async def upload_csv(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="CSV file to upload"),
-    category: Optional[str] = Form(None, description="Optional category for the file"),
     role: Role = Depends(require_admin),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> FileInfo:
@@ -105,7 +104,6 @@ async def upload_csv(
     Args:
         background_tasks: FastAPI background tasks
         file: CSV file to upload
-        category: Optional category
         role: Current user role (must be admin)
         csv_repo: Repository instance
     
@@ -134,8 +132,7 @@ async def upload_csv(
         # Upload file
         file_info = await csv_repo.upload_file(
             file_name=file.filename,
-            file_content=file.file,
-            category=category
+            file_content=file.file
         )
         
         # Schedule status clear if enabled
@@ -147,7 +144,7 @@ async def upload_csv(
                 settings.CSV_STATUS_CLEAR_DELAY
             )
         
-        logger.info(f"Admin '{role}' uploaded CSV file '{file.filename}' (category: {category})")
+        logger.info(f"Admin '{role}' uploaded CSV file '{file.filename}'")
         
         return file_info
         
@@ -240,7 +237,6 @@ async def replace_csv(
     background_tasks: BackgroundTasks,
     csv_file: str = Query(..., description="Filename to replace"),
     file: UploadFile = File(..., description="New CSV file"),
-    category: Optional[str] = Form(None, description="Optional new category"),
     role: Role = Depends(require_admin),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> FileInfo:
@@ -255,7 +251,6 @@ async def replace_csv(
         background_tasks: FastAPI background tasks
         csv_file: Filename to replace
         file: New CSV file content
-        category: Optional new category
         role: Current user role (must be admin)
         csv_repo: Repository instance
     
@@ -293,8 +288,7 @@ async def replace_csv(
         # Replace file
         file_info = await csv_repo.replace_file(
             file_name=csv_file,
-            file_content=file.file,
-            category=category
+            file_content=file.file
         )
         
         # Schedule status clear if enabled
@@ -367,7 +361,6 @@ async def get_csv_status(
         # Build response
         response = StatusResponse(
             csv_file=csv_file,
-            category=file_info.category,
             status=current_status,
             progress=None,  # Could be calculated based on status
             last_updated=datetime.now(timezone.utc).isoformat(),
@@ -417,7 +410,6 @@ async def list_csv_files(
         status = await csv_repo.get_status(file_name)
         files.append({
             "csv_file": file_name,
-            "category": file_info.category,
             "status": status or "none",
             "size_bytes": file_info.size_bytes,
             "uploaded_at": file_info.uploaded_at,
