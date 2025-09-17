@@ -43,7 +43,7 @@ class AnalysisReportResponse(BaseModel):
 
 
 @router.post(
-    "/",
+    "",
     response_model=LeakCalculationResponse,
     summary="Calculate monthly leak",
     description="Calculate financial leak for a specific month"

@@ -13,7 +13,7 @@ from app.services.classifier_service import ClassifierService
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 async def classify_single(
     merchant: str = Query(..., description="Merchant name"),
     amount: float = Query(..., description="Transaction amount"),
@@ -35,7 +35,7 @@ async def classify_single(
     raise HTTPException(status_code=501, detail="Not implemented yet")
 
 
-@router.post("/")
+@router.post("")
 async def classify_batch(
     file_id: str = Query(..., description="File ID from CSV upload"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
