@@ -480,6 +480,9 @@ async def fetch_and_cache_schemas():
         spec = await fetch_service_openapi(service_name, service_config)
         if spec:
             _service_schemas_cache[service_name] = spec
+            logger.info(f"Cached schema for {service_name}")
+        else:
+            logger.warning(f"Failed to fetch schema for {service_name}")
 
 
 @app.on_event("startup")
@@ -531,8 +534,19 @@ async def refresh_schemas():
     """Manually refresh service schemas"""
     global _service_schemas_cache
     app.openapi_schema = None  # Clear cache
+    _service_schemas_cache.clear()  # Clear existing cache
     await fetch_and_cache_schemas()
-    return {"status": "Schemas refreshed", "services": list(_service_schemas_cache.keys())}
+    
+    # Report which services were successfully cached
+    successful = list(_service_schemas_cache.keys())
+    failed = [s for s in SERVICES.keys() if s not in successful]
+    
+    return {
+        "status": "Schemas refreshed", 
+        "successful": successful,
+        "failed": failed,
+        "total": len(SERVICES)
+    }
 
 
 if __name__ == "__main__":
