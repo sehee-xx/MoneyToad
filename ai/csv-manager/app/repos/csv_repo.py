@@ -112,8 +112,9 @@ class S3CsvRepo(CsvRepo):
         
         # In-memory storage for metadata and status
         # In production, replace with database or Redis
-        self._metadata: Dict[str, FileInfo] = {}
-        self._status: Dict[str, Status] = {}
+        self._metadata: Dict[str, FileInfo] = {}  # key: file_name
+        self._metadata_by_id: Dict[str, FileInfo] = {}  # key: file_id
+        self._status: Dict[str, Status] = {}  # key: file_id
         
         # Configure S3 client for MinIO
         self.s3_client = self._create_s3_client()
@@ -275,9 +276,10 @@ class S3CsvRepo(CsvRepo):
             
             # Store metadata
             self._metadata[file_name] = file_info
+            self._metadata_by_id[file_id] = file_info
             
             # Set initial status
-            self._status[file_name] = "ingesting"
+            self._status[file_id] = "ingesting"
             
             logger.info(f"Uploaded file '{file_name}' to S3 key '{s3_key}' (size: {hash_wrapper.size} bytes)")
             
@@ -359,9 +361,14 @@ class S3CsvRepo(CsvRepo):
             
             # Update metadata
             self._metadata[file_name] = file_info
+            self._metadata_by_id[file_id] = file_info
+            if old_info.file_id in self._metadata_by_id:
+                del self._metadata_by_id[old_info.file_id]
             
             # Reset status
-            self._status[file_name] = "ingesting"
+            self._status[file_id] = "ingesting"
+            if old_info.file_id in self._status:
+                del self._status[old_info.file_id]
             
             logger.info(f"Replaced file '{file_name}' with new S3 key '{s3_key}'")
             
@@ -401,7 +408,9 @@ class S3CsvRepo(CsvRepo):
             
             # Remove metadata and status
             del self._metadata[file_name]
-            self._status.pop(file_name, None)
+            if file_info.file_id in self._metadata_by_id:
+                del self._metadata_by_id[file_info.file_id]
+            self._status.pop(file_info.file_id, None)
             
             logger.info(f"Deleted file '{file_name}' completely")
             return True
@@ -411,20 +420,54 @@ class S3CsvRepo(CsvRepo):
             raise
     
     async def get_file_info(self, file_name: str) -> Optional[FileInfo]:
-        """Get file metadata"""
+        """Get file metadata by filename"""
         return self._metadata.get(file_name)
     
+    async def get_file_info_by_id(self, file_id: str) -> Optional[FileInfo]:
+        """Get file metadata by file_id"""
+        return self._metadata_by_id.get(file_id)
+    
+    async def delete_file_by_id(self, file_id: str) -> bool:
+        """Delete a CSV file by file_id"""
+        file_info = self._metadata_by_id.get(file_id)
+        if file_info:
+            return await self.delete_file(file_info.csv_file)
+        raise ValueError(f"File with id '{file_id}' not found")
+    
+    async def replace_file_by_id(self, file_id: str, file_content: BinaryIO) -> FileInfo:
+        """Replace a CSV file by file_id"""
+        file_info = self._metadata_by_id.get(file_id)
+        if file_info:
+            return await self.replace_file(file_info.csv_file, file_content)
+        raise ValueError(f"File with id '{file_id}' not found")
+    
     async def set_status(self, file_name: str, status: Status) -> bool:
-        """Set processing status for a file"""
-        if file_name in self._metadata:
-            self._status[file_name] = status
-            logger.debug(f"Set status for '{file_name}' to '{status}'")
+        """Set processing status for a file by filename"""
+        file_info = self._metadata.get(file_name)
+        if file_info:
+            self._status[file_info.file_id] = status
+            logger.debug(f"Set status for '{file_name}' (id: {file_info.file_id}) to '{status}'")
+            return True
+        return False
+    
+    async def set_status_by_id(self, file_id: str, status: Status) -> bool:
+        """Set processing status for a file by file_id"""
+        if file_id in self._metadata_by_id:
+            self._status[file_id] = status
+            logger.debug(f"Set status for file_id '{file_id}' to '{status}'")
             return True
         return False
     
     async def get_status(self, file_name: str) -> Optional[Status]:
-        """Get current processing status"""
-        return self._status.get(file_name, "none")
+        """Get current processing status by filename"""
+        file_info = self._metadata.get(file_name)
+        if file_info:
+            return self._status.get(file_info.file_id, "none")
+        return None
+    
+    async def get_status_by_id(self, file_id: str) -> Optional[Status]:
+        """Get current processing status by file_id"""
+        return self._status.get(file_id, "none")
 
 
 # Singleton instance

@@ -65,7 +65,7 @@ def validate_csv_file(file: UploadFile) -> None:
 
 async def auto_clear_status(
     csv_repo: S3CsvRepo,
-    file_name: str,
+    file_id: str,
     delay_seconds: int
 ):
     """
@@ -73,12 +73,12 @@ async def auto_clear_status(
     
     Args:
         csv_repo: Repository instance
-        file_name: File to clear status for
+        file_id: File ID to clear status for
         delay_seconds: Delay before clearing
     """
     await asyncio.sleep(delay_seconds)
-    await csv_repo.set_status(file_name, "none")
-    logger.info(f"Auto-cleared status for '{file_name}' to 'none'")
+    await csv_repo.set_status_by_id(file_id, "none")
+    logger.info(f"Auto-cleared status for file_id '{file_id}' to 'none'")
 
 
 @router.post(
@@ -140,11 +140,11 @@ async def upload_csv(
             background_tasks.add_task(
                 auto_clear_status,
                 csv_repo,
-                file.filename,
+                file_info.file_id,
                 settings.CSV_STATUS_CLEAR_DELAY
             )
         
-        logger.info(f"Admin '{role}' uploaded CSV file '{file.filename}'")
+        logger.info(f"Admin '{role}' uploaded CSV file '{file.filename}' with ID '{file_info.file_id}'")
         
         return file_info
         
@@ -162,24 +162,24 @@ async def upload_csv(
 
 
 @router.delete(
-    "/delete",
+    "/delete/{file_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete CSV file",
-    description="Delete a CSV file from storage (Admin only)"
+    description="Delete a CSV file from storage by file ID (Admin only)"
 )
 async def delete_csv(
-    csv_file: str = Query(..., description="Filename to delete"),
+    file_id: str,
     role: Role = Depends(require_admin),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> Response:
     """
-    Delete a CSV file from MinIO/S3 storage.
+    Delete a CSV file from MinIO/S3 storage by file ID.
     
     Requires admin role.
     Removes file from storage and clears all metadata/status.
     
     Args:
-        csv_file: Filename to delete
+        file_id: File ID to delete
         role: Current user role (must be admin)
         csv_repo: Repository instance
     
@@ -195,32 +195,32 @@ async def delete_csv(
     """
     try:
         # Check if file exists
-        file_info = await csv_repo.get_file_info(csv_file)
+        file_info = await csv_repo.get_file_info_by_id(file_id)
         if not file_info:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"File '{csv_file}' not found"
+                detail=f"File with ID '{file_id}' not found"
             )
         
         # Check if file is being processed (optional business logic)
-        current_status = await csv_repo.get_status(csv_file)
+        current_status = await csv_repo.get_status_by_id(file_id)
         if current_status and current_status in ["ingesting", "leakage_calculating", "analyzing"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot delete file '{csv_file}' while status is '{current_status}'"
+                detail=f"Cannot delete file while status is '{current_status}'"
             )
         
         # Delete file
-        await csv_repo.delete_file(csv_file)
+        await csv_repo.delete_file_by_id(file_id)
         
-        logger.info(f"Admin '{role}' deleted CSV file '{csv_file}'")
+        logger.info(f"Admin '{role}' deleted file with ID '{file_id}' ('{file_info.csv_file}')")
         
         return Response(status_code=status.HTTP_204_NO_CONTENT)
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Delete failed for '{csv_file}': {e}")
+        logger.error(f"Delete failed for file_id '{file_id}': {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete file from storage"
@@ -228,20 +228,20 @@ async def delete_csv(
 
 
 @router.put(
-    "/change",
+    "/replace/{file_id}",
     response_model=FileInfo,
     summary="Replace CSV file",
-    description="Replace an existing CSV file (Admin only)"
+    description="Replace an existing CSV file by file ID (Admin only)"
 )
 async def replace_csv(
     background_tasks: BackgroundTasks,
-    csv_file: str = Query(..., description="Filename to replace"),
+    file_id: str,
     file: UploadFile = File(..., description="New CSV file"),
     role: Role = Depends(require_admin),
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> FileInfo:
     """
-    Replace an existing CSV file in MinIO/S3 storage.
+    Replace an existing CSV file in MinIO/S3 storage by file ID.
     
     Requires admin role.
     Keeps the same logical filename but uploads new content.
@@ -249,7 +249,7 @@ async def replace_csv(
     
     Args:
         background_tasks: FastAPI background tasks
-        csv_file: Filename to replace
+        file_id: File ID to replace
         file: New CSV file content
         role: Current user role (must be admin)
         csv_repo: Repository instance
@@ -270,24 +270,24 @@ async def replace_csv(
     
     try:
         # Check if original file exists
-        existing = await csv_repo.get_file_info(csv_file)
+        existing = await csv_repo.get_file_info_by_id(file_id)
         if not existing:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"File '{csv_file}' not found. Use POST /upload for new files."
+                detail=f"File with ID '{file_id}' not found. Use POST /upload for new files."
             )
         
         # Check if file is being processed (optional)
-        current_status = await csv_repo.get_status(csv_file)
+        current_status = await csv_repo.get_status_by_id(file_id)
         if current_status and current_status in ["ingesting", "leakage_calculating", "analyzing"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot replace file '{csv_file}' while status is '{current_status}'"
+                detail=f"Cannot replace file while status is '{current_status}'"
             )
         
         # Replace file
-        file_info = await csv_repo.replace_file(
-            file_name=csv_file,
+        file_info = await csv_repo.replace_file_by_id(
+            file_id=file_id,
             file_content=file.file
         )
         
@@ -296,18 +296,18 @@ async def replace_csv(
             background_tasks.add_task(
                 auto_clear_status,
                 csv_repo,
-                csv_file,
+                file_info.file_id,
                 settings.CSV_STATUS_CLEAR_DELAY
             )
         
-        logger.info(f"Admin '{role}' replaced CSV file '{csv_file}'")
+        logger.info(f"Admin '{role}' replaced file with ID '{file_id}' ('{existing.csv_file}')")
         
         return file_info
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Replace failed for '{csv_file}': {e}")
+        logger.error(f"Replace failed for file_id '{file_id}': {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to replace file in storage"
@@ -315,24 +315,24 @@ async def replace_csv(
 
 
 @router.get(
-    "/status",
+    "/status/{file_id}",
     response_model=StatusResponse,
     summary="Get CSV processing status",
-    description="Get the current processing status of a CSV file (Admin/User)"
+    description="Get the current processing status of a CSV file by file ID (Admin/User)"
 )
 async def get_csv_status(
-    csv_file: str = Query(..., description="Filename to check status"),
+    file_id: str,
     role: Role = Depends(require_user),  # Both admin and user allowed
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> StatusResponse:
     """
-    Get the current processing status of a CSV file.
+    Get the current processing status of a CSV file by file ID.
     
     Accessible to both admin and regular users.
     Returns one of: 'ingesting', 'leakage_calculating', 'analyzing', 'none'
     
     Args:
-        csv_file: Filename to check
+        file_id: File ID to check
         role: Current user role
         csv_repo: Repository instance
     
@@ -346,39 +346,76 @@ async def get_csv_status(
     """
     try:
         # Check if file exists
-        file_info = await csv_repo.get_file_info(csv_file)
+        file_info = await csv_repo.get_file_info_by_id(file_id)
         if not file_info:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"File '{csv_file}' not found"
+                detail=f"File with ID '{file_id}' not found"
             )
         
         # Get current status
-        current_status = await csv_repo.get_status(csv_file)
+        current_status = await csv_repo.get_status_by_id(file_id)
         if not current_status:
             current_status = "none"
         
         # Build response
         response = StatusResponse(
-            csv_file=csv_file,
+            csv_file=file_info.csv_file,
             status=current_status,
             progress=None,  # Could be calculated based on status
             last_updated=datetime.now(timezone.utc).isoformat(),
             details=None  # Could add processing details
         )
         
-        logger.info(f"User '{role}' checked status for '{csv_file}': {current_status}")
+        logger.info(f"User '{role}' checked status for file_id '{file_id}': {current_status}")
         
         return response
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Status check failed for '{csv_file}': {e}")
+        logger.error(f"Status check failed for file_id '{file_id}': {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get file status"
         )
+
+
+@router.get(
+    "/file/{file_id}",
+    response_model=FileInfo,
+    summary="Get file info",
+    description="Get file information by file ID (Admin/User)"
+)
+async def get_file_info(
+    file_id: str,
+    role: Role = Depends(require_user),
+    csv_repo: S3CsvRepo = Depends(get_csv_repo)
+) -> FileInfo:
+    """
+    Get file information by file ID.
+    
+    Args:
+        file_id: File ID to retrieve
+        role: Current user role
+        csv_repo: Repository instance
+    
+    Returns:
+        FileInfo with file details
+    
+    Raises:
+        401: If not authenticated
+        404: If file not found
+    """
+    file_info = await csv_repo.get_file_info_by_id(file_id)
+    if not file_info:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File with ID '{file_id}' not found"
+        )
+    
+    logger.info(f"User '{role}' retrieved info for file_id '{file_id}'")
+    return file_info
 
 
 # Additional utility endpoints (optional)
@@ -407,8 +444,9 @@ async def list_csv_files(
     # In production, this would query a database
     files = []
     for file_name, file_info in csv_repo._metadata.items():
-        status = await csv_repo.get_status(file_name)
+        status = await csv_repo.get_status_by_id(file_info.file_id)
         files.append({
+            "file_id": file_info.file_id,
             "csv_file": file_name,
             "status": status or "none",
             "size_bytes": file_info.size_bytes,
