@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useLogoutMutation } from "../api/services/auth";
 import "./Header.css";
 
 export default function Header() {
@@ -6,13 +7,19 @@ export default function Header() {
   const thisMonth = new Date().getMonth() + 1;   // 1..12
   const potPath = `/pot/${thisMonth}`;
 
+  const logoutMutation = useLogoutMutation();
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
   return (
     <header className="app-header">
       <nav className="nav">
         <NavLink to="/" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
           마당
         </NavLink>
-        
+
         <NavLink to={potPath} className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
           콩쥐의 장독대
         </NavLink>
@@ -26,6 +33,14 @@ export default function Header() {
         <NavLink to="/mypage" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
           콩쥐의 곳간
         </NavLink>
+
+        <button
+          onClick={handleLogout}
+          className="nav-item logout-btn"
+          type="button"
+        >
+          로그아웃
+        </button>
       </nav>
     </header>
   );
