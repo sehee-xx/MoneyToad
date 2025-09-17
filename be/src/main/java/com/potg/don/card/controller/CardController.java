@@ -1,5 +1,6 @@
 package com.potg.don.card.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -26,8 +27,6 @@ public class CardController {
 
 	@GetMapping("")
 	public ResponseEntity<CardResponse> getCard(@AuthenticationPrincipal CustomUserDetails user) {
-		if (user == null)
-			return ResponseEntity.status(401).build();
 		Card card = cardService.getCard(user.getUserId());
 		return ResponseEntity.ok(CardResponse.from(card));
 	}
@@ -35,17 +34,13 @@ public class CardController {
 	@PostMapping("")
 	public ResponseEntity<CardResponse> registerCard(@AuthenticationPrincipal CustomUserDetails user,
 		@RequestBody CardRequest cardRequest) {
-		if (user == null)
-			return ResponseEntity.status(401).build();
 		Card card = cardService.registerCard(user.getUserId(), cardRequest);
-		return ResponseEntity.ok(CardResponse.from(card));
+		return ResponseEntity.status(HttpStatus.CREATED).body(CardResponse.from(card));
 	}
 
 	@DeleteMapping("")
-	public ResponseEntity<?> deleteCard(@AuthenticationPrincipal CustomUserDetails user) {
-		if (user == null)
-			return ResponseEntity.status(401).build();
+	public ResponseEntity<Void> deleteCard(@AuthenticationPrincipal CustomUserDetails user) {
 		cardService.deleteCard(user.getUserId());
-		return ResponseEntity.ok().build();
+		return ResponseEntity.noContent().build();
 	}
 }

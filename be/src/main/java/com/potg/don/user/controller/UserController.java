@@ -26,8 +26,6 @@ public class UserController {
 
 	@GetMapping("")
 	public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal CustomUserDetails me) {
-		if (me == null)
-			return ResponseEntity.status(401).build();
 		User user = userService.getUser(me.getUserId());
 		return ResponseEntity.ok(UserResponse.from(user));
 	}
@@ -35,8 +33,6 @@ public class UserController {
 	@PatchMapping("")
 	public ResponseEntity<UserResponse> updateUser(@AuthenticationPrincipal CustomUserDetails me,
 		@RequestBody UpdateProfileRequest req) {
-		if (me == null)
-			return ResponseEntity.status(401).build();
 		User updatedUser = userService.updateUser(me.getUserId(), req);
 		return ResponseEntity.ok(UserResponse.from(updatedUser));
 	}
