@@ -8,8 +8,7 @@ from typing import Optional, Dict, Any
 import logging
 import asyncio
 
-# Import CSV router
-from app.routers import csv
+# CSV router removed - now handled by csv-manager service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -33,8 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include CSV router
-app.include_router(csv.router, tags=["CSV Management"])
+# CSV router moved to csv-manager service
 
 # Service endpoints
 SERVICES = {
@@ -47,6 +45,11 @@ SERVICES = {
         "url": "http://analysis:8002", 
         "prefix": "/api/ai/analysis",
         "name": "Financial Analysis"
+    },
+    "csv-manager": {
+        "url": "http://csv-manager:8003",
+        "prefix": "/api/ai/csv",
+        "name": "CSV Management"
     }
 }
 
@@ -164,7 +167,7 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
     # Add tags description
     merged['tags'] = [
         {"name": "Gateway", "description": "API Gateway endpoints"},
-        {"name": "CSV Management", "description": "CSV file upload and management endpoints"},
+        {"name": SERVICES['csv-manager']['name'], "description": "CSV file upload and management endpoints"},
         {"name": SERVICES['classifier']['name'], "description": "Expense classification endpoints"},
         {"name": SERVICES['analysis']['name'], "description": "Financial analysis endpoints"}
     ]
@@ -172,7 +175,14 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
     return merged
 
 
-@app.get("/", tags=["Gateway"])
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """Redirect root to /api/ai"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/ai", status_code=307)
+
+
+@app.get("/api/ai", tags=["Gateway"])
 async def root():
     """Root endpoint showing available services"""
     return {
@@ -188,6 +198,11 @@ async def root():
                 "name": SERVICES['analysis']['name'],
                 "prefix": SERVICES['analysis']['prefix'],
                 "docs": "/docs#tag/Financial-Analysis"
+            },
+            "csv-manager": {
+                "name": SERVICES['csv-manager']['name'],
+                "prefix": SERVICES['csv-manager']['prefix'],
+                "docs": "/docs#tag/CSV-Management"
             }
         },
         "documentation": {
@@ -198,7 +213,7 @@ async def root():
     }
 
 
-@app.get("/health", tags=["Gateway"])
+@app.get("/api/ai/health", tags=["Gateway"])
 async def health_check():
     """Check health of all services"""
     health_status = {
@@ -232,7 +247,7 @@ async def health_check():
     return health_status
 
 
-@app.get("/services", tags=["Gateway"])
+@app.get("/api/ai/services", tags=["Gateway"])
 async def list_services():
     """List all available services and their endpoints"""
     services_info = {}
@@ -411,6 +426,49 @@ async def proxy_analysis_root_slash(request: Request):
     )
 
 
+# Proxy routes for csv-manager service
+@app.api_route(
+    "/api/ai/csv/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    include_in_schema=False
+)
+async def proxy_csv(path: str, request: Request):
+    return await proxy_request(
+        service="csv-manager",
+        path=f"api/ai/csv/{path}" if path else "api/ai/csv",
+        request=request,
+        method=request.method
+    )
+
+
+@app.api_route(
+    "/api/ai/csv",
+    methods=["GET", "POST"],
+    include_in_schema=False
+)
+async def proxy_csv_root(request: Request):
+    return await proxy_request(
+        service="csv-manager",
+        path="api/ai/csv",
+        request=request,
+        method=request.method
+    )
+
+
+@app.api_route(
+    "/api/ai/csv/",
+    methods=["GET", "POST"],
+    include_in_schema=False
+)
+async def proxy_csv_root_slash(request: Request):
+    return await proxy_request(
+        service="csv-manager",
+        path="api/ai/csv",
+        request=request,
+        method=request.method
+    )
+
+
 # Store fetched schemas
 _service_schemas_cache = {}
 
@@ -468,7 +526,7 @@ app.openapi = custom_openapi
 
 
 # Add endpoint to manually refresh schemas
-@app.post("/refresh-schemas", tags=["Gateway"])
+@app.post("/api/ai/refresh-schemas", tags=["Gateway"])
 async def refresh_schemas():
     """Manually refresh service schemas"""
     global _service_schemas_cache

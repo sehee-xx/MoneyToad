@@ -15,22 +15,22 @@ AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT AP
          │   (Gateway Service)  │    단일 진입점
          └──────────┬───────────┘
                     │
-         ┌──────────┴──────────┐
-         │                     │
-         ▼                     ▼
-┌──────────────┐      ┌──────────────┐
-│  Classifier  │      │   Analysis   │
-│   Service    │      │   Service    │
-│   (8001)     │      │   (8002)     │
-└──────────────┘      └──────────────┘
+    ┌───────────────┼───────────────┐
+    │               │               │
+    ▼               ▼               ▼
+┌─────────┐   ┌─────────┐   ┌─────────┐
+│Classifier│   │Analysis │   │   CSV   │
+│ Service │   │ Service │   │ Manager │
+│  (8001) │   │  (8002) │   │  (8003) │
+└─────────┘   └─────────┘   └─────────┘
 ```
 
 ## 🚀 Services
 
-### API Gateway (Port 8000) 🆕
+### API Gateway (Port 8000)
 **통합 API 게이트웨이** - 모든 마이크로서비스의 단일 진입점
 
-- 📚 **통합 API 문서**: http://localhost:8000/docs
+- 📚 **통합 API 문서**: http://localhost:8000/api/ai/docs
 - 🔍 **서비스 디스커버리**: 자동으로 하위 서비스 감지
 - ❤️ **헬스 체크**: 모든 서비스 상태 모니터링
 - 🔄 **자동 프록시**: 요청을 적절한 서비스로 라우팅
@@ -40,7 +40,7 @@ AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT AP
 
 **주요 기능:**
 - 단일 거래 실시간 분류
-- CSV 파일 배치 처리
+- 배치 처리 지원
 - 카테고리 학습 및 개선
 
 ### 2. Analysis Service (내부 포트 8002)
@@ -51,6 +51,15 @@ AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT AP
 - 예산 추천
 - 트렌드 분석
 - AI 기반 인사이트 생성
+
+### 3. CSV Manager Service (내부 포트 8003) 🆕
+**CSV 파일 관리 서비스** - MinIO/S3를 사용한 파일 스토리지 관리
+
+**주요 기능:**
+- CSV 파일 업로드/삭제/교체
+- 파일 상태 추적 (ingesting, analyzing 등)
+- S3/MinIO 통합 스토리지
+- 보안 파일 관리 (Admin 권한 필요)
 
 
 ## 📦 Quick Start
@@ -77,9 +86,9 @@ make re
 ```
 
 ### 3. 서비스 확인
-- 🌐 **통합 API 문서**: http://localhost:8000/docs
-- ❤️ **헬스 체크**: http://localhost:8000/health
-- 📊 **서비스 정보**: http://localhost:8000/services
+- 🌐 **통합 API 문서**: http://localhost:8000/api/ai/docs
+- ❤️ **헬스 체크**: http://localhost:8000/api/ai/health
+- 📊 **서비스 정보**: http://localhost:8000/api/ai/services
 
 ## 🔌 API Usage
 
@@ -88,10 +97,15 @@ make re
 
 ```bash
 # 비용 분류 - Gateway 경유
-curl "http://localhost:8000/ai/classify?merchant=스타벅스&amount=4800"
+curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800"
+
+# CSV 파일 업로드 - Gateway 경유
+curl -X POST "http://localhost:8000/api/ai/csv/upload" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@transactions.csv"
 
 # 분석 요청 - Gateway 경유
-curl -X POST "http://localhost:8000/ai/analysis/" \
+curl -X POST "http://localhost:8000/api/ai/analysis/" \
   -F "file=@transactions.csv" \
   -F "analysis_type=comprehensive"
 ```
@@ -102,7 +116,7 @@ import requests
 
 # Gateway를 통한 비용 분류
 response = requests.get(
-    "http://localhost:8000/ai/classify",
+    "http://localhost:8000/api/ai/classify",
     params={
         "merchant": "스타벅스",
         "amount": 4800,
@@ -112,10 +126,19 @@ response = requests.get(
 print(response.json())
 # 결과: {"category": "Food & Dining", "confidence": 0.95}
 
+# CSV 파일 업로드
+with open('transactions.csv', 'rb') as f:
+    response = requests.post(
+        "http://localhost:8000/api/ai/csv/upload",
+        headers={'Authorization': 'Bearer YOUR_TOKEN'},
+        files={'file': f}
+    )
+    print(response.json())
+
 # CSV 파일 분석
 with open('transactions.csv', 'rb') as f:
     response = requests.post(
-        "http://localhost:8000/ai/analysis/",
+        "http://localhost:8000/api/ai/analysis/",
         files={'file': f},
         params={'analysis_type': 'spending'}
     )
@@ -127,8 +150,10 @@ with open('transactions.csv', 'rb') as f:
 
 ```
 ai/
-├── gateway/              # API Gateway 서비스 🆕
+├── gateway/              # API Gateway 서비스
 │   ├── app/
+│   │   ├── core/        # 설정
+│   │   ├── deps/        # 의존성 (인증 등)
 │   │   └── main.py      # 통합 라우팅 및 문서화
 │   ├── Dockerfile
 │   └── requirements.txt
@@ -146,6 +171,15 @@ ai/
 │   │   ├── core/      # 설정
 │   │   ├── models/    # 데이터 모델
 │   │   └── services/  # 분석 로직
+│   ├── Dockerfile
+│   └── requirements.txt
+├── csv-manager/        # CSV 파일 관리 서비스 🆕
+│   ├── app/
+│   │   ├── api/       # API 엔드포인트
+│   │   ├── core/      # 설정
+│   │   ├── deps/      # 의존성 (인증)
+│   │   ├── models/    # 데이터 모델
+│   │   └── repos/     # S3/MinIO 저장소
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── docker-compose.yml  # 서비스 오케스트레이션
@@ -175,6 +209,7 @@ docker-compose logs -f
 docker-compose logs -f gateway
 docker-compose logs -f classifier
 docker-compose logs -f analysis
+docker-compose logs -f csv-manager
 ```
 
 ### API 문서 갱신
@@ -184,7 +219,7 @@ docker-compose logs -f analysis
 docker restart gateway-service
 
 # 또는 수동 갱신
-curl -X POST http://localhost:8000/refresh-schemas
+curl -X POST http://localhost:8000/api/ai/refresh-schemas
 ```
 
 ## 🔧 Environment Variables
@@ -196,14 +231,23 @@ OPENAI_MODEL=gpt-4-turbo-preview
 OPENAI_MAX_TOKENS=200
 OPENAI_TEMPERATURE=0.3
 
+# MinIO/S3 설정 (CSV Manager용)
+MINIO_ENDPOINT=localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=csv-storage
+MINIO_SECURE=false
+
+# JWT 인증 설정
+JWT_SECRET_KEY=your-secret-key-here
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+
 # 로깅
 LOG_LEVEL=INFO
 
 # 선택사항
 DATABASE_URL=postgresql://user:password@localhost/fintech_db
-AWS_ACCESS_KEY_ID=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret
-S3_BUCKET_NAME=fintech-data-bucket
 ```
 
 ## 🏛️ Architecture Benefits

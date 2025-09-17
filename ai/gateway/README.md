@@ -5,7 +5,7 @@
 ## 주요 기능
 
 - 🚪 **단일 진입점**: 모든 API 요청을 포트 8000으로 통합
-- 📚 **통합 문서**: http://localhost:8000/docs 에서 모든 API 문서 확인
+- 📚 **통합 문서**: http://localhost:8000/api/ai/docs 에서 모든 API 문서 확인
 - 🔍 **서비스 디스커버리**: 활성 서비스 자동 감지
 - ❤️ **헬스 체크**: 모든 서비스 상태 모니터링
 - 🔄 **자동 프록시**: 요청을 적절한 서비스로 라우팅
@@ -13,50 +13,56 @@
 ## 엔드포인트
 
 ### Gateway 관리
-- `GET /` - Gateway 정보 및 서비스 목록
-- `GET /health` - 모든 서비스 헬스 체크
-- `GET /services` - 서비스 디스커버리
-- `GET /metrics` - 기본 메트릭
+- `GET /api/ai` - Gateway 정보 및 서비스 목록
+- `GET /api/ai/health` - 모든 서비스 헬스 체크
+- `GET /api/ai/services` - 서비스 디스커버리
+- `POST /api/ai/refresh-schemas` - API 스키마 갱신
 
-### Classifier Service (비용 분류)
-- `GET /ai/classify` - 단일 거래 분류
-- `POST /ai/classify` - 배치 CSV 분류
-- `GET /ai/classify/status` - 작업 상태 확인
-- `GET /ai/classify/download` - 결과 다운로드
+### 프록시 라우팅
+Gateway는 다음 서비스들로 요청을 자동 라우팅합니다:
 
-### Analysis Service (데이터 분석)
-- `POST /ai/analysis/spending-patterns` - 지출 패턴 분석
-- `POST /ai/analysis/budget-recommendations` - 예산 추천
-- `POST /ai/analysis/anomalies` - 이상 거래 탐지
-- `POST /ai/analysis/trends` - 트렌드 분석
-- `POST /ai/analysis/insights` - AI 인사이트
+#### Classifier Service (비용 분류)
+- `/api/ai/classify/*` → Classifier Service (8001)
+
+#### Analysis Service (데이터 분석)  
+- `/api/ai/analysis/*` → Analysis Service (8002)
+
+#### CSV Manager Service (파일 관리)
+- `/api/ai/csv/*` → CSV Manager Service (8003)
 
 ## 사용 예시
 
 ### 통합 API 문서 접근
 ```bash
 # Swagger UI
-http://localhost:8000/docs
+http://localhost:8000/api/ai/docs
 
 # ReDoc
-http://localhost:8000/redoc
+http://localhost:8000/api/ai/redoc
 ```
 
 ### 헬스 체크
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8000/api/ai/health
 ```
 
 ### 비용 분류 (Gateway 경유)
 ```bash
-curl "http://localhost:8000/ai/classify?merchant=스타벅스&amount=4800"
+curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800"
+```
+
+### CSV 파일 업로드 (Gateway 경유)
+```bash
+curl -X POST "http://localhost:8000/api/ai/csv/upload" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@transactions.csv"
 ```
 
 ### 지출 분석 (Gateway 경유)
 ```bash
-curl -X POST "http://localhost:8000/ai/analysis/spending-patterns" \
-  -H "Content-Type: application/json" \
-  -d '{"transactions": [...], "period": "monthly"}'
+curl -X POST "http://localhost:8000/api/ai/analysis/" \
+  -F "file=@transactions.csv" \
+  -F "analysis_type=spending"
 ```
 
 ## 아키텍처
@@ -64,7 +70,7 @@ curl -X POST "http://localhost:8000/ai/analysis/spending-patterns" \
 ```
 Client → Gateway (8000) → Classifier (8001)
                       ↘ Analysis (8002)
-                      ↘ Redis (6379)
+                      ↘ CSV Manager (8003)
 ```
 
 ## 개발 노트
@@ -72,4 +78,13 @@ Client → Gateway (8000) → Classifier (8001)
 - Gateway는 모든 서비스 앞단에서 리버스 프록시 역할
 - 내부 서비스는 직접 접근 불가 (포트 비노출)
 - 모든 요청은 Gateway를 통해서만 처리
-- 서비스 간 통신도 Gateway 활용 가능
+- OpenAPI 스키마를 자동으로 병합하여 통합 문서 제공
+- 서비스별 태그로 API 그룹화
+
+## 서비스 목록
+
+| Service | Internal Port | Path Prefix | Description |
+|---------|--------------|-------------|-------------|
+| Classifier | 8001 | `/api/ai/classify` | 비용 분류 |
+| Analysis | 8002 | `/api/ai/analysis` | 데이터 분석 |
+| CSV Manager | 8003 | `/api/ai/csv` | 파일 관리 |

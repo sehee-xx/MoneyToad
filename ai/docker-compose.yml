@@ -19,6 +19,7 @@ services:
     depends_on:
       - classifier
       - analysis
+      - csv-manager
     restart: unless-stopped
 
   # Classifier Service - 비용 분류
@@ -51,6 +52,22 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ./analysis:/app
+    networks:
+      - ai-network
+    restart: unless-stopped
+
+  # CSV Manager Service - CSV 파일 관리
+  csv-manager:
+    build:
+      context: ./csv-manager
+      dockerfile: Dockerfile
+    container_name: csv-manager-service
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./csv-manager:/app
     networks:
       - ai-network
     restart: unless-stopped
