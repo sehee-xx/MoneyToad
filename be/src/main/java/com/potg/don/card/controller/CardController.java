@@ -26,21 +26,25 @@ public class CardController {
 
 	@GetMapping("")
 	public ResponseEntity<CardResponse> getCard(@AuthenticationPrincipal CustomUserDetails user) {
-		if (user == null) return ResponseEntity.status(401).build();
+		if (user == null)
+			return ResponseEntity.status(401).build();
 		Card card = cardService.getCard(user.getUserId());
 		return ResponseEntity.ok(CardResponse.from(card));
 	}
 
 	@PostMapping("")
-	public ResponseEntity<CardResponse> registerCard(@AuthenticationPrincipal CustomUserDetails user, @RequestBody CardRequest cardRequest) {
-		if (user == null) return ResponseEntity.status(401).build();
+	public ResponseEntity<CardResponse> registerCard(@AuthenticationPrincipal CustomUserDetails user,
+		@RequestBody CardRequest cardRequest) {
+		if (user == null)
+			return ResponseEntity.status(401).build();
 		Card card = cardService.registerCard(user.getUserId(), cardRequest);
 		return ResponseEntity.ok(CardResponse.from(card));
 	}
 
 	@DeleteMapping("")
-	public ResponseEntity<?> deleteCard(@AuthenticationPrincipal CustomUserDetails user){
-		if (user == null) return ResponseEntity.status(401).build();
+	public ResponseEntity<?> deleteCard(@AuthenticationPrincipal CustomUserDetails user) {
+		if (user == null)
+			return ResponseEntity.status(401).build();
 		cardService.deleteCard(user.getUserId());
 		return ResponseEntity.ok().build();
 	}

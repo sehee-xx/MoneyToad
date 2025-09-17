@@ -1,6 +1,7 @@
 package com.potg.don.user.service;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +16,9 @@ public class UserService {
 
 	private final UserRepository userRepository;
 
-	/** 인증된 사용자(me) 기준, 최신 상태로 재조회하여 반환 */
+	/**
+	 * 인증된 사용자(me) 기준, 최신 상태로 재조회하여 반환
+	 */
 	public User getUser(Long userId) {
 		if (userId == null) {
 			throw new IllegalStateException("Unauthenticated user");
@@ -24,7 +27,9 @@ public class UserService {
 			.orElseThrow(() -> new IllegalStateException("User not found"));
 	}
 
-	/** 성별/나이 업데이트 */
+	/**
+	 * 성별/나이 업데이트
+	 */
 	@Transactional
 	public User updateUser(Long userId, UpdateProfileRequest req) {
 		if (userId == null) {

@@ -24,8 +24,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 		Map<String, Object> attrs = user.getAttributes();
 
 		// SSAFY userInfo 예시: { userId, email, name, ... }
-		String email = (String) attrs.getOrDefault("email", "");
-		String name  = (String) attrs.getOrDefault("name", "");
+		String email = (String)attrs.getOrDefault("email", "");
+		String name = (String)attrs.getOrDefault("name", "");
 
 		if (email == null || email.isBlank()) {
 			throw new OAuth2AuthenticationException(new OAuth2Error("invalid_userinfo"),

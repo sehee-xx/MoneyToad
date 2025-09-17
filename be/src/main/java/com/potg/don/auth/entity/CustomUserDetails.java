@@ -1,6 +1,7 @@
 package com.potg.don.auth.entity;
 
 import lombok.Getter;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -15,7 +16,8 @@ public class CustomUserDetails implements UserDetails {
 	private final Collection<? extends GrantedAuthority> authorities;
 
 	// User 엔티티를 받아 UserDetails 객체를 생성하는 생성자
-	public CustomUserDetails(Long userId, String email, String password, Collection<? extends GrantedAuthority> authorities) {
+	public CustomUserDetails(Long userId, String email, String password,
+		Collection<? extends GrantedAuthority> authorities) {
 		this.userId = userId;
 		this.email = email;
 		this.password = password;
@@ -42,7 +44,6 @@ public class CustomUserDetails implements UserDetails {
 		// Spring Security에서 사용자를 식별하는 고유한 값 (여기서는 이메일 사용)
 		return this.email;
 	}
-
 
 	// -- 아래 4개 메소드는 계정의 상태를 나타냄 --
 
