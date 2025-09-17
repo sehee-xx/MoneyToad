@@ -28,3 +28,10 @@
 .app-header .nav-item.active {
   color: #FFD400;
 }
+
+.app-header .nav-item.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
