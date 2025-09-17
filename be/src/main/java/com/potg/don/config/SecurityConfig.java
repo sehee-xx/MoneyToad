@@ -31,10 +31,6 @@ public class SecurityConfig {
 	private final OAuth2SuccessHandler successHandler;
 	private final JwtAuthenticationFilter jwtFilter;
 
-	// (1) application.yml에서 CORS 허용 Origin 목록을 주입받습니다.
-	// @Value("${cors.allowed-origins}")
-	// private List<String> allowedOrigins;
-
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		// 1. CORS 및 기본 설정
@@ -44,7 +40,8 @@ public class SecurityConfig {
 			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.formLogin(AbstractHttpConfigurer::disable)
-			.httpBasic(AbstractHttpConfigurer::disable);
+			.httpBasic(AbstractHttpConfigurer::disable)
+			.logout(AbstractHttpConfigurer::disable);
 
 		// 2. HTTP 요청 권한 설정
 		http
