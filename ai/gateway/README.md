@@ -48,7 +48,14 @@ curl http://localhost:8000/api/ai/health
 
 ### 비용 분류 (Gateway 경유)
 ```bash
-curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800"
+# 단일 거래 분류
+curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800&ts=2025-01-17T10:30:00Z"
+
+# CSV 파일 배치 분류
+curl -X POST "http://localhost:8000/api/ai/classify?file_id=abc-123-def"
+
+# 분류된 파일 다운로드
+curl "http://localhost:8000/api/ai/classify/download?file_id=abc-123-def"
 ```
 
 ### CSV 파일 업로드 (Gateway 경유)

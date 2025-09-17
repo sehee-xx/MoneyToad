@@ -39,9 +39,9 @@ AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT AP
 **비용 분류 서비스** - GPT를 사용한 거래 카테고리 자동 분류
 
 **주요 기능:**
-- 단일 거래 실시간 분류
-- 배치 처리 지원
-- 카테고리 학습 및 개선
+- 단일 거래 실시간 분류 (merchant, amount, timestamp 기반)
+- CSV 파일 배치 분류 (file_id 기반)
+- 분류된 파일 다운로드
 
 ### 2. Analysis Service (내부 포트 8002)
 **금융 데이터 분석 서비스** - 지출 패턴 분석 및 AI 인사이트 제공
@@ -96,8 +96,14 @@ make re
 모든 API 요청을 포트 8000으로 보내면 자동으로 라우팅됩니다:
 
 ```bash
-# 비용 분류 - Gateway 경유
-curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800"
+# 단일 거래 분류 - Gateway 경유
+curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800&ts=2025-01-17T10:30:00Z"
+
+# CSV 파일 배치 분류 - Gateway 경유
+curl -X POST "http://localhost:8000/api/ai/classify?file_id=abc-123-def"
+
+# 분류된 파일 다운로드 - Gateway 경유
+curl "http://localhost:8000/api/ai/classify/download?file_id=abc-123-def"
 
 # CSV 파일 업로드 - Gateway 경유
 curl -X POST "http://localhost:8000/api/ai/csv/upload" \
@@ -111,14 +117,15 @@ curl -X POST "http://localhost:8000/api/ai/data/analyze?file_id=abc-123-def"
 ### Python 예제
 ```python
 import requests
+from datetime import datetime
 
-# Gateway를 통한 비용 분류
+# Gateway를 통한 단일 거래 분류
 response = requests.get(
     "http://localhost:8000/api/ai/classify",
     params={
         "merchant": "스타벅스",
         "amount": 4800,
-        "description": "아메리카노"
+        "ts": datetime.now().isoformat()
     }
 )
 print(response.json())
@@ -131,12 +138,29 @@ with open('transactions.csv', 'rb') as f:
         headers={'Authorization': 'Bearer YOUR_TOKEN'},
         files={'file': f}
     )
-    print(response.json())
+    file_id = response.json()['file_id']
+    print(f"File uploaded: {file_id}")
+
+# CSV 파일 배치 분류 시작
+response = requests.post(
+    "http://localhost:8000/api/ai/classify",
+    params={'file_id': file_id}
+)
+print("Batch classification started")
+
+# 분류된 파일 다운로드
+response = requests.get(
+    "http://localhost:8000/api/ai/classify/download",
+    params={'file_id': file_id}
+)
+with open('classified_transactions.csv', 'wb') as f:
+    f.write(response.content)
+print("Classified file downloaded")
 
 # 데이터 분석 시작
 response = requests.post(
     "http://localhost:8000/api/ai/data/analyze",
-    params={'file_id': 'abc-123-def'}
+    params={'file_id': file_id}
 )
 analysis_id = response.json()['analysis_id']
 print(f"Analysis started: {analysis_id}")
