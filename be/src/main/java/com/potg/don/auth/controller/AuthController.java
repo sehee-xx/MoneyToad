@@ -2,6 +2,7 @@ package com.potg.don.auth.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,8 +29,8 @@ public class AuthController {
 	 */
 	@PostMapping("/reissue")
 	public ResponseEntity<TokenResponse> reissue(@AuthenticationPrincipal CustomUserDetails userDetails,
-		@RequestBody ReissueRequest req) {
-		TokenResponse tokenResponse = authService.reissueTokens(userDetails.getUserId(), req.refreshToken());
+		@CookieValue("refreshToken") String refreshToken) {
+		TokenResponse tokenResponse = authService.reissueTokens(userDetails.getUserId(), refreshToken);
 		return ResponseEntity.ok(tokenResponse);
 	}
 
