@@ -6,5 +6,6 @@ export const useCardInfoQuery = () => {
   return useQuery({
     queryKey: cardQueryKeys.info(),
     queryFn: getCardInfo,
+    retry: false,
   });
 };
