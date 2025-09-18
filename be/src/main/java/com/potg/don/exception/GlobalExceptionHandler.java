@@ -42,12 +42,12 @@ public class GlobalExceptionHandler {
 	/**
 	 * 위에서 처리하지 못한 모든 예외 처리 (500 Internal Server Error)
 	 */
-	@ExceptionHandler(Exception.class)
-	public ResponseEntity<Map<String, Object>> handleAllUncaughtException(Exception ex) {
-		// 실제 운영 환경에서는 로그를 남기는 것이 중요합니다.
-		// log.error("Unhandled exception occurred", ex);
-		return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
-	}
+	// @ExceptionHandler(Exception.class)
+	// public ResponseEntity<Map<String, Object>> handleAllUncaughtException(Exception ex) {
+	// 	// 실제 운영 환경에서는 로그를 남기는 것이 중요합니다.
+	// 	// log.error("Unhandled exception occurred", ex);
+	// 	return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
+	// }
 
 	/**
 	 * 일관된 형식의 에러 응답을 생성하는 헬퍼 메서드
