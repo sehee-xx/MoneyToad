@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import Optional
 
 
@@ -9,6 +10,29 @@ class Settings(BaseSettings):
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8002
+    
+    # Database
+    DATABASE_URL: str = Field(
+        default="postgresql://fintech_user:fintech_password@postgres:5432/fintech_db",
+        env="DATABASE_URL"
+    )
+    
+    # Redis Settings
+    REDIS_HOST: str = Field(default="localhost", env="REDIS_HOST")
+    REDIS_PORT: int = Field(default=6379, env="REDIS_PORT")
+    REDIS_DB: int = Field(default=0, env="REDIS_DB")
+    REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
+    
+    # MinIO/S3 Settings (for fetching CSV files)
+    MINIO_ENDPOINT: str = Field(
+        default="https://j13a409.p.ssafy.io:8909",
+        env="MINIO_ENDPOINT"
+    )
+    MINIO_ACCESS_KEY: str = Field(default="minioadmin", env="MINIO_ACCESS_KEY")
+    MINIO_SECRET_KEY: str = Field(default="minioadmin", env="MINIO_SECRET_KEY")
+    MINIO_BUCKET: str = Field(default="csv", env="MINIO_BUCKET")
+    MINIO_SECURE: bool = Field(default=True, env="MINIO_SECURE")
+    VERIFY_SSL: bool = Field(default=False, env="VERIFY_SSL")
     
     # OpenAI GPT Configuration
     OPENAI_API_KEY: Optional[str] = None

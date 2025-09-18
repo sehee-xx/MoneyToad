@@ -1,13 +1,31 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import logging
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.models.database import init_db
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup"""
+    logger.info("Initializing database...")
+    await init_db()
+    logger.info("Database initialized")
+    yield
+    logger.info("Shutting down...")
+
 
 app = FastAPI(
     title="Data Analysis Service",
     version="1.0.0",
-    description="Financial data analysis and leak calculation"
+    description="Financial data analysis with Prophet forecasting",
+    lifespan=lifespan
 )
 
 app.add_middleware(
