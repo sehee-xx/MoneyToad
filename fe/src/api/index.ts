@@ -11,6 +11,6 @@ export { useCardInfoQuery } from './queries/cardQuery';
 
 // Mutation hooks
 export { useUpdateUserBasicInfoMutation } from './mutation/userMutation';
-export { useRegisterCardMutation } from './mutation/cardMutation';
+export { useRegisterCardMutation, useDeleteCardMutation } from './mutation/cardMutation';
 
 

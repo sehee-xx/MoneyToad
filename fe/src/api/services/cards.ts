@@ -44,3 +44,12 @@ export const registerCard = async (data: RegisterCardRequest) => {
 
   return adaptCardResponse(response);
 };
+
+export const deleteCard = async () => {
+  const response = await request<void>({
+    method: REQUEST_METHOD.DELETE,
+    url: `${import.meta.env.VITE_BACK_URL}/api/cards`,
+  });
+
+  return response;
+};

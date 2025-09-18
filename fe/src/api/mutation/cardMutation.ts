@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { registerCard, type RegisterCardRequest } from '../services/cards';
+import { registerCard, deleteCard, type RegisterCardRequest } from '../services/cards';
 import { cardQueryKeys } from '../queryKeys';
 
 export const useRegisterCardMutation = () => {
@@ -7,11 +7,21 @@ export const useRegisterCardMutation = () => {
 
   return useMutation({
     mutationFn: (data: RegisterCardRequest) => registerCard(data),
+    onSuccess: (newCardData) => {
+      // 즉시 캐시 업데이트로 빠른 UI 반영
+      queryClient.setQueryData(cardQueryKeys.info(), newCardData);
+    },
+  });
+};
+
+export const useDeleteCardMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deleteCard(),
     onSuccess: () => {
-      // 카드 정보 쿼리 무효화하여 최신 데이터 다시 가져오기
-      queryClient.invalidateQueries({
-        queryKey: cardQueryKeys.info(),
-      });
+      // 즉시 캐시를 null로 설정하여 빠른 UI 반영
+      queryClient.setQueryData(cardQueryKeys.info(), null);
     },
   });
 };
