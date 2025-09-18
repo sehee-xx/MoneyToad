@@ -5,4 +5,11 @@ export type { ApiResponseForm, ApiError } from './client';
 // 인터셉터
 export { setupAuthInterceptor } from './interceptors';
 
+// Query hooks
+export { useUserInfoQuery } from './queries/userQuery';
+export { useCardInfoQuery } from './queries/cardQuery';
+
+// Mutation hooks
+export { useUpdateUserBasicInfoMutation } from './mutation/userMutation';
+
 

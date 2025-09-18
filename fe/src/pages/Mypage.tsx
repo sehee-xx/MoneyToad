@@ -2,15 +2,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import "./Mypage.css";
 import { useUserInfoQuery } from "../api/queries/userQuery";
+import { useUpdateUserBasicInfoMutation } from "../api/mutation/userMutation";
+import { useCardInfoQuery } from "../api/queries/cardQuery";
 import type { UserInfo as ApiUserInfo } from "../types/user";
 import type { Gender } from "../types";
+import type { CardInfo } from "../api/services/cards";
 
 type Phase = "CLOSED" | "OPEN" | "SITTING" | "PAPER";
 type LocalUserInfo = {
   gender: Gender;
   age: number | null;
-  account?: string; // 0000-0000-0000-0000
-  cvc?: string;     // 3 digits
+  account?: string;
+  cvc?: string;
 };
 
 const IMG_CLOSE  = "/mypage/close.png";
@@ -34,48 +37,41 @@ const maskAccount = (acct?: string) => {
 };
 
 
-const loadUser = (apiUserData?: ApiUserInfo): LocalUserInfo => {
+const loadUser = (apiUserData?: ApiUserInfo, cardData?: CardInfo): LocalUserInfo => {
   try {
-    // API 데이터가 있으면 우선 사용
+    // API 데이터가 있으면 사용, 없으면 기본값
     if (apiUserData) {
       const { gender, age } = apiUserData;
-      // localStorage에서 카드 정보는 유지
-      const raw = localStorage.getItem("userInfo");
-      const saved = raw ? JSON.parse(raw) : {};
       return {
         gender: gender || "",
         age: age || null,
-        account: saved.account,
-        cvc: saved.cvc,
+        account: cardData?.account,
+        cvc: cardData?.cvc,
       };
     }
 
-    // API 데이터가 없으면 localStorage에서 로드
-    const raw = localStorage.getItem("userInfo");
-    if (!raw) return { gender: "", age: null };
-    const parsed = JSON.parse(raw);
-    return {
-      gender: (parsed.gender ?? "") as Gender,
-      age: typeof parsed.age === "number" ? parsed.age : null,
-      account: parsed.account,
-      cvc: parsed.cvc,
-    };
+    // API 데이터가 없으면 기본값 반환
+    return { gender: "", age: null };
   } catch {
     return { gender: "", age: null };
   }
-};
-
-const saveUser = (u: LocalUserInfo) => {
-  localStorage.setItem("userInfo", JSON.stringify(u));
 };
 
 export default function MyPage() {
   const [phase, setPhase] = useState<Phase>("CLOSED");
 
   const { data: userData } = useUserInfoQuery();
+  const { data: cardData } = useCardInfoQuery();
+  const updateUserBasicInfoMutation = useUpdateUserBasicInfoMutation();
 
-  const [user, setUser] = useState<LocalUserInfo>(() => loadUser(userData));
-  useEffect(() => saveUser(user), [user]);
+  const [user, setUser] = useState<LocalUserInfo>(() => loadUser(userData, cardData));
+
+  // userData 또는 cardData 변경 시 user 상태 동기화
+  useEffect(() => {
+    if (userData || cardData) {
+      setUser(loadUser(userData, cardData));
+    }
+  }, [userData, cardData]);
 
   const [gEditing, setGEditing] = useState<Gender>(user.gender);
   const [ageEditing, setAgeEditing] = useState<string>(
@@ -93,7 +89,7 @@ export default function MyPage() {
   const prevPhase = useRef<Phase>(phase);
   useEffect(() => {
     if (phase === "PAPER" && prevPhase.current !== "PAPER") {
-      const fresh = loadUser(userData);
+      const fresh = loadUser(userData, cardData);
       setUser(fresh);
       setGEditing(fresh.gender);
       setAgeEditing(fresh.age === null ? "" : String(fresh.age));
@@ -102,7 +98,7 @@ export default function MyPage() {
       setCvcNew("");
     }
     prevPhase.current = phase;
-  }, [phase, userData]);
+  }, [phase, userData, cardData]);
 
   // 유효성
   const accountValid = useMemo(
@@ -123,7 +119,11 @@ export default function MyPage() {
 
   const handleSaveBasic = () => {
     if (!ageValid || !basicDirty) return;
-    setUser((u) => ({ ...u, gender: gEditing, age: Number(ageEditing) }));
+
+    updateUserBasicInfoMutation.mutate({
+      gender: gEditing,
+      age: Number(ageEditing)
+    });
   };
 
   const handleDeleteCard = () => {
