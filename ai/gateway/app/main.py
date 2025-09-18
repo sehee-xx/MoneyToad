@@ -17,10 +17,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="AI Fintech API Gateway",
     description="Unified API Gateway for AI Fintech Microservices with CSV Management",
-    version="1.0.0",
+    version="1.0.1",  # Changed version to force refresh
     docs_url="/api/ai/docs",
     redoc_url="/api/ai/redoc",
-    openapi_url="/api/ai/openapi.json"
+    openapi_url="/api/ai/openapi.json",
+    swagger_ui_parameters={
+        "docExpansion": "list",  # 'none', 'list', or 'full'
+        "defaultModelsExpandDepth": 1,
+        "persistAuthorization": True
+    }
 )
 
 # CORS configuration
@@ -488,8 +493,26 @@ async def fetch_and_cache_schemas():
 @app.on_event("startup")
 async def startup_event():
     """Fetch service schemas on startup"""
-    await fetch_and_cache_schemas()
-    logger.info("Service schemas fetched and cached")
+    import asyncio
+    # Wait a bit for services to be ready
+    await asyncio.sleep(3)
+    
+    # Try multiple times to fetch schemas
+    max_retries = 5
+    for attempt in range(max_retries):
+        await fetch_and_cache_schemas()
+        if _service_schemas_cache:
+            logger.info(f"Service schemas fetched successfully on attempt {attempt + 1}")
+            break
+        else:
+            logger.warning(f"Failed to fetch schemas on attempt {attempt + 1}, retrying...")
+            await asyncio.sleep(2)
+    
+    # Log final status
+    if _service_schemas_cache:
+        logger.info(f"Cached schemas for: {list(_service_schemas_cache.keys())}")
+    else:
+        logger.error("Failed to fetch any service schemas after all retries")
 
 
 # Custom OpenAPI schema
