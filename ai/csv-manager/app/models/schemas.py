@@ -5,7 +5,7 @@ from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 
 # Status enum
-Status = Literal["ingesting", "leakage_calculating", "analyzing", "none"]
+Status = Literal["uploading", "ingesting", "leakage_calculating", "analyzing", "none", "error"]
 
 
 class FileInfo(BaseModel):

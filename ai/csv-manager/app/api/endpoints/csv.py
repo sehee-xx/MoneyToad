@@ -84,9 +84,9 @@ async def auto_clear_status(
 @router.post(
     "/upload",
     response_model=FileInfo,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,  # Changed to 202 for async processing
     summary="Upload CSV file",
-    description="Upload a new CSV file to storage (Admin only)"
+    description="Upload a new CSV file to storage (Admin only) - Async processing"
 )
 async def upload_csv(
     background_tasks: BackgroundTasks,
@@ -95,11 +95,11 @@ async def upload_csv(
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> FileInfo:
     """
-    Upload a new CSV file to MinIO/S3 storage.
+    Upload a new CSV file to MinIO/S3 storage (asynchronous).
     
     Requires admin role.
-    Sets initial status to 'ingesting'.
-    If CSV_STATUS_AUTO_CLEAR is enabled, status will be cleared to 'none' after a delay.
+    Returns immediately with file_id and status 'uploading'.
+    Upload happens in background. Check status with GET /status endpoint.
     
     Args:
         background_tasks: FastAPI background tasks
@@ -108,7 +108,7 @@ async def upload_csv(
         csv_repo: Repository instance
     
     Returns:
-        FileInfo with upload details
+        FileInfo with file_id (status will be 'uploading')
     
     Raises:
         400: If file already exists
@@ -129,13 +129,24 @@ async def upload_csv(
                 detail=f"File '{file.filename}' already exists. Use PUT /change to replace it."
             )
         
-        # Upload file
-        file_info = await csv_repo.upload_file(
-            file_name=file.filename,
-            file_content=file.file
+        # Prepare upload (creates metadata and returns immediately)
+        file_info = await csv_repo.prepare_upload(
+            file_name=file.filename
         )
         
-        logger.info(f"Admin '{role}' uploaded CSV file '{file.filename}' with ID '{file_info.file_id}'")
+        # Read file content into memory for background processing
+        file_content = await file.read()
+        
+        # Schedule background upload
+        background_tasks.add_task(
+            csv_repo.upload_file_background,
+            file_name=file.filename,
+            file_content=file_content,
+            file_id=file_info.file_id,
+            s3_key=file_info.s3_key
+        )
+        
+        logger.info(f"Admin '{role}' initiated upload for CSV file '{file.filename}' with ID '{file_info.file_id}'")
         
         return file_info
         
@@ -221,8 +232,9 @@ async def delete_csv(
 @router.put(
     "/change",
     response_model=FileInfo,
+    status_code=status.HTTP_202_ACCEPTED,  # Changed to 202 for async
     summary="Replace CSV file",
-    description="Replace an existing CSV file by file ID (Admin only)"
+    description="Replace an existing CSV file by file ID (Admin only) - Async processing"
 )
 async def replace_csv(
     background_tasks: BackgroundTasks,
@@ -232,11 +244,11 @@ async def replace_csv(
     csv_repo: S3CsvRepo = Depends(get_csv_repo)
 ) -> FileInfo:
     """
-    Replace an existing CSV file in MinIO/S3 storage by file ID.
+    Replace an existing CSV file in MinIO/S3 storage by file ID (asynchronous).
     
     Requires admin role.
-    Keeps the same logical filename but uploads new content.
-    Updates replaced_at timestamp and resets status to 'ingesting'.
+    Returns immediately with status 'uploading'.
+    Keeps the same file_id but creates new S3 object.
     
     Args:
         background_tasks: FastAPI background tasks
@@ -246,7 +258,7 @@ async def replace_csv(
         csv_repo: Repository instance
     
     Returns:
-        FileInfo with updated details
+        FileInfo with same file_id (status will be 'uploading')
     
     Raises:
         401: If not authenticated
@@ -268,21 +280,31 @@ async def replace_csv(
                 detail=f"File with ID '{file_id}' not found. Use POST /upload for new files."
             )
         
-        # Check if file is being processed (optional)
+        # Check if file is being processed
         current_status = await csv_repo.get_status_by_id(file_id)
-        if current_status and current_status in ["ingesting", "leakage_calculating", "analyzing"]:
+        if current_status and current_status in ["uploading", "ingesting", "leakage_calculating", "analyzing"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot replace file while status is '{current_status}'"
             )
         
-        # Replace file
-        file_info = await csv_repo.replace_file_by_id(
-            file_id=file_id,
-            file_content=file.file
+        # Prepare replace (returns immediately)
+        file_info, old_s3_key = await csv_repo.prepare_replace_by_id(file_id)
+        
+        # Read file content for background processing
+        file_content = await file.read()
+        
+        # Schedule background replace
+        background_tasks.add_task(
+            csv_repo.replace_file_background,
+            file_name=existing.csv_file,
+            file_content=file_content,
+            file_id=file_info.file_id,
+            s3_key=file_info.s3_key,
+            old_s3_key=old_s3_key
         )
         
-        logger.info(f"Admin '{role}' replaced file with ID '{file_id}' ('{existing.csv_file}')")
+        logger.info(f"Admin '{role}' initiated replace for file ID '{file_id}' ('{existing.csv_file}')")
         
         return file_info
         

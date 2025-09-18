@@ -214,13 +214,137 @@ class S3CsvRepo(CsvRepo):
             logger.warning(f"Failed to generate presigned URL: {e}")
             return None
     
+    async def prepare_upload(
+        self,
+        file_name: str
+    ) -> FileInfo:
+        """
+        Prepare for file upload by creating metadata and returning file info.
+        Actual upload happens in background.
+        
+        Args:
+            file_name: Original filename
+        
+        Returns:
+            FileInfo with file_id and initial metadata
+        
+        Raises:
+            ValueError: If file already exists
+        """
+        # Check if file already exists
+        existing_metadata = self.redis_client.get_file_metadata(file_name)
+        if existing_metadata:
+            raise ValueError(f"File '{file_name}' already exists. Use replace_file to update.")
+        
+        # Generate S3 key and file ID
+        s3_key = self._generate_s3_key(file_name)
+        file_id = s3_key.split('_')[0]  # Extract UUID from key
+        
+        # Create initial file info (without size and checksum yet)
+        file_info = FileInfo(
+            csv_file=file_name,
+            file_id=file_id,
+            checksum="pending",  # Will be updated after upload
+            size_bytes=0,  # Will be updated after upload
+            uploaded_at=datetime.now(timezone.utc).isoformat(),
+            replaced_at=None,
+            s3_key=s3_key,
+            s3_url="pending"  # Will be updated after upload
+        )
+        
+        # Store initial metadata in Redis
+        metadata_dict = file_info.model_dump()
+        self.redis_client.set_file_metadata(file_name, metadata_dict)
+        
+        # Set initial status to uploading
+        self.redis_client.set_status(file_id, "uploading")
+        
+        logger.info(f"Prepared upload for file '{file_name}' with ID '{file_id}'")
+        
+        return file_info
+    
+    async def upload_file_background(
+        self,
+        file_name: str,
+        file_content: bytes,  # Changed to bytes for background task
+        file_id: str,
+        s3_key: str
+    ) -> None:
+        """
+        Background task to upload file to S3.
+        
+        Args:
+            file_name: Original filename
+            file_content: File content as bytes
+            file_id: Pre-generated file ID
+            s3_key: Pre-generated S3 key
+        """
+        try:
+            # Set status to ingesting
+            self.redis_client.set_status(file_id, "ingesting")
+            
+            # Calculate checksum
+            checksum = hashlib.sha256(file_content).hexdigest()
+            size_bytes = len(file_content)
+            
+            # Upload to S3
+            from io import BytesIO
+            file_stream = BytesIO(file_content)
+            
+            extra_args = {'ContentType': 'text/csv'}
+            self.s3_client.upload_fileobj(
+                file_stream,
+                self.bucket_name,
+                s3_key,
+                ExtraArgs=extra_args
+            )
+            
+            # Verify upload
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"Background upload verified: S3 object '{s3_key}' exists")
+            except Exception as e:
+                logger.error(f"Background upload verification failed: {e}")
+                self.redis_client.set_status(file_id, "error")
+                return
+            
+            # Generate presigned URL
+            presigned_url = self._generate_presigned_url(s3_key)
+            
+            # Update file info with actual values
+            file_info = FileInfo(
+                csv_file=file_name,
+                file_id=file_id,
+                checksum=checksum,
+                size_bytes=size_bytes,
+                uploaded_at=datetime.now(timezone.utc).isoformat(),
+                replaced_at=None,
+                s3_key=s3_key,
+                s3_url=presigned_url
+            )
+            
+            # Update metadata in Redis
+            metadata_dict = file_info.model_dump()
+            self.redis_client.set_file_metadata(file_name, metadata_dict)
+            
+            # Upload completed successfully - set status to none
+            self.redis_client.set_status(file_id, "none")
+            
+            logger.info(f"Background upload completed for '{file_name}' (size: {size_bytes} bytes)")
+            
+        except Exception as e:
+            logger.error(f"Background upload failed for '{file_name}': {e}")
+            self.redis_client.set_status(file_id, "error")
+            # Optionally clean up failed upload metadata
+            # self.redis_client.delete_file_metadata(file_name, file_id)
+    
     async def upload_file(
         self, 
         file_name: str, 
         file_content: BinaryIO
     ) -> FileInfo:
         """
-        Upload a new CSV file to MinIO/S3.
+        Upload a new CSV file to MinIO/S3 (synchronous for backward compatibility).
         
         Args:
             file_name: Original filename
@@ -300,13 +424,154 @@ class S3CsvRepo(CsvRepo):
             logger.error(f"Failed to upload file '{file_name}': {e}")
             raise
     
+    async def prepare_replace(
+        self,
+        file_name: str
+    ) -> FileInfo:
+        """
+        Prepare for file replacement.
+        
+        Args:
+            file_name: File to replace
+        
+        Returns:
+            FileInfo with existing file_id
+        
+        Raises:
+            ValueError: If file doesn't exist
+        """
+        # Check if file exists in Redis
+        old_metadata = self.redis_client.get_file_metadata(file_name)
+        if not old_metadata:
+            raise ValueError(f"File '{file_name}' not found. Use upload_file for new files.")
+        
+        old_info = FileInfo(**old_metadata)
+        file_id = old_info.file_id
+        
+        # Set status to uploading
+        self.redis_client.set_status(file_id, "uploading")
+        
+        # Generate new S3 key with existing file_id
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+        s3_key = f"{file_id}_{timestamp}_{file_name}"
+        
+        # Return file info with new s3_key but same file_id
+        file_info = FileInfo(
+            csv_file=file_name,
+            file_id=file_id,
+            checksum="pending",
+            size_bytes=0,
+            uploaded_at=old_info.uploaded_at,
+            replaced_at=datetime.now(timezone.utc).isoformat(),
+            s3_key=s3_key,
+            s3_url="pending"
+        )
+        
+        # Update metadata with pending status
+        metadata_dict = file_info.model_dump()
+        self.redis_client.set_file_metadata(file_name, metadata_dict)
+        
+        logger.info(f"Prepared replace for file '{file_name}' with ID '{file_id}'")
+        
+        return file_info, old_info.s3_key  # Return old s3_key for deletion
+    
+    async def replace_file_background(
+        self,
+        file_name: str,
+        file_content: bytes,
+        file_id: str,
+        s3_key: str,
+        old_s3_key: str = None
+    ) -> None:
+        """
+        Background task to replace file in S3.
+        
+        Args:
+            file_name: Original filename
+            file_content: New file content as bytes
+            file_id: Existing file ID
+            s3_key: New S3 key
+            old_s3_key: Old S3 key to delete
+        """
+        try:
+            # Set status to ingesting
+            self.redis_client.set_status(file_id, "ingesting")
+            
+            # Delete old S3 object if exists
+            if old_s3_key:
+                try:
+                    self.s3_client.delete_object(
+                        Bucket=self.bucket_name,
+                        Key=old_s3_key
+                    )
+                    logger.info(f"Deleted old S3 object: {old_s3_key}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete old object: {e}")
+            
+            # Calculate checksum
+            checksum = hashlib.sha256(file_content).hexdigest()
+            size_bytes = len(file_content)
+            
+            # Upload to S3
+            from io import BytesIO
+            file_stream = BytesIO(file_content)
+            
+            extra_args = {'ContentType': 'text/csv'}
+            self.s3_client.upload_fileobj(
+                file_stream,
+                self.bucket_name,
+                s3_key,
+                ExtraArgs=extra_args
+            )
+            
+            # Verify upload
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"Background replace verified: S3 object '{s3_key}' exists")
+            except Exception as e:
+                logger.error(f"Background replace verification failed: {e}")
+                self.redis_client.set_status(file_id, "error")
+                return
+            
+            # Generate presigned URL
+            presigned_url = self._generate_presigned_url(s3_key)
+            
+            # Get existing metadata to preserve uploaded_at
+            old_metadata = self.redis_client.get_file_metadata(file_name)
+            old_info = FileInfo(**old_metadata) if old_metadata else None
+            
+            # Update file info with actual values
+            file_info = FileInfo(
+                csv_file=file_name,
+                file_id=file_id,
+                checksum=checksum,
+                size_bytes=size_bytes,
+                uploaded_at=old_info.uploaded_at if old_info else datetime.now(timezone.utc).isoformat(),
+                replaced_at=datetime.now(timezone.utc).isoformat(),
+                s3_key=s3_key,
+                s3_url=presigned_url
+            )
+            
+            # Update metadata in Redis
+            metadata_dict = file_info.model_dump()
+            self.redis_client.set_file_metadata(file_name, metadata_dict)
+            
+            # Replace completed successfully - set status to none
+            self.redis_client.set_status(file_id, "none")
+            
+            logger.info(f"Background replace completed for '{file_name}' (size: {size_bytes} bytes)")
+            
+        except Exception as e:
+            logger.error(f"Background replace failed for '{file_name}': {e}")
+            self.redis_client.set_status(file_id, "error")
+    
     async def replace_file(
         self, 
         file_name: str, 
         file_content: BinaryIO
     ) -> FileInfo:
         """
-        Replace an existing CSV file in MinIO/S3.
+        Replace an existing CSV file in MinIO/S3 (synchronous for backward compatibility).
         
         Args:
             file_name: Original filename to replace
@@ -459,8 +724,16 @@ class S3CsvRepo(CsvRepo):
             return await self.delete_file(file_info.csv_file)
         raise ValueError(f"File with id '{file_id}' not found")
     
+    async def prepare_replace_by_id(self, file_id: str) -> tuple[FileInfo, str]:
+        """Prepare replace by file_id for async processing"""
+        metadata = self.redis_client.get_file_metadata_by_id(file_id)
+        if metadata:
+            file_info = FileInfo(**metadata)
+            return await self.prepare_replace(file_info.csv_file)
+        raise ValueError(f"File with id '{file_id}' not found")
+    
     async def replace_file_by_id(self, file_id: str, file_content: BinaryIO) -> FileInfo:
-        """Replace a CSV file by file_id"""
+        """Replace a CSV file by file_id (synchronous for backward compatibility)"""
         metadata = self.redis_client.get_file_metadata_by_id(file_id)
         if metadata:
             file_info = FileInfo(**metadata)
