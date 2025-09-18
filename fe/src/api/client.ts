@@ -44,7 +44,7 @@ const request = async <ResponseType, RequestType = unknown>(
 ) => {
   try {
     const { data } =
-      await axiosInstance.request<ApiResponseForm<ResponseType>>(options);
+      await axiosInstance.request<ResponseType>(options);
     return data;
   } catch (error: unknown) {
     const { response } = error as {

@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import "./Mypage.css";
+import { useUserInfoQuery } from "../api/queries/userQuery";
+import { useUpdateUserBasicInfoMutation } from "../api/mutation/userMutation";
+import { useCardInfoQuery } from "../api/queries/cardQuery";
+import { useRegisterCardMutation, useDeleteCardMutation } from "../api/mutation/cardMutation";
+import type { UserInfo as ApiUserInfo } from "../types/user";
+import type { Gender } from "../types";
+import type { CardInfo } from "../api/services/cards";
 
 type Phase = "CLOSED" | "OPEN" | "SITTING" | "PAPER";
-type Gender = "여성" | "남성" | "";
-type UserInfo = {
+type LocalUserInfo = {
   gender: Gender;
   age: number | null;
-  account?: string; // 0000-0000-0000-0000
-  cvc?: string;     // 3 digits
+  account?: string;
+  cvc?: string;
 };
 
 const IMG_CLOSE  = "/mypage/close.png";
@@ -31,39 +37,43 @@ const maskAccount = (acct?: string) => {
   return `****-****-****-${last4}`;
 };
 
-const loadUser = (): UserInfo => {
-  try {
-    const raw = localStorage.getItem("userInfo");
-    if (!raw) return { gender: "", age: null };
-    const parsed = JSON.parse(raw);
-    return {
-      gender: (parsed.gender ?? "") as Gender,
-      age: typeof parsed.age === "number" ? parsed.age : null,
-      account: parsed.account,
-      cvc: parsed.cvc,
-    };
-  } catch {
-    return { gender: "", age: null };
-  }
-};
 
-const saveUser = (u: UserInfo) => {
-  localStorage.setItem("userInfo", JSON.stringify(u));
-};
+const loadUser = (apiUserData?: ApiUserInfo, cardData?: CardInfo): LocalUserInfo => {
+  // API 데이터가 있으면 사용, 없으면 기본값
+  if (apiUserData) {
+    const { gender, age } = apiUserData;
+    return {
+      gender: gender || "",
+      age: age || null,
+      account: cardData?.account,
+      cvc: cardData?.cvc,
+    };
+  }
+
+  // API 데이터가 없으면 기본값 반환
+  return { gender: "", age: null };
+}
 
 export default function MyPage() {
   const [phase, setPhase] = useState<Phase>("CLOSED");
 
-  const [user, setUser] = useState<UserInfo>(() => loadUser());
-  useEffect(() => saveUser(user), [user]);
+  const { data: userData } = useUserInfoQuery();
+  const { data: cardData } = useCardInfoQuery();
+  const updateUserBasicInfoMutation = useUpdateUserBasicInfoMutation();
+  const registerCardMutation = useRegisterCardMutation();
+  const deleteCardMutation = useDeleteCardMutation();
+
+  const [user, setUser] = useState<LocalUserInfo>(() => loadUser(userData, cardData));
+
+  // userData 또는 cardData 변경 시 user 상태 동기화
+  useEffect(() => {
+    setUser(loadUser(userData, cardData));
+  }, [userData, cardData]);
 
   const [gEditing, setGEditing] = useState<Gender>(user.gender);
   const [ageEditing, setAgeEditing] = useState<string>(
     user.age === null ? "" : String(user.age)
   );
-
-  // 카드: 삭제 직후 재등록 라벨 제어
-  const [justDeleted, setJustDeleted] = useState(false);
 
   // 카드 등록 폼 (카드가 없을 때만 사용)
   const [acctNew, setAcctNew] = useState("");
@@ -73,16 +83,15 @@ export default function MyPage() {
   const prevPhase = useRef<Phase>(phase);
   useEffect(() => {
     if (phase === "PAPER" && prevPhase.current !== "PAPER") {
-      const fresh = loadUser();
+      const fresh = loadUser(userData, cardData);
       setUser(fresh);
       setGEditing(fresh.gender);
       setAgeEditing(fresh.age === null ? "" : String(fresh.age));
-      setJustDeleted(false);
       setAcctNew("");
       setCvcNew("");
     }
     prevPhase.current = phase;
-  }, [phase]);
+  }, [phase, userData, cardData]);
 
   // 유효성
   const accountValid = useMemo(
@@ -103,29 +112,61 @@ export default function MyPage() {
 
   const handleSaveBasic = () => {
     if (!ageValid || !basicDirty) return;
-    setUser((u) => ({ ...u, gender: gEditing, age: Number(ageEditing) }));
+
+    updateUserBasicInfoMutation.mutate({
+      gender: gEditing,
+      age: Number(ageEditing)
+    });
   };
 
   const handleDeleteCard = () => {
     if (!user.account) return;
     if (!window.confirm("등록된 카드를 삭제할까요?")) return;
+    
+    // 낙관적 업데이트: 즉시 로컬 상태 업데이트
     setUser((u) => ({ ...u, account: undefined, cvc: undefined }));
     setAcctNew("");
     setCvcNew("");
-    setJustDeleted(true);
+    
+    // API 호출
+    deleteCardMutation.mutate(undefined, {
+      onError: (error) => {
+        // 실패시 롤백
+        console.error('카드 삭제 실패:', error);
+        setUser(loadUser(userData, cardData)); // 원래 상태로 복구
+      }
+    });
   };
 
   const handleRegisterCard = () => {
     if (!accountValid || !cvcValid) return;
-    setUser((u) => ({ ...u, account: acctNew, cvc: cvcNew }));
+    
+    // 현재 입력값 저장 (상태 초기화 전에)
+    const currentAccount = acctNew;
+    const currentCvc = cvcNew;
+    
+    // 낙관적 업데이트: 즉시 로컬 상태 업데이트
+    setUser((u) => ({ ...u, account: currentAccount, cvc: currentCvc }));
     setAcctNew("");
     setCvcNew("");
-    setJustDeleted(false);
+    
+    // API 호출 (저장된 값 사용)
+    registerCardMutation.mutate({
+      cardNo: currentAccount,
+      cvc: currentCvc,
+    }, {
+      onError: (error) => {
+        // 실패시 롤백
+        console.error('카드 등록 실패:', error);
+        setUser(loadUser(userData, cardData)); // 원래 상태로 복구
+        setAcctNew(currentAccount); // 입력값 복구
+        setCvcNew(currentCvc);
+      }
+    });
   };
 
   const closeToHome = () => {
     setPhase("CLOSED");
-    setJustDeleted(false);
   };
 
   return (
@@ -168,7 +209,14 @@ export default function MyPage() {
                   {/* 기본 정보 */}
                   <section className="paper-block">
                     <h3>기본</h3>
+
                     <div className="grid two">
+                      <label className="field">
+                        <span>이름</span>
+                        <div className="readonly-value">
+                          {userData?.name || ""}
+                        </div>
+                      </label>
                       <label className="field">
                         <span>성별</span>
                         <div className="seg">
@@ -266,7 +314,7 @@ export default function MyPage() {
                             onClick={handleRegisterCard}
                             disabled={!accountValid || !cvcValid}
                           >
-                            {justDeleted ? "카드 재등록" : "카드 등록"}
+                            {"카드 등록"}
                           </button>
                         </div>
                       </>
