@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useRegisterCardMutation } from "../api/mutation/cardMutation";
+import { useUpdateUserBasicInfoMutation } from "../api/mutation/userMutation";
 import "./UserInfoInputPage.css";
 
 const SCENE_BG = "/userInfo/talk-scene.png";
@@ -19,6 +21,8 @@ type Step = "intro" | "gender" | "age" | "account";
 
 export default function UserInfoInputPage() {
   const navigate = useNavigate();
+  const registerCardMutation = useRegisterCardMutation();
+  const updateUserBasicInfoMutation = useUpdateUserBasicInfoMutation();
 
   // Fog
   const [, setFogGone] = useState(false);
@@ -110,15 +114,28 @@ export default function UserInfoInputPage() {
     }
   };
 
-  const goFinish = () => {
+  const goFinish = async () => {
     setTouched(true);
     if (!allValid) return;
-    localStorage.setItem(
-      "userInfo",
-      JSON.stringify({ gender, age: Number(age), account, cvc })
-    );
-    const month = new Date().getMonth() + 1; // 1~12
-    navigate(`/pot/${month}`);
+    
+    try {
+      await registerCardMutation.mutateAsync({
+        cardNo: account,
+        cvc
+      });
+
+      await updateUserBasicInfoMutation.mutateAsync({
+        age: Number(age),
+        gender
+      });
+
+      // 성공 후 페이지 이동
+      const month = new Date().getMonth() + 1; // 1~12
+      navigate(`/pot/${month}`);
+    } catch (error) {
+      console.error('API 호출 실패:', error);
+      alert('정보 등록 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
   };
 
   const cancel = () => navigate("/");
