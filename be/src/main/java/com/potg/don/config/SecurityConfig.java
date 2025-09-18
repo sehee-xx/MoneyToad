@@ -45,10 +45,10 @@ public class SecurityConfig {
 				// 프리플라이트는 무조건 허용
 				.requestMatchers(HttpMethod.OPTIONS, "/**")
 				.permitAll()
-				.requestMatchers("/login/**", "/oauth2/**", "/test", "/v3/api-docs/**", "/swagger-ui/**",
-					"/swagger-ui.html")
+				.requestMatchers("/login/**", "/oauth2/**", "/auth/reissue", "/test", "/v3/api-docs/**",
+					"/swagger-ui/**", "/swagger-ui.html")
 				.permitAll()
-				.requestMatchers("/auth/reissue", "/auth/logout")
+				.requestMatchers("/auth/logout")
 				.authenticated()
 				.anyRequest()
 				.authenticated())

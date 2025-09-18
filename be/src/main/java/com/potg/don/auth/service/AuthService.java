@@ -20,7 +20,8 @@ public class AuthService {
 	private final UserRepository userRepository;
 
 	@Transactional
-	public TokenResponse reissueTokens(Long userId, String refreshToken) {
+	public TokenResponse reissueTokens(String refreshToken) {
+		Long userId = jwtUtil.getUserId(refreshToken);
 		// 1. Redis에 저장된 RT와 일치하는지, 만료되지는 않았는지 확인합니다.
 		validateRefreshToken(userId, refreshToken);
 
