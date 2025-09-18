@@ -1,6 +1,8 @@
+import type { Gender } from ".";
+
 export interface UserInfo {
   name: string;
   email: string;
-  gender: string;
+  gender: Gender;
   age: number;
 }

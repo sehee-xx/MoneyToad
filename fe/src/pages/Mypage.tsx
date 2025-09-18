@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import "./Mypage.css";
+import { useUserInfoQuery } from "../api/queries/userQuery";
+import type { UserInfo as ApiUserInfo } from "../types/user";
+import type { Gender } from "../types";
 
 type Phase = "CLOSED" | "OPEN" | "SITTING" | "PAPER";
-type Gender = "여성" | "남성" | "";
-type UserInfo = {
+type LocalUserInfo = {
   gender: Gender;
   age: number | null;
   account?: string; // 0000-0000-0000-0000
@@ -31,8 +33,24 @@ const maskAccount = (acct?: string) => {
   return `****-****-****-${last4}`;
 };
 
-const loadUser = (): UserInfo => {
+
+const loadUser = (apiUserData?: ApiUserInfo): LocalUserInfo => {
   try {
+    // API 데이터가 있으면 우선 사용
+    if (apiUserData) {
+      const { gender, age } = apiUserData;
+      // localStorage에서 카드 정보는 유지
+      const raw = localStorage.getItem("userInfo");
+      const saved = raw ? JSON.parse(raw) : {};
+      return {
+        gender: gender || "",
+        age: age || null,
+        account: saved.account,
+        cvc: saved.cvc,
+      };
+    }
+
+    // API 데이터가 없으면 localStorage에서 로드
     const raw = localStorage.getItem("userInfo");
     if (!raw) return { gender: "", age: null };
     const parsed = JSON.parse(raw);
@@ -47,14 +65,16 @@ const loadUser = (): UserInfo => {
   }
 };
 
-const saveUser = (u: UserInfo) => {
+const saveUser = (u: LocalUserInfo) => {
   localStorage.setItem("userInfo", JSON.stringify(u));
 };
 
 export default function MyPage() {
   const [phase, setPhase] = useState<Phase>("CLOSED");
 
-  const [user, setUser] = useState<UserInfo>(() => loadUser());
+  const { data: userData } = useUserInfoQuery();
+
+  const [user, setUser] = useState<LocalUserInfo>(() => loadUser(userData));
   useEffect(() => saveUser(user), [user]);
 
   const [gEditing, setGEditing] = useState<Gender>(user.gender);
@@ -73,7 +93,7 @@ export default function MyPage() {
   const prevPhase = useRef<Phase>(phase);
   useEffect(() => {
     if (phase === "PAPER" && prevPhase.current !== "PAPER") {
-      const fresh = loadUser();
+      const fresh = loadUser(userData);
       setUser(fresh);
       setGEditing(fresh.gender);
       setAgeEditing(fresh.age === null ? "" : String(fresh.age));
@@ -82,7 +102,7 @@ export default function MyPage() {
       setCvcNew("");
     }
     prevPhase.current = phase;
-  }, [phase]);
+  }, [phase, userData]);
 
   // 유효성
   const accountValid = useMemo(
@@ -168,7 +188,14 @@ export default function MyPage() {
                   {/* 기본 정보 */}
                   <section className="paper-block">
                     <h3>기본</h3>
+
                     <div className="grid two">
+                      <label className="field">
+                        <span>이름</span>
+                        <div className="readonly-value">
+                          {userData?.name || ""}
+                        </div>
+                      </label>
                       <label className="field">
                         <span>성별</span>
                         <div className="seg">

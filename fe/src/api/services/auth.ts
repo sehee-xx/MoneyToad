@@ -11,7 +11,7 @@ export const reissueToken = async () => {
     url: `${import.meta.env.VITE_BACK_URL}/api/auth/reissue`,
   });
 
-  return response.data;
+  return response;
 };
 
 export const logout = async () => {
