@@ -2,7 +2,6 @@ package com.potg.don.auth.jwt;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.MediaType;
@@ -68,13 +67,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 						userDetails.getAuthorities()
 					);
 					SecurityContextHolder.getContext().setAuthentication(authentication);
-					log.info("Successfully authenticated user: {}, uri: {}", userDetails.getUsername(), request.getRequestURI());
+					log.info("Successfully authenticated user: {}, uri: {}", userDetails.getUsername(),
+						request.getRequestURI());
 				}
 			} catch (JwtException | IllegalArgumentException e) {
-				// (2) JWT 예외가 발생했을 때, 커스텀 에러 응답을 보내고 필터 체인을 중단
 				log.warn("Invalid JWT Token: {}. URI: {}", e.getMessage(), request.getRequestURI());
-				sendErrorResponse(response, "유효하지 않거나 만료된 토큰입니다.");
-				return; // *** [중요] 필터 체인 중단 ***
+				sendErrorResponse(request, response, "유효하지 않거나 만료된 토큰입니다.");
+				return;
 			}
 		}
 
@@ -96,16 +95,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	/**
 	 * (3) 인증 오류 발생 시, JSON 형식의 에러 응답을 생성하여 전송하는 메서드
 	 */
-	private void sendErrorResponse(HttpServletResponse response, String message) throws IOException {
-		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401 상태 코드
+	private void sendErrorResponse(HttpServletRequest request,
+		HttpServletResponse response,
+		String message) throws IOException {
+		// ★ 에러에도 CORS 헤더
+		String origin = request.getHeader("Origin");
+		if (origin != null) {
+			response.setHeader("Access-Control-Allow-Origin", origin);
+			response.setHeader("Vary", "Origin");
+			response.setHeader("Access-Control-Allow-Credentials", "true");
+			response.setHeader("Access-Control-Allow-Headers",
+				"Authorization,Content-Type,Accept,X-Requested-With,Origin");
+			response.setHeader("Access-Control-Allow-Methods",
+				"GET,POST,PUT,PATCH,DELETE,OPTIONS");
+		}
+
+		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		response.setCharacterEncoding("UTF-8");
 
-		Map<String, Object> errorDetails = new HashMap<>();
-		errorDetails.put("status", 401);
-		errorDetails.put("error", "Unauthorized");
-		errorDetails.put("message", message);
-
-		objectMapper.writeValue(response.getWriter(), errorDetails);
+		Map<String, Object> body = Map.of(
+			"status", 401,
+			"error", "Unauthorized",
+			"message", message
+		);
+		objectMapper.writeValue(response.getWriter(), body);
 	}
 }
