@@ -8,11 +8,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.potg.don.auth.dto.AccessTokenResponse;
 import com.potg.don.auth.dto.TokenResponse;
 import com.potg.don.auth.entity.CustomUserDetails;
 
+import com.potg.don.auth.jwt.JwtUtil;
+import com.potg.don.auth.oauth.CookieUtil;
 import com.potg.don.auth.service.AuthService;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -20,15 +25,22 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/auth")
 public class AuthController {
 	private final AuthService authService;
+	private final JwtUtil jwtUtil;
 
 	/**
 	 * Refresh 토큰으로 Access 토큰을 재발급합니다.
 	 */
 	@PostMapping("/reissue")
-	public ResponseEntity<TokenResponse> reissue(@AuthenticationPrincipal CustomUserDetails userDetails,
-		@CookieValue("refreshToken") String refreshToken) {
+	public ResponseEntity<AccessTokenResponse> reissue(@AuthenticationPrincipal CustomUserDetails userDetails,
+		@CookieValue("refreshToken") String refreshToken, HttpServletResponse response) {
 		TokenResponse tokenResponse = authService.reissueTokens(userDetails.getUserId(), refreshToken);
-		return ResponseEntity.ok(tokenResponse);
+		Cookie refreshTokenCookie = CookieUtil.createCookie(
+			"refreshToken",
+			tokenResponse.refreshToken(),
+			(int) jwtUtil.getRefreshTtlSeconds() // 쿠키 만료 시간 설정
+		);
+		response.addCookie(refreshTokenCookie);
+		return ResponseEntity.ok(new AccessTokenResponse(tokenResponse.accessToken()));
 	}
 
 	/**
