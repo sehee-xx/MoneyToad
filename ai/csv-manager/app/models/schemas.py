@@ -4,8 +4,8 @@ Data models and schemas for CSV management
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 
-# Status enum
-Status = Literal["uploading", "ingesting", "leakage_calculating", "analyzing", "none", "error"]
+# Status enum - simplified states
+Status = Literal["uploading", "ingesting", "analyzing", "none"]
 
 
 class FileInfo(BaseModel):

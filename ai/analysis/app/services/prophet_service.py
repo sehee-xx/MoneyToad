@@ -319,8 +319,8 @@ class ProphetService:
     
     def calculate_baseline_predictions(self, csv_data: pd.DataFrame) -> Dict[str, Any]:
         """
-        Calculate baseline predictions for past 9 months using only prior data
-        각 월별로 그 이전 데이터만 사용하여 예측값 생성 (소비 기준 금액)
+        Calculate baseline predictions for January to current month using only prior data
+        가장 최근 1월부터 현재월까지 각 월별로 그 이전 데이터만 사용하여 예측값 생성 (소비 기준 금액)
         
         Args:
             csv_data: Full transaction data
@@ -329,6 +329,8 @@ class ProphetService:
             Dictionary with monthly baseline predictions by category
         """
         current_date = datetime.now()
+        current_year = current_date.year
+        current_month = current_date.month
         baseline_results = {}
         
         # Convert timestamp to datetime if needed
@@ -344,11 +346,10 @@ class ProphetService:
         
         logger.info(f"Data range: {min_date} to {max_date}")
         
-        # Calculate for past 9 months
-        for month_offset in range(1, 10):  # 1 to 9 months
-            target_date = current_date - timedelta(days=30 * month_offset)
-            target_year = target_date.year
-            target_month = target_date.month
+        # Calculate for January to current month-1 (최근 1월부터 이번달 직전까지)
+        for month in range(1, current_month):  # 1월부터 현재월-1까지
+            target_year = current_year
+            target_month = month
             month_key = f"{target_year}-{target_month:02d}"
             
             # Get data up to the end of previous month

@@ -39,13 +39,32 @@ CREATE TABLE IF NOT EXISTS leak_analysis (
     UNIQUE(file_id, year, month)
 );
 
+-- Create baseline_predictions table for storing monthly baseline predictions
+CREATE TABLE IF NOT EXISTS baseline_predictions (
+    id SERIAL PRIMARY KEY,
+    file_id VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    predicted_amount DECIMAL(15, 2) NOT NULL,
+    lower_bound DECIMAL(15, 2),
+    upper_bound DECIMAL(15, 2),
+    training_cutoff_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(file_id, category, year, month)
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_predictions_file_id ON predictions(file_id);
 CREATE INDEX idx_predictions_date ON predictions(prediction_date);
+CREATE INDEX idx_predictions_category ON predictions(category);
 CREATE INDEX idx_analysis_jobs_file_id ON analysis_jobs(file_id);
 CREATE INDEX idx_analysis_jobs_status ON analysis_jobs(status);
 CREATE INDEX idx_leak_analysis_file_id ON leak_analysis(file_id);
 CREATE INDEX idx_leak_analysis_year_month ON leak_analysis(year, month);
+CREATE INDEX idx_baseline_file_id ON baseline_predictions(file_id);
+CREATE INDEX idx_baseline_category ON baseline_predictions(category);
+CREATE INDEX idx_baseline_year_month ON baseline_predictions(year, month);
 
 -- Create update trigger for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -305,7 +305,7 @@ class S3CsvRepo(CsvRepo):
                 logger.info(f"Background upload verified: S3 object '{s3_key}' exists")
             except Exception as e:
                 logger.error(f"Background upload verification failed: {e}")
-                self.redis_client.set_status(file_id, "error")
+                self.redis_client.set_status(file_id, "none")
                 return
             
             # Generate presigned URL
@@ -334,7 +334,7 @@ class S3CsvRepo(CsvRepo):
             
         except Exception as e:
             logger.error(f"Background upload failed for '{file_name}': {e}")
-            self.redis_client.set_status(file_id, "error")
+            self.redis_client.set_status(file_id, "none")
             # Optionally clean up failed upload metadata
             # self.redis_client.delete_file_metadata(file_name, file_id)
     
@@ -391,7 +391,7 @@ class S3CsvRepo(CsvRepo):
                 logger.info(f"Upload verified: S3 object '{s3_key}' exists")
             except Exception as e:
                 logger.error(f"Upload verification failed: {e}")
-                self.redis_client.set_status(file_id, "error")
+                self.redis_client.set_status(file_id, "none")
                 raise
             
             # Generate presigned URL (optional)
@@ -530,7 +530,7 @@ class S3CsvRepo(CsvRepo):
                 logger.info(f"Background replace verified: S3 object '{s3_key}' exists")
             except Exception as e:
                 logger.error(f"Background replace verification failed: {e}")
-                self.redis_client.set_status(file_id, "error")
+                self.redis_client.set_status(file_id, "none")
                 return
             
             # Generate presigned URL
@@ -563,7 +563,7 @@ class S3CsvRepo(CsvRepo):
             
         except Exception as e:
             logger.error(f"Background replace failed for '{file_name}': {e}")
-            self.redis_client.set_status(file_id, "error")
+            self.redis_client.set_status(file_id, "none")
     
     async def replace_file(
         self, 
@@ -633,7 +633,7 @@ class S3CsvRepo(CsvRepo):
                 logger.info(f"Replace upload verified: S3 object '{s3_key}' exists")
             except Exception as e:
                 logger.error(f"Replace upload verification failed: {e}")
-                self.redis_client.set_status(file_id, "error")
+                self.redis_client.set_status(file_id, "none")
                 raise
             
             # Generate presigned URL

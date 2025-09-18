@@ -141,8 +141,54 @@ else:
 
 3. **예측 생성**
    - 현재월 & 다음월 예측
+   - 과거 9개월 기준값 (Baseline) 예측
    - 상한/하한 신뢰구간
    - 트렌드 분석 (상승/하락/안정)
+
+## 🎯 1월~현재 기준값 예측 (Baseline Predictions)
+
+### 개념
+**소비 기준 금액**: 가장 최근 1월부터 현재월까지 각 월별로 그 이전 데이터만 사용하여 계산한 예상 지출액
+- 실제 지출과 비교하여 과소비/절약 판단 기준
+- 시점별 데이터 격리로 과적합 방지
+- 연간 소비 패턴 전체 추적 가능
+
+### 구현 방식
+```python
+# 현재가 2025년 9월인 경우
+for month in range(1, 9):  # 1월부터 8월까지
+    target_month = month
+    # 예: 8월 기준값 계산
+    cutoff_date = datetime(2025, 7, 31)  # 7월 31일까지 데이터만 사용
+    train_data = csv_data[csv_data['date'] <= cutoff_date]
+    
+    # 각 카테고리별로 Prophet 모델 학습
+    for category in categories:
+        model = train_prophet_model(train_data[category])
+        august_prediction = model.predict(august_2025)
+```
+
+### 데이터 흐름 (현재: 9월)
+```
+1월 기준값 → 전년 12월까지 데이터로 1월 예측
+2월 기준값 → 1월까지 데이터로 2월 예측
+3월 기준값 → 2월까지 데이터로 3월 예측
+...
+8월 기준값 → 7월까지 데이터로 8월 예측  
+9월 (현재) → 8월까지 데이터로 9월 예측
+```
+
+### 병렬 처리 최적화
+```python
+async def predict_with_baseline(csv_data):
+    # 현재/미래 예측과 기준값 계산을 동시 실행
+    current_future = loop.run_in_executor(executor, predict_current)
+    baseline_future = loop.run_in_executor(executor, calculate_baseline)
+    
+    current_result = await current_future
+    baseline_result = await baseline_future
+    return combined_results
+```
 
 ## 💾 데이터베이스 스키마
 
@@ -158,6 +204,23 @@ CREATE TABLE predictions (
     upper_bound NUMERIC,                  -- 상한 신뢰구간
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(file_id, category, prediction_date)
+);
+```
+
+### BaselinePrediction 테이블
+```sql
+CREATE TABLE baseline_predictions (
+    id SERIAL PRIMARY KEY,
+    file_id VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,       -- 카테고리명
+    year INTEGER NOT NULL,                -- 기준 연도
+    month INTEGER NOT NULL,               -- 기준 월
+    predicted_amount NUMERIC NOT NULL,    -- 예측 금액
+    lower_bound NUMERIC,                  -- 하한 신뢰구간
+    upper_bound NUMERIC,                  -- 상한 신뢰구간
+    training_cutoff_date DATE,            -- 학습 데이터 기준일
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(file_id, category, year, month)
 );
 ```
 
@@ -240,7 +303,48 @@ GET /api/ai/data/leak?file_id={file_id}&category=식비
 }
 ```
 
-### 4. 상태 확인
+### 4. 기준값 조회 (1월~현재)
+```bash
+GET /api/ai/data/baseline?file_id={file_id}
+
+# 응답 (현재가 9월인 경우)
+{
+    "file_id": "test-001",
+    "baseline_months": [
+        {
+            "year": 2025,
+            "month": 1,
+            "total_predicted": 1100431.42,
+            "categories_count": 13,
+            "category_predictions": {
+                "식비": {
+                    "predicted_amount": 220000.00,
+                    "lower_bound": 200000.00,
+                    "upper_bound": 240000.00
+                }
+            },
+            "training_data_until": "2024-12-31"  // 전년 12월까지 데이터로 1월 예측
+        },
+        {
+            "year": 2025,
+            "month": 2,
+            "total_predicted": 1009359.16,
+            "training_data_until": "2025-01-31"  // 1월까지 데이터로 2월 예측
+        },
+        // ... 3월~8월 (6개월 더)
+    ],
+    "months_count": 8  // 1월~8월 (9월은 현재이므로 제외)
+}
+```
+
+### 5. 특정 카테고리 기준값 조회
+```bash
+GET /api/ai/data/baseline?file_id={file_id}&category=식비
+
+# 응답: 식비 카테고리만 필터링된 1월~8월 기준값
+```
+
+### 6. 상태 확인
 ```bash
 GET /api/ai/csv/status?file_id={file_id}
 
@@ -251,6 +355,25 @@ GET /api/ai/csv/status?file_id={file_id}
     "last_updated": "2025-09-18T10:30:00Z"
 }
 ```
+
+## 📊 기준값 예측 실제 결과 (1월~8월)
+
+### 월별 총 예측액 추이 (현재: 9월)
+| 연월 | 총 예측액 | 학습 데이터 기준 | 특징 |
+|------|----------|-----------------|------|
+| 2025-01 | 1,100,431원 | ~2024-12-31 | 새해 시작 |
+| 2025-02 | 1,009,359원 | ~2025-01-31 | 설 명절 |
+| 2025-03 | 1,141,506원 | ~2025-02-28 | 연초 지출 |
+| 2025-04 | 1,021,196원 | ~2025-03-31 | 신학기 |
+| 2025-05 | 1,025,717원 | ~2025-04-30 | 봄 시즌 |
+| 2025-06 | 1,029,279원 | ~2025-05-31 | 안정기 |
+| 2025-07 | 1,092,203원 | ~2025-06-30 | 상반기 마지막 |
+| 2025-08 | 1,122,711원 | ~2025-07-31 | 여름 휴가철 |
+
+### 활용 방안
+1. **과소비 판단**: 실제 지출 > 기준값 = 과소비 신호
+2. **트렌드 분석**: 기준값 변화로 소비 패턴 변화 감지
+3. **예산 설정**: 기준값을 월별 예산 기준으로 활용
 
 ## 📈 분석된 카테고리 (13개)
 

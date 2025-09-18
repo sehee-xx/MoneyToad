@@ -25,6 +25,9 @@ app = FastAPI(
     title="Data Analysis Service",
     version="1.0.0",
     description="Financial data analysis with Prophet forecasting",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
     lifespan=lifespan
 )
 
@@ -45,8 +48,9 @@ async def root():
         "service": "Data Analysis",
         "version": "1.0.0",
         "endpoints": {
-            "leak_calculation": "POST /ai/data/",
-            "get_leak": "GET /ai/data/leak",
+            "start_analysis": "POST /ai/data",
+            "get_predictions": "GET /ai/data/leak",
+            "get_baseline": "GET /ai/data/baseline",
             "trigger_analysis": "POST /ai/data/analyze",
             "get_report": "GET /ai/data/report"
         }

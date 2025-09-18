@@ -520,6 +520,84 @@ async def trigger_analysis(
 
 
 @router.get(
+    "/baseline",
+    summary="Get baseline predictions",
+    description="Retrieve baseline predictions for past 9 months (소비 기준 금액)"
+)
+async def get_baseline_predictions(
+    file_id: str = Query(..., description="File ID"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get baseline predictions (소비 기준 금액) for past 9 months
+    Each month's prediction is calculated using only prior data
+    """
+    # Build query
+    query = db.query(models.BaselinePrediction).filter(
+        models.BaselinePrediction.file_id == file_id
+    )
+    
+    if category:
+        query = query.filter(models.BaselinePrediction.category == category)
+    
+    # Order by year and month descending (most recent first)
+    baselines = query.order_by(
+        models.BaselinePrediction.year.desc(),
+        models.BaselinePrediction.month.desc()
+    ).all()
+    
+    if not baselines:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No baseline predictions found. Please run analysis first."
+        )
+    
+    # Group by month
+    monthly_baselines = {}
+    for baseline in baselines:
+        month_key = f"{baseline.year}-{baseline.month:02d}"
+        
+        if month_key not in monthly_baselines:
+            monthly_baselines[month_key] = {
+                "year": baseline.year,
+                "month": baseline.month,
+                "total": 0,
+                "categories": {},
+                "training_cutoff": baseline.training_cutoff_date.isoformat() if baseline.training_cutoff_date else None
+            }
+        
+        monthly_baselines[month_key]["categories"][baseline.category] = {
+            "predicted_amount": float(baseline.predicted_amount),
+            "lower_bound": float(baseline.lower_bound) if baseline.lower_bound else None,
+            "upper_bound": float(baseline.upper_bound) if baseline.upper_bound else None
+        }
+        monthly_baselines[month_key]["total"] += baseline.predicted_amount
+    
+    # Sort months chronologically
+    sorted_months = sorted(monthly_baselines.keys(), reverse=True)
+    
+    return {
+        "file_id": file_id,
+        "baseline_months": [
+            {
+                "month": monthly_baselines[month]["month"],
+                "year": monthly_baselines[month]["year"],
+                "total_predicted": float(monthly_baselines[month]["total"]),
+                "categories_count": len(monthly_baselines[month]["categories"]),
+                "category_predictions": monthly_baselines[month]["categories"] if not category else {
+                    category: monthly_baselines[month]["categories"].get(category)
+                },
+                "training_data_until": monthly_baselines[month]["training_cutoff"]
+            }
+            for month in sorted_months
+        ],
+        "months_count": len(sorted_months),
+        "category_filter": category
+    }
+
+
+@router.get(
     "/report",
     response_model=AnalysisReportResponse,
     summary="Get analysis report",
