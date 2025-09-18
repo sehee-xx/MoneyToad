@@ -50,11 +50,11 @@ class Settings(BaseSettings):
     
     # CSV Processing Settings
     CSV_STATUS_AUTO_CLEAR: bool = Field(
-        default=True,
+        default=False,  # Changed to False - status should be managed by services
         env="CSV_STATUS_AUTO_CLEAR"
     )
     CSV_STATUS_CLEAR_DELAY: int = Field(
-        default=2,  # seconds
+        default=300,  # 5 minutes - only used if AUTO_CLEAR is true
         env="CSV_STATUS_CLEAR_DELAY"
     )
     PRESIGNED_URL_EXPIRY: int = Field(

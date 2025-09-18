@@ -247,15 +247,28 @@ class S3CsvRepo(CsvRepo):
             
             # Upload to S3
             # Note: MinIO may have issues with certain metadata headers
+            # Set status to ingesting before upload
+            self.redis_client.set_status(file_id, "ingesting")
+            
             # Use minimal metadata for compatibility
             extra_args = {'ContentType': 'text/csv'}
             
+            # Upload to S3
             self.s3_client.upload_fileobj(
                 hash_wrapper,
                 self.bucket_name,
                 s3_key,
                 ExtraArgs=extra_args
             )
+            
+            # Verify upload was successful by checking if object exists
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"Upload verified: S3 object '{s3_key}' exists")
+            except Exception as e:
+                logger.error(f"Upload verification failed: {e}")
+                self.redis_client.set_status(file_id, "error")
+                raise
             
             # Generate presigned URL (optional)
             presigned_url = self._generate_presigned_url(s3_key)
@@ -276,8 +289,8 @@ class S3CsvRepo(CsvRepo):
             metadata_dict = file_info.model_dump()
             self.redis_client.set_file_metadata(file_name, metadata_dict)
             
-            # Set initial status in Redis
-            self.redis_client.set_status(file_id, "ingesting")
+            # Upload completed successfully - set status to none
+            self.redis_client.set_status(file_id, "none")
             
             logger.info(f"Uploaded file '{file_name}' to S3 key '{s3_key}' (size: {hash_wrapper.size} bytes)")
             
@@ -328,6 +341,9 @@ class S3CsvRepo(CsvRepo):
                 except Exception as e:
                     logger.warning(f"Failed to delete old object: {e}")
             
+            # Set status to ingesting before upload
+            self.redis_client.set_status(file_id, "ingesting")
+            
             # Generate new S3 key with existing file_id
             timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             s3_key = f"{file_id}_{timestamp}_{file_name}"
@@ -345,6 +361,15 @@ class S3CsvRepo(CsvRepo):
                 s3_key,
                 ExtraArgs=extra_args
             )
+            
+            # Verify upload was successful
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+                logger.info(f"Replace upload verified: S3 object '{s3_key}' exists")
+            except Exception as e:
+                logger.error(f"Replace upload verification failed: {e}")
+                self.redis_client.set_status(file_id, "error")
+                raise
             
             # Generate presigned URL
             presigned_url = self._generate_presigned_url(s3_key)
@@ -365,8 +390,8 @@ class S3CsvRepo(CsvRepo):
             metadata_dict = file_info.model_dump()
             self.redis_client.set_file_metadata(file_name, metadata_dict)
             
-            # Reset status in Redis (file_id remains the same)
-            self.redis_client.set_status(file_id, "ingesting")
+            # Upload completed successfully - set status to none
+            self.redis_client.set_status(file_id, "none")
             
             logger.info(f"Replaced file '{file_name}' with new S3 key '{s3_key}'")
             

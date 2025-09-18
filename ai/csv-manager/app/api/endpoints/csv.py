@@ -135,15 +135,6 @@ async def upload_csv(
             file_content=file.file
         )
         
-        # Schedule status clear if enabled
-        if settings.CSV_STATUS_AUTO_CLEAR:
-            background_tasks.add_task(
-                auto_clear_status,
-                csv_repo,
-                file_info.file_id,
-                settings.CSV_STATUS_CLEAR_DELAY
-            )
-        
         logger.info(f"Admin '{role}' uploaded CSV file '{file.filename}' with ID '{file_info.file_id}'")
         
         return file_info
@@ -290,15 +281,6 @@ async def replace_csv(
             file_id=file_id,
             file_content=file.file
         )
-        
-        # Schedule status clear if enabled
-        if settings.CSV_STATUS_AUTO_CLEAR:
-            background_tasks.add_task(
-                auto_clear_status,
-                csv_repo,
-                file_info.file_id,
-                settings.CSV_STATUS_CLEAR_DELAY
-            )
         
         logger.info(f"Admin '{role}' replaced file with ID '{file_id}' ('{existing.csv_file}')")
         
