@@ -28,3 +28,19 @@ export const getCardInfo = async () => {
 
   return adaptCardResponse(response);
 };
+
+// 카드 등록 요청 타입
+export interface RegisterCardRequest {
+  cardNo: string;
+  cvc: string;
+}
+
+export const registerCard = async (data: RegisterCardRequest) => {
+  const response = await request<CardApiResponse>({
+    method: REQUEST_METHOD.POST,
+    url: `${import.meta.env.VITE_BACK_URL}/api/cards`,
+    data,
+  });
+
+  return adaptCardResponse(response);
+};

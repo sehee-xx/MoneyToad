@@ -4,6 +4,7 @@ import "./Mypage.css";
 import { useUserInfoQuery } from "../api/queries/userQuery";
 import { useUpdateUserBasicInfoMutation } from "../api/mutation/userMutation";
 import { useCardInfoQuery } from "../api/queries/cardQuery";
+import { useRegisterCardMutation } from "../api/mutation/cardMutation";
 import type { UserInfo as ApiUserInfo } from "../types/user";
 import type { Gender } from "../types";
 import type { CardInfo } from "../api/services/cards";
@@ -63,6 +64,7 @@ export default function MyPage() {
   const { data: userData } = useUserInfoQuery();
   const { data: cardData } = useCardInfoQuery();
   const updateUserBasicInfoMutation = useUpdateUserBasicInfoMutation();
+  const registerCardMutation = useRegisterCardMutation();
 
   const [user, setUser] = useState<LocalUserInfo>(() => loadUser(userData, cardData));
 
@@ -129,7 +131,6 @@ export default function MyPage() {
   const handleDeleteCard = () => {
     if (!user.account) return;
     if (!window.confirm("등록된 카드를 삭제할까요?")) return;
-    setUser((u) => ({ ...u, account: undefined, cvc: undefined }));
     setAcctNew("");
     setCvcNew("");
     setJustDeleted(true);
@@ -137,10 +138,22 @@ export default function MyPage() {
 
   const handleRegisterCard = () => {
     if (!accountValid || !cvcValid) return;
-    setUser((u) => ({ ...u, account: acctNew, cvc: cvcNew }));
-    setAcctNew("");
-    setCvcNew("");
-    setJustDeleted(false);
+    
+    registerCardMutation.mutate({
+      cardNo: acctNew,
+      cvc: cvcNew,
+    }, {
+      onSuccess: () => {
+        // 로컬 상태 업데이트
+        setAcctNew("");
+        setCvcNew("");
+        setJustDeleted(false);
+      },
+      onError: (error) => {
+        console.error('카드 등록 실패:', error);
+        // 에러 처리 로직 필요시 추가
+      }
+    });
   };
 
   const closeToHome = () => {
