@@ -4,17 +4,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.potg.don.auth.dto.ReissueRequest;
 import com.potg.don.auth.dto.TokenResponse;
 import com.potg.don.auth.entity.CustomUserDetails;
-import com.potg.don.auth.jwt.JwtUtil;
-import com.potg.don.auth.jwt.RefreshTokenStore;
+
 import com.potg.don.auth.service.AuthService;
-import com.potg.don.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
