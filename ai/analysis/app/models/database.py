@@ -9,9 +9,9 @@ from datetime import datetime
 import os
 
 # Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://fintech:fintech123@postgres:5432/fintech_ai")
-# Convert to async URL
-ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://fintech:fintech123@mysql:3306/fintech_ai")
+# For MySQL with aiomysql
+ASYNC_DATABASE_URL = DATABASE_URL.replace("mysql+pymysql://", "mysql+aiomysql://")
 
 # Create async engine
 engine = create_async_engine(ASYNC_DATABASE_URL, echo=True)
@@ -25,8 +25,8 @@ class PredictionResult(Base):
     __tablename__ = "prediction_results"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(String, nullable=False, index=True)
-    prediction_id = Column(String, nullable=False, unique=True, index=True)
+    file_id = Column(String(255), nullable=False, index=True)
+    prediction_id = Column(String(255), nullable=False, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Prediction data
@@ -35,14 +35,14 @@ class PredictionResult(Base):
     next_month_predicted = Column(Float)  # Predicted spending for next month
     
     # Additional metrics
-    trend_direction = Column(String)  # "increasing", "decreasing", "stable"
+    trend_direction = Column(String(20))  # "increasing", "decreasing", "stable"
     confidence_lower = Column(Float)  # Lower bound of prediction
     confidence_upper = Column(Float)  # Upper bound of prediction
     
     # Metadata
     prediction_metadata = Column(JSON)  # Store additional info like model params
-    status = Column(String, default="completed")  # "processing", "completed", "failed"
-    error_message = Column(String, nullable=True)
+    status = Column(String(20), default="completed")  # "processing", "completed", "failed"
+    error_message = Column(String(1000), nullable=True)
     
     # Time period info
     year = Column(Integer, nullable=False)
@@ -54,8 +54,8 @@ class LeakAnalysis(Base):
     __tablename__ = "leak_analysis"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(String, nullable=False, index=True)
-    analysis_id = Column(String, nullable=False, unique=True, index=True)
+    file_id = Column(String(255), nullable=False, index=True)
+    analysis_id = Column(String(255), nullable=False, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Analysis period
@@ -73,7 +73,7 @@ class LeakAnalysis(Base):
     
     # Recommendations
     recommendations = Column(JSON)  # AI-generated recommendations
-    status = Column(String, default="completed")
+    status = Column(String(20), default="completed")
 
 
 async def init_db():

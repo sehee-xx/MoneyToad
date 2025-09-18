@@ -50,9 +50,9 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-fintech}:${POSTGRES_PASSWORD:-fintech123}@postgres:5432/${POSTGRES_DB:-fintech_ai}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-fintech}:${MYSQL_PASSWORD:-fintech123}@mysql:3306/${MYSQL_DATABASE:-fintech_ai}
+      - REDIS_HOST=${REDIS_HOST:-j13a409.p.ssafy.io}
+      - REDIS_PORT=${REDIS_PORT:-8379}
     volumes:
       - ./analysis:/app
       - ./dummy.csv:/app/dummy.csv:ro
@@ -60,8 +60,7 @@ services:
       - ai-network
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
+      - mysql
 
   # CSV Manager Service - CSV 파일 관리
   csv-manager:
@@ -73,17 +72,16 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
+      - REDIS_HOST=${REDIS_HOST:-j13a409.p.ssafy.io}
+      - REDIS_PORT=${REDIS_PORT:-8379}
+      - REDIS_DB=${REDIS_DB:-0}
     volumes:
       - ./csv-manager:/app
     networks:
       - ai-network
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
+      - mysql
 
   # Redis Cache for status management
   redis:
@@ -100,23 +98,25 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL Database for storing analysis results
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres-db
+  # MySQL Database for storing analysis results
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-db
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-fintech_ai}
-      - POSTGRES_USER=${POSTGRES_USER:-fintech}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-fintech123}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-fintech_ai}
+      - MYSQL_USER=${MYSQL_USER:-fintech}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-fintech123}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root123}
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - ai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fintech}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -126,4 +126,4 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
+  mysql_data:

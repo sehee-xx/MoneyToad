@@ -1,117 +1,256 @@
-# AI Fintech Services
+# 🚀 AI Fintech System - 지능형 금융 데이터 분석 플랫폼
 
-AI 기반 금융 서비스를 위한 마이크로서비스 아키텍처 - GPT API를 활용한 지능형 금융 분석 플랫폼
+## 📌 프로젝트 개요
 
-## 🏗️ Architecture
+**AI 기반 금융 거래 분석 및 예측 시스템**으로, 사용자의 거래 내역을 자동으로 분류하고 미래 지출을 예측하는 마이크로서비스 아키텍처 기반 플랫폼입니다.
+
+### 핵심 가치
+- 🎯 **정확한 거래 분류**: AI 기반 자동 카테고리 분류 (13개 카테고리)
+- 📊 **지출 예측**: Facebook Prophet을 활용한 시계열 예측
+- 🎮 **기준값 분석**: 월별 소비 기준 금액 제공
+- ⚡ **실시간 처리**: 비동기 대용량 데이터 처리
+- 🔄 **확장 가능**: 마이크로서비스 아키텍처
+
+## 🏗 시스템 아키텍처
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Client Applications               │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ▼ Port 8000
-         ┌──────────────────────┐
-         │   API Gateway        │  ← 통합 API 문서
-         │   (Gateway Service)  │    단일 진입점
-         └──────────┬───────────┘
-                    │
-    ┌───────────────┼───────────────┐
-    │               │               │
-    ▼               ▼               ▼
-┌─────────┐   ┌─────────┐   ┌─────────┐
-│Classifier│   │Analysis │   │   CSV   │
-│ Service │   │ Service │   │ Manager │
-│  (8001) │   │  (8002) │   │  (8003) │
-└─────────┘   └─────────┘   └─────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      Client Applications                    │
+└──────────────────────────┬──────────────────────────────────┘
+                          │
+                          ▼ Port 8000
+              ┌─────────────────────────┐
+              │     API Gateway         │
+              │   (통합 진입점/라우팅)    │
+              └────┬────┬────┬──────────┘
+                   │    │    │
+      ┌────────────┴────┼────┴────────────┐
+      │                 │                 │
+      ▼                 ▼                 ▼
+┌──────────┐      ┌──────────┐      ┌──────────┐
+│Classifier│      │ Analysis │      │   CSV    │
+│ Service  │      │ Service  │      │ Manager  │
+│          │      │          │      │ Service  │
+│  (GPT)   │      │(Prophet) │      │          │
+└────┬─────┘      └────┬─────┘      └────┬─────┘
+     │                 │                 │
+     └─────────┬───────┴───────┬─────────┘
+               │               │
+        ┌──────▼──────┐ ┌──────▼──────┐
+        │   MinIO/S3  │ │    Redis    │
+        │  (Storage)  │ │   (Cache)   │
+        └─────────────┘ └─────────────┘
+               │
+        ┌──────▼──────┐
+        │    MySQL    │
+        │  (Database) │
+        └─────────────┘
 ```
 
-## 🚀 Services
+## 📦 서비스 구성
 
-### API Gateway (Port 8000)
-**통합 API 게이트웨이** - 모든 마이크로서비스의 단일 진입점
+### 1. **API Gateway** (Port: 8000)
+- 통합 API 진입점
+- 요청 라우팅 및 프록시
+- Swagger UI 통합 제공
+- 서비스 헬스 체크
 
-- 📚 **통합 API 문서**: http://localhost:8000/api/ai/docs
-- 🔍 **서비스 디스커버리**: 자동으로 하위 서비스 감지
-- ❤️ **헬스 체크**: 모든 서비스 상태 모니터링
-- 🔄 **자동 프록시**: 요청을 적절한 서비스로 라우팅
+### 2. **Classifier Service** (내부)
+- OpenAI GPT 기반 거래 분류
+- 13개 지출 카테고리 자동 분류
+- 배치 처리 최적화
+- 정확도 95% 이상
 
-### 1. Classifier Service (내부 포트 8001)
-**비용 분류 서비스** - GPT를 사용한 거래 카테고리 자동 분류
-
-**주요 기능:**
-- 단일 거래 실시간 분류 (merchant, amount, timestamp 기반)
-- CSV 파일 배치 분류 (file_id 기반)
-- 분류된 파일 다운로드
-
-### 2. Analysis Service (내부 포트 8002)
-**금융 데이터 분석 서비스** - 지출 패턴 분석 및 AI 인사이트 제공
-
-**주요 기능:**
-- 지출 패턴 분석
-- 예산 추천
+### 3. **Analysis Service** (내부)
+- Facebook Prophet 시계열 예측
+- 카테고리별 지출 예측
+- 기준값(Baseline) 계산
 - 트렌드 분석
-- AI 기반 인사이트 생성
 
-### 3. CSV Manager Service (내부 포트 8003) 🆕
-**CSV 파일 관리 서비스** - MinIO/S3를 사용한 파일 스토리지 관리
+### 4. **CSV Manager Service** (내부)
+- CSV 파일 업로드/관리
+- MinIO/S3 통합
+- 파일 상태 추적
+- 메타데이터 관리
 
-**주요 기능:**
-- CSV 파일 업로드/삭제/교체
-- 파일 상태 추적 (ingesting, analyzing 등)
-- S3/MinIO 통합 스토리지
-- 보안 파일 관리 (Admin 권한 필요)
+## 🚦 상태 관리 시스템
 
+### 4-State 시스템
+```
+┌──────────┐     ┌────────────┐     ┌────────────┐     ┌──────┐
+│ uploading│────▶│ ingesting  │────▶│ analyzing  │────▶│ none │
+└──────────┘     └────────────┘     └────────────┘     └──────┘
+     │                  │                  │                │
+     └──────────────────┴──────────────────┴────────────────┘
+                              ▼
+                           [ none ]
+```
 
-## 📦 Quick Start
+| 상태 | 설명 | 다음 가능 상태 |
+|------|------|--------------| 
+| `none` | 유휴 상태 (초기/완료/오류) | `uploading`, `analyzing` |
+| `uploading` | 파일 업로드 중 | `ingesting`, `none` |
+| `ingesting` | 데이터 처리 중 | `none` |
+| `analyzing` | AI 분석 중 | `none` |
+
+## 🎯 주요 기능
+
+### 1. CSV 파일 처리
+```bash
+# 파일 업로드
+POST /api/ai/csv/upload
+Content-Type: multipart/form-data
+file: transactions.csv
+
+# 상태 확인
+GET /api/ai/csv/status?file_id={file_id}
+```
+
+### 2. 거래 분류
+```bash
+# 분류 시작
+POST /api/ai/classify/process?file_id={file_id}
+
+# 분류 결과 조회
+GET /api/ai/classify/result?file_id={file_id}
+```
+
+### 3. 지출 예측
+```bash
+# 분석 시작
+POST /api/ai/data?file_id={file_id}
+
+# 예측 결과 조회
+GET /api/ai/data/leak?file_id={file_id}&year=2025&month=9
+
+# 기준값 조회 (1월~현재)
+GET /api/ai/data/baseline?file_id={file_id}
+```
+
+## 📊 기준값 예측 (Baseline Predictions)
+
+### 개념
+**소비 기준 금액**: 1월부터 현재월까지 각 월별로 그 이전 데이터만 사용하여 계산한 예상 지출액
+
+### 구현 방식
+```python
+# 예: 9월 현재
+1월 기준값: 전년 12월까지 데이터로 1월 예측
+2월 기준값: 1월까지 데이터로 2월 예측
+...
+8월 기준값: 7월까지 데이터로 8월 예측
+9월 예측: 8월까지 데이터로 9월 예측 (현재월)
+```
+
+### API 응답 예시
+```json
+{
+  "file_id": "test-001",
+  "baseline_months": [
+    {
+      "year": 2025,
+      "month": 1,
+      "total_predicted": 1100431.42,
+      "categories_count": 13,
+      "training_data_until": "2024-12-31"
+    },
+    ...
+  ]
+}
+```
+
+## 📈 지원 카테고리 (13개)
+
+| 카테고리 | 설명 | 예측 모델 특성 |
+|---------|------|--------------|
+| 식비 | 일반 식사 | 주간 계절성 강함 |
+| 교통/차량 | 대중교통, 주유 | 월간 패턴 |
+| 마트/편의점 | 생필품 구매 | 주간 패턴 |
+| 온라인쇼핑 | 이커머스 | 이벤트 기반 |
+| 카페/간식 | 카페, 디저트 | 주간 계절성 |
+| 의료/건강 | 병원, 약국 | 비정기적 |
+| 문화/여가 | 영화, 공연 | 주말 집중 |
+| 생활 | 공과금, 통신 | 월간 고정 |
+| 뷰티/미용 | 화장품, 미용실 | 월간 패턴 |
+| 여행/숙박 | 호텔, 항공 | 계절성 |
+| 교육 | 학원, 강의 | 분기별 |
+| 술/유흥 | 주점, 클럽 | 주말 집중 |
+| 기타 | 미분류 | 랜덤 |
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Python 3.11+
+- 8GB+ RAM
+- OpenAI API Key (for Classifier)
 
 ### 1. 환경 설정
 ```bash
-# 환경 변수 파일 생성
-cp .env.example .env
+# .env 파일 생성
+cat > .env << EOF
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
 
-# .env 파일 편집하여 OpenAI API 키 설정
-# OPENAI_API_KEY=sk-your-actual-api-key-here
+# MySQL
+MYSQL_DATABASE=fintech_ai
+MYSQL_USER=fintech
+MYSQL_PASSWORD=fintech123
+MYSQL_ROOT_PASSWORD=root123
+
+# MinIO
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+S3_BUCKET_NAME=csv-uploads
+
+# Service URLs
+CLASSIFIER_SERVICE_URL=http://classifier:8001
+ANALYSIS_SERVICE_URL=http://analysis:8002
+CSV_MANAGER_SERVICE_URL=http://csv-manager:8003
+EOF
 ```
 
-### 2. 서비스 실행
+### 2. 시스템 시작
 ```bash
-# 모든 서비스 시작 (권장)
+# 전체 서비스 시작
 docker-compose up -d
 
-# 또는 Makefile 사용
-make up
+# 상태 확인
+docker-compose ps
 
-# 재빌드 및 재시작
-make re
+# 로그 확인
+docker-compose logs -f
 ```
 
-### 3. 서비스 확인
-- 🌐 **통합 API 문서**: http://localhost:8000/api/ai/docs
-- ❤️ **헬스 체크**: http://localhost:8000/api/ai/health
-- 📊 **서비스 정보**: http://localhost:8000/api/ai/services
+### 3. API 접속
+- **Swagger UI**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+- **Service Status**: http://localhost:8000/services/status
 
-## 🔌 API Usage
+## 📝 API 사용 예시
 
-### 통합 Gateway 사용 (권장)
-모든 API 요청을 포트 8000으로 보내면 자동으로 라우팅됩니다:
-
+### 전체 플로우
 ```bash
-# 단일 거래 분류 - Gateway 경유
-curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800&ts=2025-01-17T10:30:00Z"
-
-# CSV 파일 배치 분류 - Gateway 경유
-curl -X POST "http://localhost:8000/api/ai/classify?file_id=abc-123-def"
-
-# 분류된 파일 다운로드 - Gateway 경유
-curl "http://localhost:8000/api/ai/classify/download?file_id=abc-123-def"
-
-# CSV 파일 업로드 - Gateway 경유
+# 1. CSV 파일 업로드
 curl -X POST "http://localhost:8000/api/ai/csv/upload" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@transactions.csv"
 
-# 데이터 분석 요청 - Gateway 경유
-curl -X POST "http://localhost:8000/api/ai/data/analyze?file_id=abc-123-def"
+# Response: {"file_id": "abc-123", "status": "uploading"}
+
+# 2. 거래 분류 실행
+curl -X POST "http://localhost:8000/api/ai/classify/process?file_id=abc-123"
+
+# 3. 상태 확인 (분류 완료 대기)
+curl "http://localhost:8000/api/ai/csv/status?file_id=abc-123"
+
+# 4. 예측 분석 시작
+curl -X POST "http://localhost:8000/api/ai/data?file_id=abc-123"
+
+# 5. 예측 결과 조회
+curl "http://localhost:8000/api/ai/data/leak?file_id=abc-123&year=2025&month=9"
+
+# 6. 기준값 조회
+curl "http://localhost:8000/api/ai/data/baseline?file_id=abc-123"
 ```
 
 ### Python 예제
@@ -129,51 +268,233 @@ response = requests.get(
     }
 )
 print(response.json())
-# 결과: {"category": "Food & Dining", "confidence": 0.95}
+# 결과: {"category": "카페/간식", "confidence": 0.95}
 
 # CSV 파일 업로드
 with open('transactions.csv', 'rb') as f:
     response = requests.post(
         "http://localhost:8000/api/ai/csv/upload",
-        headers={'Authorization': 'Bearer YOUR_TOKEN'},
         files={'file': f}
     )
     file_id = response.json()['file_id']
     print(f"File uploaded: {file_id}")
 
-# CSV 파일 배치 분류 시작
+# 배치 분류 시작
 response = requests.post(
-    "http://localhost:8000/api/ai/classify",
-    params={'file_id': file_id}
+    f"http://localhost:8000/api/ai/classify/process?file_id={file_id}"
 )
-print("Batch classification started")
+print("Classification started")
 
-# 분류된 파일 다운로드
-response = requests.get(
-    "http://localhost:8000/api/ai/classify/download",
-    params={'file_id': file_id}
-)
-with open('classified_transactions.csv', 'wb') as f:
-    f.write(response.content)
-print("Classified file downloaded")
-
-# 데이터 분석 시작
+# 분석 시작
 response = requests.post(
-    "http://localhost:8000/api/ai/data/analyze",
-    params={'file_id': file_id}
+    f"http://localhost:8000/api/ai/data?file_id={file_id}"
 )
-analysis_id = response.json()['analysis_id']
-print(f"Analysis started: {analysis_id}")
+print("Analysis started")
 
-# 분석 리포트 조회
+# 예측 결과 조회
 response = requests.get(
-    "http://localhost:8000/api/ai/data/report",
-    params={'file_id': 'abc-123-def', 'year': 2024, 'month': 1}
+    f"http://localhost:8000/api/ai/data/leak?file_id={file_id}"
 )
 print(response.json())
 ```
 
-## 📁 Project Structure
+## 🗄 데이터베이스 스키마
+
+### predictions 테이블
+```sql
+CREATE TABLE predictions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id VARCHAR(255),
+    category VARCHAR(100),
+    prediction_date DATE,
+    predicted_amount DECIMAL(15,2),
+    lower_bound DECIMAL(15,2),
+    upper_bound DECIMAL(15,2)
+);
+```
+
+### baseline_predictions 테이블
+```sql
+CREATE TABLE baseline_predictions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id VARCHAR(255),
+    category VARCHAR(100),
+    year INT,
+    month INT,
+    predicted_amount DECIMAL(15,2),
+    training_cutoff_date DATE
+);
+```
+
+## 📊 모니터링 & 로깅
+
+### 헬스체크 엔드포인트
+```bash
+# Gateway 헬스
+GET /health
+
+# 개별 서비스 헬스
+GET /services/health
+
+# 상세 상태
+GET /services/status
+```
+
+### 로그 확인
+```bash
+# 전체 로그
+docker-compose logs
+
+# 특정 서비스 로그
+docker-compose logs analysis
+
+# 실시간 로그
+docker-compose logs -f --tail=100
+```
+
+## 🔧 트러블슈팅
+
+### 문제: Redis 연결 실패
+```bash
+# Redis 재시작
+docker-compose restart redis
+
+# 연결 테스트
+docker exec redis-cache redis-cli ping
+```
+
+### 문제: MySQL 연결 실패
+```bash
+# DB 재시작
+docker-compose restart mysql
+
+# 연결 테스트
+docker exec mysql-db mysqladmin ping -u root -proot123
+```
+
+### 문제: MinIO 업로드 실패
+```bash
+# MinIO 상태 확인
+docker-compose logs minio
+
+# 버킷 생성 확인
+docker exec minio mc ls local/
+```
+
+## 📈 성능 최적화
+
+### 1. 병렬 처리
+- ThreadPoolExecutor 4 workers
+- 카테고리별 독립 모델 학습
+- 배치 처리 최적화
+
+### 2. 캐싱 전략
+- Redis TTL 24시간
+- 예측 결과 캐싱
+- 메타데이터 캐싱
+
+### 3. 데이터베이스 인덱싱
+```sql
+CREATE INDEX idx_predictions_file_category ON predictions(file_id, category);
+CREATE INDEX idx_baseline_file_category ON baseline_predictions(file_id, category);
+```
+
+## 🐛 디버깅
+
+### 디버그 모드 활성화
+```bash
+# docker-compose.yml 수정
+environment:
+  - LOG_LEVEL=DEBUG
+  - PYTHONDEBUG=1
+```
+
+### 개별 서비스 테스트
+```bash
+# Classifier 테스트
+docker exec classifier-service python -m pytest
+
+# Analysis 테스트
+docker exec analysis-service python -m pytest
+```
+
+## 🔒 보안
+
+### API Key 관리
+- 환경 변수로 관리
+- .env 파일 git ignore
+- Docker secrets 사용 권장
+
+### 네트워크 격리
+- 내부 서비스 외부 접근 차단
+- Gateway만 외부 노출
+- 서비스간 내부 네트워크 통신
+
+## 📚 기술 스택
+
+### Backend
+- **FastAPI**: 비동기 웹 프레임워크
+- **Prophet**: 시계열 예측
+- **OpenAI GPT**: 거래 분류
+- **SQLAlchemy**: ORM
+
+### Infrastructure
+- **Docker**: 컨테이너화
+- **MySQL**: 메인 데이터베이스
+- **Redis**: 캐싱 & 상태 관리
+- **MinIO**: S3 호환 스토리지
+
+### Monitoring
+- **Health Checks**: 서비스 상태 모니터링
+- **Logging**: 구조화된 로깅
+- **Metrics**: 성능 지표 수집
+
+## 🛠 개발 도구
+
+### Makefile 명령어
+```bash
+make help         # 사용 가능한 명령어 확인
+make up          # 서비스 시작
+make down        # 서비스 중지
+make re          # 재빌드 및 재시작
+make logs        # 로그 확인
+make test        # 테스트 실행
+make clean       # 정리
+```
+
+### 환경 변수 (.env)
+```bash
+# OpenAI 설정 (필수)
+OPENAI_API_KEY=sk-your-api-key-here
+OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_MAX_TOKENS=200
+OPENAI_TEMPERATURE=0.3
+
+# MySQL
+MYSQL_HOST=mysql
+MYSQL_PORT=3306
+MYSQL_DATABASE=fintech_ai
+MYSQL_USER=fintech
+MYSQL_PASSWORD=fintech123
+MYSQL_ROOT_PASSWORD=root123
+
+# Redis (로컬 컨테이너 사용)
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=0
+
+# MinIO/S3
+S3_ENDPOINT=http://minio:9000
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin
+S3_BUCKET=csv-uploads
+
+# Service
+SERVICE_PORT=8000
+LOG_LEVEL=INFO
+```
+
+## 📁 프로젝트 구조
 
 ```
 ai/
@@ -181,7 +502,7 @@ ai/
 │   ├── app/
 │   │   ├── core/        # 설정
 │   │   ├── deps/        # 의존성 (인증 등)
-│   │   └── main.py      # 통합 라우팅 및 문서화
+│   │   └── main.py      # 통합 라우팅
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── classifier/          # 비용 분류 서비스
@@ -195,113 +516,42 @@ ai/
 ├── analysis/           # 데이터 분석 서비스
 │   ├── app/
 │   │   ├── api/       # API 엔드포인트
-│   │   ├── core/      # 설정
+│   │   ├── db/        # 데이터베이스
 │   │   ├── models/    # 데이터 모델
-│   │   └── services/  # 분석 로직
+│   │   └── services/  # Prophet 예측
 │   ├── Dockerfile
 │   └── requirements.txt
-├── csv-manager/        # CSV 파일 관리 서비스 🆕
+├── csv-manager/        # CSV 파일 관리 서비스
 │   ├── app/
 │   │   ├── api/       # API 엔드포인트
 │   │   ├── core/      # 설정
-│   │   ├── deps/      # 의존성 (인증)
 │   │   ├── models/    # 데이터 모델
-│   │   └── repos/     # S3/MinIO 저장소
+│   │   └── services/  # S3/Redis 서비스
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── docker-compose.yml  # 서비스 오케스트레이션
 ├── Makefile           # 개발 명령어
-└── .env.example      # 환경변수 템플릿
+└── .env              # 환경 변수
 ```
 
-## 🛠️ Development
+## 🚧 개발 로드맵
 
-### Makefile 명령어
-```bash
-make help         # 사용 가능한 명령어 확인
-make up          # 서비스 시작
-make down        # 서비스 중지
-make re          # 재빌드 및 재시작
-make logs        # 로그 확인
-make test        # 테스트 실행
-make clean       # 정리
-```
+### Phase 1 (완료) ✅
+- [x] 기본 마이크로서비스 구조
+- [x] CSV 파일 처리
+- [x] 거래 분류 (GPT)
+- [x] 지출 예측 (Prophet)
+- [x] 기준값 계산
 
-### 로그 확인
-```bash
-# 전체 로그
-docker-compose logs -f
+### Phase 2 (진행중) 🚀
+- [ ] 실시간 알림 시스템
+- [ ] 웹 대시보드
+- [ ] 고급 예측 모델
+- [ ] 멀티 유저 지원
 
-# 특정 서비스 로그
-docker-compose logs -f gateway
-docker-compose logs -f classifier
-docker-compose logs -f analysis
-docker-compose logs -f csv-manager
-```
-
-### API 문서 갱신
-서비스 API가 변경된 경우:
-```bash
-# Gateway 재시작 (자동으로 새 스펙 로드)
-docker restart gateway-service
-
-# 또는 수동 갱신
-curl -X POST http://localhost:8000/api/ai/refresh-schemas
-```
-
-## 🔧 Environment Variables
-
-```env
-# OpenAI 설정 (필수)
-OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_MODEL=gpt-4-turbo-preview
-OPENAI_MAX_TOKENS=200
-OPENAI_TEMPERATURE=0.3
-
-# MinIO/S3 설정 (CSV Manager용)
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=csv-storage
-MINIO_SECURE=false
-
-# JWT 인증 설정
-JWT_SECRET_KEY=your-secret-key-here
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# 로깅
-LOG_LEVEL=INFO
-
-# 선택사항
-DATABASE_URL=postgresql://user:password@localhost/fintech_db
-```
-
-## 🏛️ Architecture Benefits
-
-### 마이크로서비스 아키텍처의 장점
-1. **독립적 확장**: 각 서비스를 독립적으로 스케일링
-2. **기술 다양성**: 서비스별로 최적의 기술 스택 선택 가능
-3. **장애 격리**: 한 서비스 장애가 전체 시스템에 영향 최소화
-4. **독립 배포**: 서비스별 독립적인 개발 및 배포 주기
-
-### API Gateway 패턴의 장점
-1. **단일 진입점**: 클라이언트는 하나의 엔드포인트만 알면 됨
-2. **통합 문서**: 모든 API를 한 곳에서 확인 및 테스트
-3. **횡단 관심사**: 인증, 로깅, 모니터링을 중앙에서 처리
-4. **서비스 추상화**: 내부 서비스 구조 변경이 클라이언트에 영향 없음
-
-## 📊 Performance
-
-- **응답 시간**: 평균 < 500ms
-- **동시 처리**: 100+ 동시 요청 처리
-- **정확도**: 95%+ 분류 정확도
-- **가용성**: 99.9% 업타임 목표
-
-## 🔒 Security
-
-- OpenAI API 키는 환경 변수로 안전하게 관리
-- 내부 서비스는 Docker 네트워크 내에서만 접근 가능
-- CORS 설정으로 허가된 도메인만 접근
-- 민감한 데이터 보호를 위한 보안 정책 적용
+### Phase 3 (계획) 📋
+- [ ] 모바일 앱 연동
+- [ ] 외부 은행 API 연동
+- [ ] AI 추천 시스템
+- [ ] 자동 예산 관리
 
