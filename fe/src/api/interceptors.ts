@@ -1,6 +1,6 @@
-import type { AxiosInstance } from 'axios';
-import { useAuthStore } from '../store/authStore';
-import { reissueToken } from './services/auth';
+import type { AxiosInstance } from "axios";
+import { useAuthStore } from "../store/authStore";
+import { reissueToken } from "./services/auth";
 
 export const setupAuthInterceptor = (axiosInstance: AxiosInstance) => {
   let isRefreshing = false;
@@ -26,11 +26,18 @@ export const setupAuthInterceptor = (axiosInstance: AxiosInstance) => {
       const originalRequest = error.config;
 
       // 401 에러이고 아직 재시도하지 않은 경우
-      if (error.response?.status === 401 && !originalRequest._retry && !isRefreshing) {
+      // Network Error의 경우도 401일 가능성이 있으므로 추가 체크
+      const is401Error =
+        error.response?.status === 401 ||
+        (error.code === "ERR_NETWORK" && error.request?.status === 0);
+
+      if (is401Error && !originalRequest._retry && !isRefreshing) {
         originalRequest._retry = true;
         isRefreshing = true;
 
         try {
+          // const { accessToken: oldToken } = useAuthStore.getState();
+
           // reissue 엔드포인트로 POST 요청
           const { accessToken } = await reissueToken();
 
@@ -42,10 +49,8 @@ export const setupAuthInterceptor = (axiosInstance: AxiosInstance) => {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return axiosInstance(originalRequest);
         } catch (reissueError) {
-          // 재발급 실패 시 store 클리어하고 메인 페이지로 리다이렉트
-          const { clear } = useAuthStore.getState();
-          clear();
-          window.location.href = '/';
+          alert("다시 로그인해주세요.");
+          window.location.href = "/";
           return Promise.reject(reissueError);
         } finally {
           isRefreshing = false;
