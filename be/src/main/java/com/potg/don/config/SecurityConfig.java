@@ -99,7 +99,7 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
 		config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:8080",
-			"https://j13a409.p.ssafy.io", "http://j13a409.p.ssafy.io:3002"));
+			"https://j13a409.p.ssafy.io", "https://j13a409.p.ssafy.io:3002"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
 		// ★ 여기 변경: 프리플라이트 실패 줄이기
