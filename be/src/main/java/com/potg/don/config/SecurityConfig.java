@@ -45,10 +45,10 @@ public class SecurityConfig {
 				// 프리플라이트는 무조건 허용
 				.requestMatchers(HttpMethod.OPTIONS, "/**")
 				.permitAll()
-				.requestMatchers("/login/**", "/oauth2/**", "/test", "/v3/api-docs/**", "/swagger-ui/**",
-					"/swagger-ui.html")
+				.requestMatchers("/login/**", "/oauth2/**", "/auth/reissue", "/test", "/v3/api-docs/**",
+					"/swagger-ui/**", "/swagger-ui.html")
 				.permitAll()
-				.requestMatchers("/auth/reissue", "/auth/logout")
+				.requestMatchers("/auth/logout")
 				.authenticated()
 				.anyRequest()
 				.authenticated())
@@ -99,7 +99,7 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
 		config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173", "http://localhost:8080",
-			"https://j13a409.p.ssafy.io", "http://j13a409.p.ssafy.io:3002"));
+			"https://j13a409.p.ssafy.io", "https://j13a409.p.ssafy.io:3002"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
 		// ★ 여기 변경: 프리플라이트 실패 줄이기

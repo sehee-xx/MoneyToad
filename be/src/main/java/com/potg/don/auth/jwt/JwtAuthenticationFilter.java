@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -39,43 +40,62 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final JwtUtil jwtUtil;
 	private final UserRepository userRepository;
 	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 		throws ServletException, IOException {
 
+		// ✅ 1. 공개 경로(permitAll)는 필터를 거치지 않고 통과시킨다.
+		if (isPublicUri(request.getRequestURI())) {
+			filterChain.doFilter(request, response);
+			return;
+		}
+
 		String token = resolveToken(request);
 
 		if (token != null) {
 			try {
-				// ✅ 1. (핵심 수정) 토큰 재발급 요청일 경우를 위한 ExpiredJwtException 분리 처리
+				// ✅ 2. 이제 ExpiredJwtException에 대한 특별 처리가 필요 없다.
+				//    보호된 경로에 대한 요청은 토큰이 무조건 유효해야 한다.
 				Claims claims = jwtUtil.parse(token).getPayload();
-				// Access Token 타입일 경우에만 인증 처리
 				if ("ACCESS".equals(claims.get("typ", String.class))) {
 					setAuthentication(claims);
 				}
-			} catch (ExpiredJwtException e) {
-				// Access Token이 만료되었을 때, 재발급 요청(/api/auth/reissue)인지 확인
-				String requestURI = request.getRequestURI();
-				if (requestURI.equals("/api/auth/reissue")) {
-					log.info("Token expired, but it's for reissue. Proceeding with authentication from expired token.");
-					// 만료된 토큰의 Claims를 사용하여 SecurityContext에 인증 정보 임시 저장
-					setAuthentication(e.getClaims());
-				} else {
-					log.warn("Expired JWT Token on non-reissue path. URI: {}", requestURI);
-					sendErrorResponse(response, "만료된 토큰입니다.");
-					return; // 필터 체인 중단
-				}
 			} catch (JwtException | IllegalArgumentException | NullPointerException e) {
-				// ✅ 2. (개선) NullPointerException 등 다른 런타임 예외도 처리 범위에 추가
+				// 토큰 관련 모든 예외는 401 에러로 처리
 				log.warn("Invalid JWT Token: {}. URI: {}", e.getMessage(), request.getRequestURI());
 				sendErrorResponse(response, "유효하지 않은 토큰입니다.");
 				return; // 필터 체인 중단
 			}
+		} else {
+			// ✅ 3. 보호된 경로에 토큰 없이 접근한 경우 에러 처리
+			log.warn("No JWT Token found. URI: {}", request.getRequestURI());
+			sendErrorResponse(response, "인증 토큰이 필요합니다.");
+			return;
 		}
 
-		// 다음 필터로 요청 전달
 		filterChain.doFilter(request, response);
+	}
+
+	private boolean isPublicUri(String uri) {
+		// SecurityConfig에 정의된 public 경로 목록과 동일하게 관리
+		String[] publicUris = {
+			"/api/login/**",
+			"/api/oauth2/**",
+			"/api/swagger-ui/**",     // swagger-ui 하위 모든 경로
+			"/api/swagger-ui.html",   // ✅ swagger-ui.html 파일 자체를 추가
+			"/api/v3/api-docs/**",    // swagger api docs
+			"/api/test",
+			"/api/auth/reissue"
+		};
+
+		for (String publicUri : publicUris) {
+			if (pathMatcher.match(publicUri, uri)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

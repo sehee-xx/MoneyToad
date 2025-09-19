@@ -31,13 +31,11 @@ public class AuthController {
 	 * Refresh 토큰으로 Access 토큰을 재발급합니다.
 	 */
 	@PostMapping("/reissue")
-	public ResponseEntity<AccessTokenResponse> reissue(@AuthenticationPrincipal CustomUserDetails userDetails,
-		@CookieValue("refreshToken") String refreshToken, HttpServletResponse response) {
-		TokenResponse tokenResponse = authService.reissueTokens(userDetails.getUserId(), refreshToken);
-		Cookie refreshTokenCookie = CookieUtil.createCookie(
-			"refreshToken",
-			tokenResponse.refreshToken(),
-			(int) jwtUtil.getRefreshTtlSeconds() // 쿠키 만료 시간 설정
+	public ResponseEntity<AccessTokenResponse> reissue(@CookieValue("refreshToken") String refreshToken,
+		HttpServletResponse response) {
+		TokenResponse tokenResponse = authService.reissueTokens(refreshToken);
+		Cookie refreshTokenCookie = CookieUtil.createCookie("refreshToken", tokenResponse.refreshToken(),
+			(int)jwtUtil.getRefreshTtlSeconds() // 쿠키 만료 시간 설정
 		);
 		response.addCookie(refreshTokenCookie);
 		return ResponseEntity.ok(new AccessTokenResponse(tokenResponse.accessToken()));
