@@ -49,7 +49,7 @@ export const setupAuthInterceptor = (axiosInstance: AxiosInstance) => {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return axiosInstance(originalRequest);
         } catch (reissueError) {
-          alert("다시 로그인해주세요.");
+          alert("로그인이 필요합니다.");
           window.location.href = "/";
           return Promise.reject(reissueError);
         } finally {
