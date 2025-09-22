@@ -171,6 +171,8 @@ const PotVisualization: React.FC<{
   }, []);
 
   const hasLeak = leakingCategories.length > 0;
+
+  // ✅ 누수량에 따라 웅덩이 크기 조절 (이미 계산하던 값)
   const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
 
   return (
@@ -189,6 +191,8 @@ const PotVisualization: React.FC<{
           {tooltip.content}
         </div>
       )}
+
+      {/* 캐릭터 */}
       <div className="characters">
         <img
           src={hasLeak ? cryingKongjwi : happyKongjwi}
@@ -201,12 +205,47 @@ const PotVisualization: React.FC<{
           className="toad"
         />
       </div>
+
+      {/* 항아리 + 물 */}
       <div className="pot-svg-container">
         <svg
           viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
           className="pot-svg"
           preserveAspectRatio="xMidYMax meet"
         >
+          {/* ✅ 웅덩이: pot보다 먼저 그려서 pot 뒤에 깔리도록 */}
+          <g
+            id="puddle-group"
+            style={{
+              opacity: hasLeak ? 0.7 : 0,
+              transition: "opacity 0.6s ease",
+              pointerEvents: "none",
+            }}
+          >
+            <g
+              transform={`translate(250, ${FLOOR_Y}) scale(${hasLeak ? puddleScale : 0}) translate(-250, -${FLOOR_Y})`}
+              style={{ transition: "transform 0.6s ease" }}
+            >
+              {/* 본체 */}
+              <ellipse
+                cx="250"
+                cy={FLOOR_Y}
+                rx="95"
+                ry="16"
+                fill="rgba(46, 89, 132, 0.6)"
+              />
+              {/* 하이라이트 */}
+              <ellipse
+                cx="240"
+                cy={FLOOR_Y - 3}
+                rx="46"
+                ry="6"
+                fill="rgba(255,255,255,0.25)"
+              />
+            </g>
+          </g>
+
+          {/* pot 본체 */}
           <g id="pot-body">
             <image
               href={potImage}
@@ -216,6 +255,8 @@ const PotVisualization: React.FC<{
               height={POT_H}
             />
           </g>
+
+          {/* 균열 */}
           <g id="cracks">
             {leakingCategories.map((cat) => {
               const anchor =
@@ -250,6 +291,8 @@ const PotVisualization: React.FC<{
               );
             })}
           </g>
+
+          {/* 물줄기 애니메이션 */}
           <g id="waters">
             {leakingCategories.map((cat) => {
               const anchor =
@@ -292,6 +335,7 @@ const PotVisualization: React.FC<{
     </div>
   );
 };
+
 
 // --- Custom Slider ---
 const CustomSlider: React.FC<{
