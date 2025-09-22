@@ -1,46 +1,64 @@
-// src/pages/LeakPotPage.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import Header from "../components/Header";
 import "./LeakPotPage.css";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 // --- 이미지 & 애니메이션 ---
 const cryingKongjwi = "/leakPot/cryingKongjwi.png";
-const happyKongjwi  = "/leakPot/happyKongjwi.png";
-const happyToad     = "/leakPot/happyToad.png";
-const angryToad     = "/leakPot/angryToad.png";
-const bgImage       = "/leakPot/joseon-bg.png";
+const happyKongjwi = "/leakPot/happyKongjwi.png";
+const happyToad = "/leakPot/happyToad.png";
+const angryToad = "/leakPot/angryToad.png";
+const bgImage = "/leakPot/joseon-bg.png";
 const customPointer = "/leakPot/money.png";
-const paper         = "/leakPot/paper.png";
-const potImage      = "/leakPot/pot.png";
-const broken        = "/leakPot/broken.png";
-// 월 토큰 이미지
-const monthGood     = "/leakPot/good.png";
-const monthBad      = "/leakPot/bad.png";
-
+const paper = "/leakPot/paper.png";
+const potImage = "/leakPot/pot.png";
+const broken = "/leakPot/broken.png";
+const monthGood = "/leakPot/good.png";
+const monthBad = "/leakPot/bad.png";
 
 export const leakPotAssets = [
-  "/leakPot/cryingKongjwi.png",
-  "/leakPot/happyKongjwi.png",
-  "/leakPot/happyToad.png",
-  "/leakPot/angryToad.png",
-  "/leakPot/joseon-bg.png",
-  "/leakPot/money.png",
-  "/leakPot/paper.png",
-  "/leakPot/pot.png",
-  "/leakPot/broken.png",
-  "/leakPot/good.png",
-  "/leakPot/bad.png",
-  "/leakPot/water.json", // 애니메이션 JSON도 포함
+  cryingKongjwi,
+  happyKongjwi,
+  happyToad,
+  angryToad,
+  bgImage,
+  customPointer,
+  paper,
+  potImage,
+  broken,
+  monthGood,
+  monthBad,
+  "/leakPot/water.json",
 ];
 
 // --- 타입 정의 ---
-interface Category { id: string; name: string; spending: number; threshold: number; }
-interface LeakingCategory extends Category { originalIndex: number; }
-interface TooltipState { visible: boolean; content: string; x: number; y: number; }
-interface LeakAnchor { u: number; v: number; scale: number; }
-interface AbsPosition { x: number; y: number; scale: number; }
+interface Category {
+  id: string;
+  name: string;
+  spending: number;
+  threshold: number;
+}
+interface LeakingCategory extends Category {
+  originalIndex: number;
+}
+interface TooltipState {
+  visible: boolean;
+  content: string;
+  x: number;
+  y: number;
+}
+interface LeakAnchor {
+  u: number;
+  v: number;
+  scale: number;
+}
+interface AbsPosition {
+  x: number;
+  y: number;
+  scale: number;
+}
 
 // --- 데이터 ---
 const INITIAL_CATEGORIES: Category[] = [
@@ -59,14 +77,10 @@ const INITIAL_CATEGORIES: Category[] = [
 ];
 
 // 월 데이터
-const MONTHS = [
-  { value: 1, label: "1월" }, { value: 2, label: "2월" },
-  { value: 3, label: "3월" }, { value: 4, label: "4월" },
-  { value: 5, label: "5월" }, { value: 6, label: "6월" },
-  { value: 7, label: "7월" }, { value: 8, label: "8월" },
-  { value: 9, label: "9월" }, { value: 10, label: "10월" },
-  { value: 11, label: "11월" }, { value: 12, label: "12월" },
-];
+const MONTHS = Array.from({ length: 12 }, (_, i) => ({
+  value: i + 1,
+  label: `${i + 1}월`,
+}));
 
 // 레이아웃 값
 const VIEWBOX_W = 500;
@@ -79,12 +93,18 @@ const POT_Y = FLOOR_Y - 8 - POT_H;
 
 // 깨짐 위치
 const LEAK_ANCHORS: LeakAnchor[] = [
-  { u: 0.5, v: 0.35, scale: 0.17 }, { u: 0.3, v: 0.4, scale: 0.15 },
-  { u: 0.7, v: 0.42, scale: 0.16 }, { u: 0.2, v: 0.55, scale: 0.14 },
-  { u: 0.8, v: 0.58, scale: 0.18 }, { u: 0.48, v: 0.5, scale: 0.15 },
-  { u: 0.35, v: 0.75, scale: 0.2 }, { u: 0.65, v: 0.78, scale: 0.19 },
-  { u: 0.52, v: 0.82, scale: 0.16 }, { u: 0.75, v: 0.65, scale: 0.17 },
-  { u: 0.28, v: 0.68, scale: 0.14 }, { u: 0.6, v: 0.48, scale: 0.18 },
+  { u: 0.5, v: 0.35, scale: 0.17 },
+  { u: 0.3, v: 0.4, scale: 0.15 },
+  { u: 0.7, v: 0.42, scale: 0.16 },
+  { u: 0.2, v: 0.55, scale: 0.14 },
+  { u: 0.8, v: 0.58, scale: 0.18 },
+  { u: 0.48, v: 0.5, scale: 0.15 },
+  { u: 0.35, v: 0.75, scale: 0.2 },
+  { u: 0.65, v: 0.78, scale: 0.19 },
+  { u: 0.52, v: 0.82, scale: 0.16 },
+  { u: 0.75, v: 0.65, scale: 0.17 },
+  { u: 0.28, v: 0.68, scale: 0.14 },
+  { u: 0.6, v: 0.48, scale: 0.18 },
 ];
 const anchorToAbs = (a: LeakAnchor): AbsPosition => ({
   x: POT_X + a.u * POT_W,
@@ -92,20 +112,13 @@ const anchorToAbs = (a: LeakAnchor): AbsPosition => ({
   scale: a.scale,
 });
 
-// --- Month Navigation Component ---
-interface MonthNavigationProps {
+// --- Month Navigation ---
+const MonthNavigation: React.FC<{
   currentMonth: number;
   onMonthChange: (month: number) => void;
-  leakedMonths: number[]; // 누수 발생한 달 목록
-}
-
-const MonthNavigation: React.FC<MonthNavigationProps> = ({
-  currentMonth,
-  onMonthChange,
-  leakedMonths,
-}) => {
+  leakedMonths: number[];
+}> = ({ currentMonth, onMonthChange, leakedMonths }) => {
   const isLeaked = (m: number) => leakedMonths.includes(m);
-
   return (
     <div className="month-navigation">
       <div className="month-grid">
@@ -116,7 +129,7 @@ const MonthNavigation: React.FC<MonthNavigationProps> = ({
             <button
               key={m.value}
               onClick={() => onMonthChange(m.value)}
-              aria-label={`${m.label}${leaked ? " (누수)" : ""}`}
+              onMouseDown={(e) => e.preventDefault()}
               className={`month-button ${active ? "active" : ""}`}
             >
               <img
@@ -137,25 +150,19 @@ const MonthNavigation: React.FC<MonthNavigationProps> = ({
 };
 
 // --- Pot Visualization ---
-const WATER_BASE_W = 120;
-const WATER_BASE_H = 180;
-const WATER_STREAM_ORIGIN_X_RATIO = 0.03;
-const WATER_STREAM_ORIGIN_Y_RATIO = 0.28;
-// const WATER_ALPHA = 0.55;
-const PUDDLE_DY = -25;
-
-interface PotVisualizationProps {
+const PotVisualization: React.FC<{
   leakingCategories: LeakingCategory[];
   totalLeak: number;
   formatter: Intl.NumberFormat;
-}
-
-const PotVisualization: React.FC<PotVisualizationProps> = ({
-  leakingCategories,
-  totalLeak,
-  formatter,
-}) => {
+}> = ({ leakingCategories, totalLeak, formatter }) => {
   const [waterAnim, setWaterAnim] = useState<any | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    content: "",
+    x: 0,
+    y: 0,
+  });
+
   useEffect(() => {
     fetch("/leakPot/water.json")
       .then((r) => r.json())
@@ -164,40 +171,39 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   }, []);
 
   const hasLeak = leakingCategories.length > 0;
-  const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
-  const [tooltip, setTooltip] = useState<TooltipState>({
-    visible: false,
-    content: "",
-    x: 0,
-    y: 0,
-  });
 
-  const handleMouseOver = (e: React.MouseEvent, cat: LeakingCategory) => {
-    const leakAmount = cat.spending - cat.threshold;
-    setTooltip({
-      visible: true,
-      content: `${cat.name}: ${formatter.format(leakAmount)}냥 누수`,
-      x: e.clientX,
-      y: e.clientY,
-    });
-  };
-  const handleMouseOut = () => setTooltip({ visible: false, content: "", x: 0, y: 0 });
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (tooltip.visible) setTooltip({ ...tooltip, x: e.clientX, y: e.clientY });
-  };
+  // ✅ 누수량에 따라 웅덩이 크기 조절 (이미 계산하던 값)
+  const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
 
   return (
-    <div className="pot-container" onMouseMove={handleMouseMove}>
+    <div
+      className="pot-container"
+      onMouseMove={(e) =>
+        tooltip.visible &&
+        setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
+      }
+    >
       {tooltip.visible && (
-        <div className="tooltip" style={{ left: tooltip.x + 15, top: tooltip.y }}>
+        <div
+          className="tooltip"
+          style={{ left: tooltip.x + 15, top: tooltip.y }}
+        >
           {tooltip.content}
         </div>
       )}
 
       {/* 캐릭터 */}
       <div className="characters">
-        <img src={hasLeak ? cryingKongjwi : happyKongjwi} alt="콩쥐" className="kongjwi" />
-        <img src={hasLeak ? angryToad : happyToad} alt="두꺼비" className="toad" />
+        <img
+          src={hasLeak ? cryingKongjwi : happyKongjwi}
+          alt="콩쥐"
+          className="kongjwi"
+        />
+        <img
+          src={hasLeak ? angryToad : happyToad}
+          alt="두꺼비"
+          className="toad"
+        />
       </div>
 
       {/* 항아리 + 물 */}
@@ -207,77 +213,96 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           className="pot-svg"
           preserveAspectRatio="xMidYMax meet"
         >
-          <defs>
-            <radialGradient id="puddleGradient" cx="50%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#87CEEB" stopOpacity="0.9" />
-              <stop offset="40%" stopColor="#4682B4" stopOpacity="0.8" />
-              <stop offset="70%" stopColor="#2E5984" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#1e3a5f" stopOpacity="0.6" />
-            </radialGradient>
-            <radialGradient id="puddleReflection" cx="45%" cy="25%" r="30%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-              <stop offset="50%" stopColor="#87CEEB" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#4682B4" stopOpacity="0.1" />
-            </radialGradient>
-            <filter id="waterDistortion" x="-10%" y="-10%" width="120%" height="120%">
-              <feTurbulence baseFrequency="0.03 0.09" numOctaves="2" seed="2" result="turbulence" />
-              <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="8" />
-            </filter>
-          </defs>
-
-          {/* puddle */}
+          {/* ✅ 웅덩이: pot보다 먼저 그려서 pot 뒤에 깔리도록 */}
           <g
             id="puddle-group"
-            transform={`translate(0, ${PUDDLE_DY})`}
-            style={{ opacity: hasLeak ? 0.7 : 0, transition: "opacity 0.7s ease-out" }}
+            style={{
+              opacity: hasLeak ? 0.7 : 0,
+              transition: "opacity 0.6s ease",
+              pointerEvents: "none",
+            }}
           >
             <g
               transform={`translate(250, ${FLOOR_Y}) scale(${hasLeak ? puddleScale : 0}) translate(-250, -${FLOOR_Y})`}
-              style={{ transition: "transform 0.7s ease-out" }}
+              style={{ transition: "transform 0.6s ease" }}
             >
-              <ellipse cx="250" cy={FLOOR_Y} rx="95" ry="16" fill="url(#puddleGradient)" filter="url(#waterDistortion)" />
-              <ellipse cx="240" cy={FLOOR_Y - 3} rx="46" ry="6" fill="url(#puddleReflection)" filter="url(#waterDistortion)" />
+              {/* 본체 */}
+              <ellipse
+                cx="250"
+                cy={FLOOR_Y}
+                rx="95"
+                ry="16"
+                fill="rgba(46, 89, 132, 0.6)"
+              />
+              {/* 하이라이트 */}
+              <ellipse
+                cx="240"
+                cy={FLOOR_Y - 3}
+                rx="46"
+                ry="6"
+                fill="rgba(255,255,255,0.25)"
+              />
             </g>
           </g>
 
-          {/* pot */}
+          {/* pot 본체 */}
           <g id="pot-body">
-            <image href={potImage} x={POT_X} y={POT_Y} width={POT_W} height={POT_H} />
+            <image
+              href={potImage}
+              x={POT_X}
+              y={POT_Y}
+              width={POT_W}
+              height={POT_H}
+            />
           </g>
 
-          {/* cracks */}
+          {/* 균열 */}
           <g id="cracks">
             {leakingCategories.map((cat) => {
-              const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
+              const anchor =
+                LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
               const { x, y, scale: baseScale } = anchorToAbs(anchor);
               const leakAmount = cat.spending - cat.threshold;
-              const crackScale = baseScale * Math.max(0.4, Math.min(1.5, 0.4 + leakAmount / 80000));
-
+              const crackScale =
+                baseScale *
+                Math.max(0.4, Math.min(1.5, 0.4 + leakAmount / 80000));
               return (
                 <image
                   key={cat.id}
                   href={broken}
-                  className="crack"
                   x={(-450 / 2) * crackScale + x}
                   y={(-450 / 2) * crackScale + y}
                   width={450 * crackScale}
                   height={450 * crackScale}
-                  onMouseEnter={(e) => handleMouseOver(e, cat)}
-                  onMouseLeave={handleMouseOut}
+                  onMouseEnter={(e) =>
+                    setTooltip({
+                      visible: true,
+                      content: `${cat.name}: ${formatter.format(
+                        leakAmount
+                      )}냥 누수`,
+                      x: e.clientX,
+                      y: e.clientY,
+                    })
+                  }
+                  onMouseLeave={() =>
+                    setTooltip({ visible: false, content: "", x: 0, y: 0 })
+                  }
                 />
               );
             })}
           </g>
 
-          {/* waters */}
+          {/* 물줄기 애니메이션 */}
           <g id="waters">
             {leakingCategories.map((cat) => {
-              const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
+              const anchor =
+                LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
               const { x, y, scale: baseScale } = anchorToAbs(anchor);
               const leakAmount = cat.spending - cat.threshold;
-              const isLeft = anchor.u < 0.5;
-              const waterScale = Math.max(0.2, Math.min(2.0, 0.3 + leakAmount / 80000));
-
+              const waterScale = Math.max(
+                0.2,
+                Math.min(2.0, 0.3 + leakAmount / 80000)
+              );
               return (
                 <foreignObject
                   key={cat.id}
@@ -287,7 +312,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
                   height={450 * baseScale}
                   style={{ overflow: "visible", pointerEvents: "none" }}
                 >
-                  <div className={`water-animation ${isLeft ? "flip" : ""}`}>
+                  <div className="water-animation">
                     {waterAnim && (
                       <Lottie
                         animationData={waterAnim}
@@ -295,12 +320,8 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
                         autoplay
                         initialSegment={[0, 29]}
                         style={{
-                          position: "absolute",
-                          width: `${WATER_BASE_W * waterScale}px`,
-                          height: `${WATER_BASE_H * waterScale}px`,
-                          left: `calc(50% - ${WATER_BASE_W * waterScale * WATER_STREAM_ORIGIN_X_RATIO}px)`,
-                          top:  `calc(50% - ${WATER_BASE_H * waterScale * WATER_STREAM_ORIGIN_Y_RATIO}px)`,
-                          pointerEvents: "none",
+                          width: `${120 * waterScale}px`,
+                          height: `${180 * waterScale}px`,
                         }}
                       />
                     )}
@@ -315,71 +336,143 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   );
 };
 
+
 // --- Custom Slider ---
-interface CustomSliderProps {
+const CustomSlider: React.FC<{
   cat: Category;
   isLeaking: boolean;
   handleThresholdChange: (id: string, value: number) => void;
   formatter: Intl.NumberFormat;
-}
-
-const CustomSlider: React.FC<CustomSliderProps> = ({
-  cat,
-  isLeaking,
-  handleThresholdChange,
-  formatter,
-}) => {
+}> = ({ cat, isLeaking, handleThresholdChange, formatter }) => {
   const max = Math.max(600000, cat.spending * 1.5);
-  const spendingPercentage = (cat.spending / max) * 100;
-  const thresholdPercentage = (cat.threshold / max) * 100;
+
+  // 퍼센트들
+  const spendingPct = (cat.spending / max) * 100;
+  const thresholdPct = (cat.threshold / max) * 100;
+
+  // 엽전 썸은 우리가 직접 배치 → thresholdPct 기준
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleThresholdChange(cat.id, parseInt(e.target.value, 10));
+  };
 
   return (
     <div className="slider-item">
       <div className="slider-header">
-        <label className={`slider-label ${isLeaking ? "leaking" : ""}`}>{cat.name}</label>
-        <div className="slider-amounts">
-          <span className={`current-spending ${isLeaking ? "leaking" : ""}`}>
-            {formatter.format(cat.spending)}
-          </span>{" "}
-          / {formatter.format(cat.threshold)}
+        <label className={`slider-label ${isLeaking ? "leaking" : ""}`}>
+          {cat.name}
+        </label>
+
+        {/* 사용자 친화적인 금액 설명 */}
+        <div className="slider-legend" aria-live="polite">
+          <span className="legend-label">지출</span>
+          <strong className={`legend-value ${isLeaking ? "leaking" : ""}`}>
+            {formatter.format(cat.spending)}냥
+          </strong>
+          <span className="legend-sep"> | </span>
+          <span className="legend-label">한도</span>
+          <strong className="legend-value">
+            {formatter.format(cat.threshold)}냥
+          </strong>
         </div>
       </div>
-      <div className="slider-container">
-        <div className="slider-track"></div>
-        <div className="slider-fill-normal" style={{ width: `${Math.min(spendingPercentage, thresholdPercentage)}%` }}></div>
+
+      <div
+        className="slider-container"
+        style={
+          {
+            // CSS 변수로 퍼센트 넘겨서 썸 위치/바 채우기 제어
+            "--spending-pct": `${spendingPct}%`,
+            "--threshold-pct": `${thresholdPct}%`,
+          } as React.CSSProperties
+        }
+      >
+        <div className="slider-track" />
+
+        {/* 지출이 한도 이하인 구간 (정상) */}
+        <div
+          className="slider-fill-normal"
+          style={{ width: `${Math.min(spendingPct, thresholdPct)}%` }}
+        />
+
+        {/* 지출이 한도 초과인 구간 (누수) */}
         {isLeaking && (
-          <div className="slider-fill-leak" style={{ left: `${thresholdPercentage}%`, width: `${Math.max(0, spendingPercentage - thresholdPercentage)}%` }} />
+          <div
+            className="slider-fill-leak"
+            style={{
+              left: `${thresholdPct}%`,
+              width: `${Math.max(0, spendingPct - thresholdPct)}%`,
+            }}
+          />
         )}
+
+        {/* 실제 range 입력 (접근성+이벤트만 담당, 썸은 숨김) */}
         <input
           type="range"
-          min="0"
+          min={0}
           max={max}
-          step="10000"
+          step={10000}
           value={cat.threshold}
-          onChange={(e) => handleThresholdChange(cat.id, parseInt(e.target.value))}
+          onChange={handleChange}
+          aria-label={`${cat.name} 한도`}
           className={`custom-slider ${isLeaking ? "is-leaking" : ""}`}
+        />
+
+        {/* 우리가 그리는 엽전 썸: 중심이 퍼센트의 ‘정중앙’에 맞도록 translate(-50%) */}
+        <div
+          className="coin-thumb"
+          aria-hidden="true"
+          style={{ left: `var(--threshold-pct)` }}
+          title={`한도: ${formatter.format(cat.threshold)}냥`}
         />
       </div>
     </div>
   );
 };
 
-// --- 메인 App ---
-type RootVars = React.CSSProperties & {
-  "--bg"?: string;
-  "--paper"?: string;
-  "--pointer"?: string;
-};
-
+// --- LeakPotPage ---
 const LeakPotPage = () => {
   const { month } = useParams();
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
-  const [leakingCategories, setLeakingCategories] = useState<LeakingCategory[]>([]);
+  const [leakingCategories, setLeakingCategories] = useState<LeakingCategory[]>(
+    []
+  );
   const [totalLeak, setTotalLeak] = useState<number>(0);
+  const [pageLoading, setPageLoading] = useState(true);
   const formatter = new Intl.NumberFormat("ko-KR");
 
-  // 현재 월 계산 (URL 파라미터 또는 현재 날짜)
+  // 첫 진입 시 에셋 프리로드
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all(
+      leakPotAssets.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            if (src.endsWith(".json")) {
+              fetch(src)
+                .then((res) => (res.ok ? res.json() : null))
+                .then(() => resolve())
+                .catch(() => resolve()); // 실패해도 resolve
+            } else {
+              const img = new Image();
+              img.src = src;
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            }
+          })
+      )
+    )
+      .catch(() => {}) // Promise.all 자체 reject 방지
+      .finally(() => {
+        if (!cancelled) setPageLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const getCurrentMonth = (): number => {
     if (month) {
       const monthNum = parseInt(month);
@@ -390,11 +483,10 @@ const LeakPotPage = () => {
   const currentMonth = getCurrentMonth();
 
   useEffect(() => {
-    setCategories(INITIAL_CATEGORIES.map(c => ({ ...c, threshold: c.spending })));
+    setCategories(
+      INITIAL_CATEGORIES.map((c) => ({ ...c, threshold: c.spending }))
+    );
   }, [currentMonth]);
-
-  // 월 변경 핸들러
-  const handleMonthChange = (newMonth: number) => navigate(`/pot/${newMonth}`);
 
   useEffect(() => {
     const currentLeaking = categories
@@ -408,64 +500,74 @@ const LeakPotPage = () => {
     setTotalLeak(currentTotalLeak);
   }, [categories]);
 
-  // 현재 달의 누수 여부에 따라 월 토큰 표시
+  const handleThresholdChange = useCallback(
+    (id: string, newThreshold: number) => {
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === id ? { ...cat, threshold: newThreshold } : cat
+        )
+      );
+    },
+    []
+  );
+
   const hasLeakThisMonth = leakingCategories.length > 0;
   const leakedMonths: number[] = hasLeakThisMonth ? [currentMonth] : [];
 
-  const rootVars: RootVars = {
+  const rootVars: React.CSSProperties = {
     "--bg": `url(${bgImage})`,
     "--paper": `url(${paper})`,
     "--pointer": `url(${customPointer})`,
-  };
-
-  const handleThresholdChange = useCallback((id: string, newThreshold: number) => {
-  setCategories(prev =>
-    prev.map(cat => (cat.id === id ? { ...cat, threshold: newThreshold } : cat))
-  );
-}, []);
+  } as React.CSSProperties;
 
   return (
     <div className="app-container" style={rootVars}>
-      <Header />
-      <MonthNavigation
-        currentMonth={currentMonth}
-        onMonthChange={handleMonthChange}
-        leakedMonths={leakedMonths}
-      />
-      <div className="main-container">
-        <div className="pot-container">
-          <PotVisualization
-            leakingCategories={leakingCategories}
-            totalLeak={totalLeak}
-            formatter={formatter}
+      {pageLoading ? (
+        <LoadingOverlay />
+      ) : (
+        <>
+          <Header />
+          <MonthNavigation
+            currentMonth={currentMonth}
+            onMonthChange={(m) => navigate(`/pot/${m}`)}
+            leakedMonths={leakedMonths}
           />
-        </div>
-
-        <div className="control-panel">
-          <h2 className="panel-title">{currentMonth}월 지출을 다스리시오</h2>
-          <div className="sliders-container">
-            {categories.map((cat) => {
-              const isLeaking = cat.spending > cat.threshold;
-              return (
-                <CustomSlider
-                  key={cat.id}
-                  cat={cat}
-                  isLeaking={isLeaking}
-                  handleThresholdChange={handleThresholdChange}
-                  formatter={formatter}
-                />
-              );
-            })}
+          <div className="main-container">
+            <div className="pot-container">
+              <PotVisualization
+                leakingCategories={leakingCategories}
+                totalLeak={totalLeak}
+                formatter={formatter}
+              />
+            </div>
+            <div className="control-panel">
+              <h2 className="panel-title">
+                {currentMonth}월 지출을 다스리시오
+              </h2>
+              <div className="sliders-container">
+                {categories.map((cat) => (
+                  <CustomSlider
+                    key={cat.id}
+                    cat={cat}
+                    isLeaking={cat.spending > cat.threshold}
+                    handleThresholdChange={handleThresholdChange}
+                    formatter={formatter}
+                  />
+                ))}
+              </div>
+              <div className="summary">
+                {totalLeak > 0 ? (
+                  <p className="summary-leak">
+                    총 {formatter.format(totalLeak)}냥이 새고 있소!
+                  </p>
+                ) : (
+                  <p className="summary-good">완벽하오! 새는 돈이 없소!</p>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="summary">
-            {totalLeak > 0 ? (
-              <p className="summary-leak">총 {formatter.format(totalLeak)}냥이 새고 있소!</p>
-            ) : (
-              <p className="summary-good">완벽하오! 새는 돈이 없소!</p>
-            )}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };
