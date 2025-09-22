@@ -16,6 +16,14 @@ type TrackVars = React.CSSProperties & {
 type PageVars = React.CSSProperties & {
   "--bg"?: string;
 };
+
+export const scrollLandingAssets = [
+  "/landing/landing1.png",
+  "/landing/landing2.png",
+  "/landing/landing3.png",
+  "/landing/landing4.png",
+];
+
 export default function ScrollLandingPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);

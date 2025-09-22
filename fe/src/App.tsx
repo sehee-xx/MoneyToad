@@ -1,23 +1,60 @@
-import { Routes, Route } from "react-router-dom";
-import ScrollLandingPage from "./pages/ScrollLandingPage";
-import LeakPotPage from "./pages/LeakPotPage";
-import UserInfoInputPage from "./pages/UserInfoInputPage";
+import { useEffect, useState } from "react";
+import { useLocation, Routes, Route } from "react-router-dom";
+import ScrollLandingPage, { scrollLandingAssets } from "./pages/ScrollLandingPage";
+import LeakPotPage, { leakPotAssets } from "./pages/LeakPotPage";
+import UserInfoInputPage, { userInfoAssets } from "./pages/UserInfoInputPage";
 import ChartPage from "./pages/ChartPage";
 import AuthCallback from "./pages/AuthCallback";
-import Mypage from "./pages/Mypage";
+import Mypage, { mypageAssets } from "./pages/Mypage";
+import NotFound, { notFoundAssets } from "./pages/NotFound";
 import RouteGuard from "./components/RouteGuard";
-import NotFound from "./pages/NotFound";
+import LoadingOverlay from "./components/LoadingOverlay";
+
+const allAssets = [
+  ...scrollLandingAssets,
+  ...userInfoAssets,
+  ...leakPotAssets,
+  ...mypageAssets,
+  ...notFoundAssets,
+];
 
 export default function App() {
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all(
+      allAssets.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            if (src.endsWith(".json")) {
+              fetch(src).then(() => resolve()).catch(() => resolve());
+            } else {
+              const img = new Image();
+              img.src = src;
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            }
+          })
+      )
+    ).finally(() => {
+      setLoading(false);
+    });
+  }, [location]);
+
   return (
-    <Routes>
-      <Route path="/" element={<ScrollLandingPage />} />
-      <Route path="/userInfo" element={<RouteGuard><UserInfoInputPage /></RouteGuard>} />
-      <Route path="/pot/:month" element={<RouteGuard><LeakPotPage /></RouteGuard>} />
-      <Route path="chart" element={<RouteGuard><ChartPage /></RouteGuard>} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/mypage" element={<RouteGuard><Mypage /></RouteGuard>} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      {loading && <LoadingOverlay />}
+      <Routes>
+        <Route path="/" element={<ScrollLandingPage />} />
+        <Route path="/userInfo" element={<RouteGuard><UserInfoInputPage /></RouteGuard>} />
+        <Route path="/pot/:month" element={<RouteGuard><LeakPotPage /></RouteGuard>} />
+        <Route path="/chart" element={<RouteGuard><ChartPage /></RouteGuard>} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/mypage" element={<RouteGuard><Mypage /></RouteGuard>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 }
