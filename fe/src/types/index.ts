@@ -12,3 +12,8 @@ export interface MonthlyTransaction {
   merchantName: string;
   category: string;
 }
+
+export interface CategoryTransaction {
+  category: string;
+  totalAmount: number;
+}

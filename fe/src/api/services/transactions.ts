@@ -1,5 +1,5 @@
 import { request, REQUEST_METHOD } from '../client';
-import type { TransactionYear, MonthlyTransaction } from '../../types';
+import type { TransactionYear, MonthlyTransaction, CategoryTransaction } from '../../types';
 
 export const getYearTransaction = async () => {
   const response = await request<TransactionYear[]>({
@@ -14,6 +14,15 @@ export const getMonthlyTransactions = async (year: number, month: number) => {
   const response = await request<MonthlyTransaction[]>({
     method: REQUEST_METHOD.GET,
     url: `${import.meta.env.VITE_BACK_URL}/api/transactions/${year}/${month}`,
+  });
+
+  return response;
+};
+
+export const getCategoryTransactions = async (year: number, month: number) => {
+  const response = await request<CategoryTransaction[]>({
+    method: REQUEST_METHOD.GET,
+    url: `${import.meta.env.VITE_BACK_URL}/api/transactions/${year}/${month}/categories`,
   });
 
   return response;
