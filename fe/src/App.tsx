@@ -5,17 +5,18 @@ import UserInfoInputPage from "./pages/UserInfoInputPage";
 import ChartPage from "./pages/ChartPage";
 import AuthCallback from "./pages/AuthCallback";
 import Mypage from "./pages/Mypage";
+import RouteGuard from "./components/RouteGuard";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<ScrollLandingPage />} />
-      <Route path="/userInfo" element={<UserInfoInputPage />} />
-      <Route path="/pot/:month" element={<LeakPotPage />} />
-      <Route path="chart" element={<ChartPage />} />
+      <Route path="/userInfo" element={<RouteGuard><UserInfoInputPage /></RouteGuard>} />
+      <Route path="/pot/:month" element={<RouteGuard><LeakPotPage /></RouteGuard>} />
+      <Route path="chart" element={<RouteGuard><ChartPage /></RouteGuard>} />
       <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/mypage" element={<Mypage />} />
+      <Route path="/mypage" element={<RouteGuard><Mypage /></RouteGuard>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
