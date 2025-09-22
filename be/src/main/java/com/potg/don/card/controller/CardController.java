@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,6 +37,12 @@ public class CardController {
 		@RequestBody CardRequest cardRequest) {
 		Card card = cardService.registerCard(user.getUserId(), cardRequest);
 		return ResponseEntity.status(HttpStatus.CREATED).body(CardResponse.from(card));
+	}
+
+	@PatchMapping("")
+	public ResponseEntity<CardResponse> updateCard(@AuthenticationPrincipal CustomUserDetails user, @RequestBody CardRequest cardRequest) {
+		Card card = cardService.updateCard(user.getUserId(), cardRequest);
+		return ResponseEntity.ok(CardResponse.from(card));
 	}
 
 	@DeleteMapping("")
