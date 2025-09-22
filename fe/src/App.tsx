@@ -6,6 +6,7 @@ import ChartPage from "./pages/ChartPage";
 import AuthCallback from "./pages/AuthCallback";
 import Mypage from "./pages/Mypage";
 import RouteGuard from "./components/RouteGuard";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
       <Route path="chart" element={<RouteGuard><ChartPage /></RouteGuard>} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/mypage" element={<RouteGuard><Mypage /></RouteGuard>} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
