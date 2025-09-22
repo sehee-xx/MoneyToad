@@ -38,4 +38,10 @@ public class Card extends BaseTimeEntity {
 		card.cvc = cardRequest.getCvc();
 		return card;
 	}
+
+	public Card updateCard(CardRequest cardRequest) {
+		this.cardNo = cardRequest.getCardNo();
+		this.cvc = cardRequest.getCvc();
+		return this;
+	}
 }
