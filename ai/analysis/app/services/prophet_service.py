@@ -420,44 +420,50 @@ class ProphetService:
             'months_calculated': len(baseline_results)
         }
     
-    async def predict_with_baseline(self, csv_data: pd.DataFrame) -> Dict[str, Any]:
+    async def predict_by_category(self, csv_data: pd.DataFrame) -> Dict[str, Any]:
         """
-        Predict current/next month AND calculate baseline for past 11 months
+        Predict current month spending by category
 
         Args:
             csv_data: Transaction data
 
         Returns:
-            Dictionary with both current predictions and baseline
+            Dictionary with current month predictions
         """
         loop = asyncio.get_event_loop()
-        
+
         try:
-            # Run both predictions in parallel
-            current_future = loop.run_in_executor(
+            result = await loop.run_in_executor(
                 self.executor,
                 self._predict_by_category_sync,
                 csv_data
             )
-            
-            baseline_future = loop.run_in_executor(
+            return result
+        except Exception as e:
+            logger.error(f"Error in category prediction: {e}")
+            raise
+
+    async def calculate_baseline_predictions_async(self, csv_data: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Calculate baseline predictions for past 11 months asynchronously
+
+        Args:
+            csv_data: Transaction data
+
+        Returns:
+            Dictionary with baseline predictions
+        """
+        loop = asyncio.get_event_loop()
+
+        try:
+            result = await loop.run_in_executor(
                 self.executor,
                 self.calculate_baseline_predictions,
                 csv_data
             )
-            
-            # Wait for both to complete
-            current_result = await current_future
-            baseline_result = await baseline_future
-            
-            # Combine results
-            return {
-                **current_result,
-                'baseline_predictions': baseline_result
-            }
-            
+            return result
         except Exception as e:
-            logger.error(f"Error in combined prediction: {e}")
+            logger.error(f"Error in baseline calculation: {e}")
             raise
     
     def calculate_category_leak(

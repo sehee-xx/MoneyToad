@@ -83,15 +83,15 @@ async def run_prophet_analysis(
         if csv_data is None:
             raise ValueError(f"Failed to fetch CSV data for {file_id}")
         
-        # Run Prophet analysis by category with baseline
-        logger.info(f"Starting Prophet category analysis with baseline for {file_id}")
-        analysis_result = await prophet_service.predict_with_baseline(csv_data)
+        # STEP 1: Run current month prediction first
+        logger.info(f"Starting current month prediction for {file_id}")
+        current_month_result = await prophet_service.predict_by_category(csv_data)
         
-        # Prophet returns category-wise results
-        if analysis_result.get('prediction_id'):
-            category_predictions = analysis_result.get('category_predictions', {})
-            year = analysis_result.get('year')
-            month = analysis_result.get('month')
+        # Process current month results first
+        if current_month_result.get('prediction_id'):
+            category_predictions = current_month_result.get('category_predictions', {})
+            year = current_month_result.get('year')
+            month = current_month_result.get('month')
             
             # Save predictions for each category
             for category, cat_data in category_predictions.items():
@@ -148,17 +148,23 @@ async def run_prophet_analysis(
                                 year=year,
                                 month=month,
                                 actual_amount=current_month.get('actual'),
-                                predicted_amount=analysis_result.get('total_current_predicted'),
+                                predicted_amount=current_month_result.get('total_current_predicted'),
                                 leak_amount=0,  # Will calculate total leak later
                                 analysis_data={'categories': category_predictions}
                             )
                             db.add(leak)
                 
                 # Next month predictions removed - no longer needed
-            
-            # Save baseline predictions if available
-            baseline_predictions = analysis_result.get('baseline_predictions', {})
+
+            # Commit current month predictions first
+            db.commit()
+            logger.info(f"Current month predictions saved for {file_id}")
+
+            # STEP 2: Now calculate baseline for past 11 months
+            logger.info(f"Starting baseline calculation for past 11 months for {file_id}")
+            baseline_predictions = await prophet_service.calculate_baseline_predictions_async(csv_data)
             if baseline_predictions and baseline_predictions.get('baseline_months'):
+                logger.info(f"Saving {len(baseline_predictions['baseline_months'])} months of baseline data")
                 for month_key, month_data in baseline_predictions['baseline_months'].items():
                     if month_data['status'] != 'completed':
                         continue
@@ -203,11 +209,11 @@ async def run_prophet_analysis(
                 job.status = "completed"
                 job.completed_at = datetime.now()
                 job.job_metadata = {
-                    'prediction_id': analysis_result.get('prediction_id'),
-                    'categories_analyzed': analysis_result.get('categories_analyzed'),
-                    'total_current_predicted': analysis_result.get('total_current_predicted'),
-                    'trend': analysis_result.get('trend'),
-                    'baseline_months_calculated': baseline_predictions.get('months_calculated', 0)
+                    'prediction_id': current_month_result.get('prediction_id'),
+                    'categories_analyzed': current_month_result.get('categories_analyzed'),
+                    'total_current_predicted': current_month_result.get('total_current_predicted'),
+                    'trend': current_month_result.get('trend'),
+                    'baseline_months_calculated': baseline_predictions.get('months_calculated', 0) if baseline_predictions else 0
                 }
             
             db.commit()
@@ -216,8 +222,12 @@ async def run_prophet_analysis(
             redis_client.set_csv_status(file_id, "none")
             
             # Store analysis metadata separately if needed
-            if analysis_result:
-                redis_client.set_analysis_metadata(file_id, analysis_result)
+            if current_month_result:
+                analysis_metadata = {
+                    **current_month_result,
+                    'baseline_predictions': baseline_predictions
+                }
+                redis_client.set_analysis_metadata(file_id, analysis_metadata)
             
             logger.info(f"Prophet analysis completed for {file_id}, status set to none")
         else:
