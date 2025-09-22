@@ -150,19 +150,24 @@ const MonthNavigation: React.FC<{
 };
 
 // --- Pot Visualization ---
-const PotVisualization: React.FC<{
+const WATER_BASE_W = 120;
+const WATER_BASE_H = 180;
+const WATER_STREAM_ORIGIN_X_RATIO = 0.03;
+const WATER_STREAM_ORIGIN_Y_RATIO = 0.28;
+const PUDDLE_DY = -25;
+
+interface PotVisualizationProps {
   leakingCategories: LeakingCategory[];
   totalLeak: number;
   formatter: Intl.NumberFormat;
-}> = ({ leakingCategories, totalLeak, formatter }) => {
-  const [waterAnim, setWaterAnim] = useState<any | null>(null);
-  const [tooltip, setTooltip] = useState<TooltipState>({
-    visible: false,
-    content: "",
-    x: 0,
-    y: 0,
-  });
+}
 
+const PotVisualization: React.FC<PotVisualizationProps> = ({
+  leakingCategories,
+  totalLeak,
+  formatter,
+}) => {
+  const [waterAnim, setWaterAnim] = useState<any | null>(null);
   useEffect(() => {
     fetch("/leakPot/water.json")
       .then((r) => r.json())
@@ -174,37 +179,44 @@ const PotVisualization: React.FC<{
 
   // ✅ 누수량에 따라 웅덩이 크기 조절 (이미 계산하던 값)
   const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    content: "",
+    x: 0,
+    y: 0,
+  });
+
+  const handleMouseOver = (e: React.MouseEvent, cat: LeakingCategory) => {
+    const leakAmount = cat.spending - cat.threshold;
+    setTooltip({
+      visible: true,
+      content: `${cat.name}: ${formatter.format(leakAmount)}냥 누수`,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+  const handleMouseOut = () => setTooltip({ visible: false, content: "", x: 0, y: 0 });
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (tooltip.visible) setTooltip({ ...tooltip, x: e.clientX, y: e.clientY });
+  };
 
   return (
-    <div
-      className="pot-container"
-      onMouseMove={(e) =>
-        tooltip.visible &&
-        setTooltip({ ...tooltip, x: e.clientX, y: e.clientY })
-      }
-    >
+    <div className="pot-container" onMouseMove={handleMouseMove}>
       {tooltip.visible && (
-        <div
-          className="tooltip"
-          style={{ left: tooltip.x + 15, top: tooltip.y }}
-        >
+        <div className="tooltip" style={{ left: tooltip.x + 15, top: tooltip.y }}>
           {tooltip.content}
         </div>
       )}
 
       {/* 캐릭터 */}
+
+      {/* 캐릭터 */}
       <div className="characters">
-        <img
-          src={hasLeak ? cryingKongjwi : happyKongjwi}
-          alt="콩쥐"
-          className="kongjwi"
-        />
-        <img
-          src={hasLeak ? angryToad : happyToad}
-          alt="두꺼비"
-          className="toad"
-        />
+        <img src={hasLeak ? cryingKongjwi : happyKongjwi} alt="콩쥐" className="kongjwi" />
+        <img src={hasLeak ? angryToad : happyToad} alt="두꺼비" className="toad" />
       </div>
+
+      {/* 항아리 + 물 */}
 
       {/* 항아리 + 물 */}
       <div className="pot-svg-container">
@@ -213,80 +225,63 @@ const PotVisualization: React.FC<{
           className="pot-svg"
           preserveAspectRatio="xMidYMax meet"
         >
-          {/* ✅ 웅덩이: pot보다 먼저 그려서 pot 뒤에 깔리도록 */}
+          <defs>
+            <radialGradient id="puddleGradient" cx="50%" cy="30%" r="70%">
+              <stop offset="0%" stopColor="#87CEEB" stopOpacity="0.9" />
+              <stop offset="40%" stopColor="#4682B4" stopOpacity="0.8" />
+              <stop offset="70%" stopColor="#2E5984" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#1e3a5f" stopOpacity="0.6" />
+            </radialGradient>
+            <radialGradient id="puddleReflection" cx="45%" cy="25%" r="30%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
+              <stop offset="50%" stopColor="#87CEEB" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#4682B4" stopOpacity="0.1" />
+            </radialGradient>
+            <filter id="waterDistortion" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence baseFrequency="0.03 0.09" numOctaves="2" seed="2" result="turbulence" />
+              <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="8" />
+            </filter>
+          </defs>
+
+          {/* puddle */}
           <g
             id="puddle-group"
-            style={{
-              opacity: hasLeak ? 0.7 : 0,
-              transition: "opacity 0.6s ease",
-              pointerEvents: "none",
-            }}
+            transform={`translate(0, ${PUDDLE_DY})`}
+            style={{ opacity: hasLeak ? 0.7 : 0, transition: "opacity 0.7s ease-out" }}
           >
             <g
               transform={`translate(250, ${FLOOR_Y}) scale(${hasLeak ? puddleScale : 0}) translate(-250, -${FLOOR_Y})`}
-              style={{ transition: "transform 0.6s ease" }}
+              style={{ transition: "transform 0.7s ease-out" }}
             >
-              {/* 본체 */}
-              <ellipse
-                cx="250"
-                cy={FLOOR_Y}
-                rx="95"
-                ry="16"
-                fill="rgba(46, 89, 132, 0.6)"
-              />
-              {/* 하이라이트 */}
-              <ellipse
-                cx="240"
-                cy={FLOOR_Y - 3}
-                rx="46"
-                ry="6"
-                fill="rgba(255,255,255,0.25)"
-              />
+              <ellipse cx="250" cy={FLOOR_Y} rx="95" ry="16" fill="url(#puddleGradient)" filter="url(#waterDistortion)" />
+              <ellipse cx="240" cy={FLOOR_Y - 3} rx="46" ry="6" fill="url(#puddleReflection)" filter="url(#waterDistortion)" />
             </g>
           </g>
 
-          {/* pot 본체 */}
+          {/* pot */}
           <g id="pot-body">
-            <image
-              href={potImage}
-              x={POT_X}
-              y={POT_Y}
-              width={POT_W}
-              height={POT_H}
-            />
+            <image href={potImage} x={POT_X} y={POT_Y} width={POT_W} height={POT_H} />
           </g>
 
           {/* 균열 */}
           <g id="cracks">
             {leakingCategories.map((cat) => {
-              const anchor =
-                LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
+              const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
               const { x, y, scale: baseScale } = anchorToAbs(anchor);
               const leakAmount = cat.spending - cat.threshold;
-              const crackScale =
-                baseScale *
-                Math.max(0.4, Math.min(1.5, 0.4 + leakAmount / 80000));
+              const crackScale = baseScale * Math.max(0.4, Math.min(1.5, 0.4 + leakAmount / 80000));
+
               return (
                 <image
                   key={cat.id}
                   href={broken}
+                  className="crack"
                   x={(-450 / 2) * crackScale + x}
                   y={(-450 / 2) * crackScale + y}
                   width={450 * crackScale}
                   height={450 * crackScale}
-                  onMouseEnter={(e) =>
-                    setTooltip({
-                      visible: true,
-                      content: `${cat.name}: ${formatter.format(
-                        leakAmount
-                      )}냥 누수`,
-                      x: e.clientX,
-                      y: e.clientY,
-                    })
-                  }
-                  onMouseLeave={() =>
-                    setTooltip({ visible: false, content: "", x: 0, y: 0 })
-                  }
+                  onMouseEnter={(e) => handleMouseOver(e, cat)}
+                  onMouseLeave={handleMouseOut}
                 />
               );
             })}
@@ -295,14 +290,12 @@ const PotVisualization: React.FC<{
           {/* 물줄기 애니메이션 */}
           <g id="waters">
             {leakingCategories.map((cat) => {
-              const anchor =
-                LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
+              const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
               const { x, y, scale: baseScale } = anchorToAbs(anchor);
               const leakAmount = cat.spending - cat.threshold;
-              const waterScale = Math.max(
-                0.2,
-                Math.min(2.0, 0.3 + leakAmount / 80000)
-              );
+              const isLeft = anchor.u < 0.5;
+              const waterScale = Math.max(0.2, Math.min(2.0, 0.3 + leakAmount / 80000));
+
               return (
                 <foreignObject
                   key={cat.id}
@@ -312,7 +305,7 @@ const PotVisualization: React.FC<{
                   height={450 * baseScale}
                   style={{ overflow: "visible", pointerEvents: "none" }}
                 >
-                  <div className="water-animation">
+                  <div className={`water-animation ${isLeft ? "flip" : ""}`}>
                     {waterAnim && (
                       <Lottie
                         animationData={waterAnim}
@@ -320,8 +313,12 @@ const PotVisualization: React.FC<{
                         autoplay
                         initialSegment={[0, 29]}
                         style={{
-                          width: `${120 * waterScale}px`,
-                          height: `${180 * waterScale}px`,
+                          position: "absolute",
+                          width: `${WATER_BASE_W * waterScale}px`,
+                          height: `${WATER_BASE_H * waterScale}px`,
+                          left: `calc(50% - ${WATER_BASE_W * waterScale * WATER_STREAM_ORIGIN_X_RATIO}px)`,
+                          top:  `calc(50% - ${WATER_BASE_H * waterScale * WATER_STREAM_ORIGIN_Y_RATIO}px)`,
+                          pointerEvents: "none",
                         }}
                       />
                     )}
