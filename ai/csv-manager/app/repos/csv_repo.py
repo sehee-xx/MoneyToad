@@ -231,10 +231,8 @@ class S3CsvRepo(CsvRepo):
         Raises:
             ValueError: If file already exists
         """
-        # Check if file already exists
-        existing_metadata = self.redis_client.get_file_metadata(file_name)
-        if existing_metadata:
-            raise ValueError(f"File '{file_name}' already exists. Use replace_file to update.")
+        # No longer checking for duplicate filenames
+        # Each upload gets a unique file_id
         
         # Generate S3 key and file ID
         s3_key = self._generate_s3_key(file_name)
@@ -252,9 +250,9 @@ class S3CsvRepo(CsvRepo):
             s3_url="pending"  # Will be updated after upload
         )
         
-        # Store initial metadata in Redis
+        # Store initial metadata in Redis using file_id as key
         metadata_dict = file_info.model_dump()
-        self.redis_client.set_file_metadata(file_name, metadata_dict)
+        self.redis_client.set_file_metadata(file_id, metadata_dict)
         
         # Set initial status to uploading
         self.redis_client.set_status(file_id, "uploading")
@@ -323,9 +321,9 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Update metadata in Redis
+            # Update metadata in Redis using file_id as key
             metadata_dict = file_info.model_dump()
-            self.redis_client.set_file_metadata(file_name, metadata_dict)
+            self.redis_client.set_file_metadata(file_id, metadata_dict)
             
             # Upload completed successfully - set status to none
             self.redis_client.set_status(file_id, "none")
@@ -339,27 +337,24 @@ class S3CsvRepo(CsvRepo):
             # self.redis_client.delete_file_metadata(file_name, file_id)
     
     async def upload_file(
-        self, 
-        file_name: str, 
+        self,
+        file_name: str,
         file_content: BinaryIO
     ) -> FileInfo:
         """
         Upload a new CSV file to MinIO/S3 (synchronous for backward compatibility).
-        
+
         Args:
             file_name: Original filename
             file_content: Binary file content
-        
+
         Returns:
             FileInfo with upload details
-        
+
         Raises:
-            ValueError: If file already exists
             Exception: For S3 operation failures
         """
-        # Check if file already exists
-        if file_name in self._metadata:
-            raise ValueError(f"File '{file_name}' already exists. Use replace_file to update.")
+        # No longer checking for duplicate filenames - each gets unique file_id
         
         try:
             # Generate S3 key and file ID
@@ -409,9 +404,9 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Store metadata in Redis
+            # Store metadata in Redis using file_id as key
             metadata_dict = file_info.model_dump()
-            self.redis_client.set_file_metadata(file_name, metadata_dict)
+            self.redis_client.set_file_metadata(file_id, metadata_dict)
             
             # Upload completed successfully - set status to none
             self.redis_client.set_status(file_id, "none")
@@ -440,8 +435,9 @@ class S3CsvRepo(CsvRepo):
         Raises:
             ValueError: If file doesn't exist
         """
-        # Check if file exists in Redis
-        old_metadata = self.redis_client.get_file_metadata(file_name)
+        # For replace, we need to find if a file with this name exists
+        # This is now a search operation since we key by file_id
+        old_metadata = self.redis_client.get_file_metadata_by_filename(file_name)
         if not old_metadata:
             raise ValueError(f"File '{file_name}' not found. Use upload_file for new files.")
         
@@ -467,9 +463,9 @@ class S3CsvRepo(CsvRepo):
             s3_url="pending"
         )
         
-        # Update metadata with pending status
+        # Update metadata with pending status using file_id as key
         metadata_dict = file_info.model_dump()
-        self.redis_client.set_file_metadata(file_name, metadata_dict)
+        self.redis_client.set_file_metadata(file_id, metadata_dict)
         
         logger.info(f"Prepared replace for file '{file_name}' with ID '{file_id}'")
         
@@ -537,7 +533,7 @@ class S3CsvRepo(CsvRepo):
             presigned_url = self._generate_presigned_url(s3_key)
             
             # Get existing metadata to preserve uploaded_at
-            old_metadata = self.redis_client.get_file_metadata(file_name)
+            old_metadata = self.redis_client.get_file_metadata_by_id(file_id)
             old_info = FileInfo(**old_metadata) if old_metadata else None
             
             # Update file info with actual values
@@ -552,9 +548,9 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Update metadata in Redis
+            # Update metadata in Redis using file_id as key
             metadata_dict = file_info.model_dump()
-            self.redis_client.set_file_metadata(file_name, metadata_dict)
+            self.redis_client.set_file_metadata(file_id, metadata_dict)
             
             # Replace completed successfully - set status to none
             self.redis_client.set_status(file_id, "none")
@@ -584,8 +580,9 @@ class S3CsvRepo(CsvRepo):
             ValueError: If file doesn't exist
             Exception: For S3 operation failures
         """
-        # Check if file exists in Redis
-        old_metadata = self.redis_client.get_file_metadata(file_name)
+        # For replace, we need to find if a file with this name exists
+        # This is now a search operation since we key by file_id
+        old_metadata = self.redis_client.get_file_metadata_by_filename(file_name)
         if not old_metadata:
             raise ValueError(f"File '{file_name}' not found. Use upload_file for new files.")
         
@@ -651,9 +648,9 @@ class S3CsvRepo(CsvRepo):
                 s3_url=presigned_url
             )
             
-            # Update metadata in Redis (file_id remains the same)
+            # Update metadata in Redis using file_id as key
             metadata_dict = file_info.model_dump()
-            self.redis_client.set_file_metadata(file_name, metadata_dict)
+            self.redis_client.set_file_metadata(file_id, metadata_dict)
             
             # Upload completed successfully - set status to none
             self.redis_client.set_status(file_id, "none")
@@ -669,18 +666,18 @@ class S3CsvRepo(CsvRepo):
     async def delete_file(self, file_name: str) -> bool:
         """
         Delete a CSV file from MinIO/S3 and remove metadata.
-        
+
         Args:
             file_name: File to delete
-        
+
         Returns:
             True if deleted successfully
-        
+
         Raises:
             ValueError: If file doesn't exist
         """
-        # Check if file exists in Redis
-        metadata = self.redis_client.get_file_metadata(file_name)
+        # Check if file exists in Redis (search by filename)
+        metadata = self.redis_client.get_file_metadata_by_filename(file_name)
         if not metadata:
             raise ValueError(f"File '{file_name}' not found")
         
@@ -695,8 +692,8 @@ class S3CsvRepo(CsvRepo):
                 )
                 logger.info(f"Deleted S3 object: {file_info.s3_key}")
             
-            # Remove metadata and status from Redis
-            self.redis_client.delete_file_metadata(file_name, file_info.file_id)
+            # Remove metadata and status from Redis by file_id
+            self.redis_client.delete_file_metadata(file_info.file_id)
             self.redis_client.delete_status(file_info.file_id)
             
             logger.info(f"Deleted file '{file_name}' completely")
@@ -707,8 +704,8 @@ class S3CsvRepo(CsvRepo):
             raise
     
     async def get_file_info(self, file_name: str) -> Optional[FileInfo]:
-        """Get file metadata by filename"""
-        metadata = self.redis_client.get_file_metadata(file_name)
+        """Get file metadata by filename (searches all files)"""
+        metadata = self.redis_client.get_file_metadata_by_filename(file_name)
         return FileInfo(**metadata) if metadata else None
     
     async def get_file_info_by_id(self, file_id: str) -> Optional[FileInfo]:
@@ -742,7 +739,7 @@ class S3CsvRepo(CsvRepo):
     
     async def set_status(self, file_name: str, status: Status) -> bool:
         """Set processing status for a file by filename"""
-        metadata = self.redis_client.get_file_metadata(file_name)
+        metadata = self.redis_client.get_file_metadata_by_filename(file_name)
         if metadata:
             file_info = FileInfo(**metadata)
             self.redis_client.set_status(file_info.file_id, status)
@@ -760,7 +757,7 @@ class S3CsvRepo(CsvRepo):
     
     async def get_status(self, file_name: str) -> Optional[Status]:
         """Get current processing status by filename"""
-        metadata = self.redis_client.get_file_metadata(file_name)
+        metadata = self.redis_client.get_file_metadata_by_filename(file_name)
         if metadata:
             file_info = FileInfo(**metadata)
             return self.redis_client.get_status(file_info.file_id)

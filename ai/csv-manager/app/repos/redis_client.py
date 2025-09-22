@@ -51,26 +51,29 @@ class RedisClient:
             raise
     
     # Metadata operations
-    def set_file_metadata(self, file_name: str, metadata: Dict[str, Any]) -> bool:
-        """Store file metadata by filename"""
+    def set_file_metadata(self, file_id: str, metadata: Dict[str, Any]) -> bool:
+        """Store file metadata by file_id (primary key)"""
         try:
-            key = f"csv:metadata:name:{file_name}"
-            self.redis_client.set(key, json.dumps(metadata))
-            # Also store by file_id for quick lookup
-            if 'file_id' in metadata:
-                id_key = f"csv:metadata:id:{metadata['file_id']}"
-                self.redis_client.set(id_key, json.dumps(metadata))
+            # Store by file_id as primary key
+            id_key = f"csv:metadata:id:{file_id}"
+            self.redis_client.set(id_key, json.dumps(metadata))
+
+            # Also maintain a list of all file IDs
+            self.redis_client.sadd("csv:all_file_ids", file_id)
             return True
         except RedisError as e:
-            logger.error(f"Failed to set metadata for {file_name}: {e}")
+            logger.error(f"Failed to set metadata for file_id {file_id}: {e}")
             return False
     
-    def get_file_metadata(self, file_name: str) -> Optional[Dict[str, Any]]:
-        """Get file metadata by filename"""
+    def get_file_metadata_by_filename(self, file_name: str) -> Optional[Dict[str, Any]]:
+        """Get file metadata by filename (searches all files)"""
         try:
-            key = f"csv:metadata:name:{file_name}"
-            data = self.redis_client.get(key)
-            return json.loads(data) if data else None
+            # Search through all file IDs to find matching filename
+            for file_id in self.redis_client.smembers("csv:all_file_ids"):
+                metadata = self.get_file_metadata_by_id(file_id)
+                if metadata and metadata.get('csv_file') == file_name:
+                    return metadata
+            return None
         except (RedisError, json.JSONDecodeError) as e:
             logger.error(f"Failed to get metadata for {file_name}: {e}")
             return None
@@ -85,27 +88,25 @@ class RedisClient:
             logger.error(f"Failed to get metadata for id {file_id}: {e}")
             return None
     
-    def delete_file_metadata(self, file_name: str, file_id: str) -> bool:
-        """Delete file metadata"""
+    def delete_file_metadata(self, file_id: str) -> bool:
+        """Delete file metadata by file_id"""
         try:
-            name_key = f"csv:metadata:name:{file_name}"
             id_key = f"csv:metadata:id:{file_id}"
-            self.redis_client.delete(name_key, id_key)
+            self.redis_client.delete(id_key)
+            self.redis_client.srem("csv:all_file_ids", file_id)
             return True
         except RedisError as e:
-            logger.error(f"Failed to delete metadata for {file_name}: {e}")
+            logger.error(f"Failed to delete metadata for file_id {file_id}: {e}")
             return False
     
     def list_all_files(self) -> Dict[str, Dict[str, Any]]:
         """List all files with metadata"""
         try:
-            pattern = "csv:metadata:name:*"
             files = {}
-            for key in self.redis_client.scan_iter(pattern):
-                file_name = key.replace("csv:metadata:name:", "")
-                data = self.redis_client.get(key)
-                if data:
-                    files[file_name] = json.loads(data)
+            for file_id in self.redis_client.smembers("csv:all_file_ids"):
+                metadata = self.get_file_metadata_by_id(file_id)
+                if metadata:
+                    files[file_id] = metadata
             return files
         except (RedisError, json.JSONDecodeError) as e:
             logger.error(f"Failed to list files: {e}")

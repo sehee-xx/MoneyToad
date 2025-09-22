@@ -121,15 +121,8 @@ async def upload_csv(
     validate_csv_file(file)
     
     try:
-        # Check if file already exists
-        existing = await csv_repo.get_file_info(file.filename)
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File '{file.filename}' already exists. Use PUT /change to replace it."
-            )
-        
         # Prepare upload (creates metadata and returns immediately)
+        # No longer checking for duplicate filenames - each upload gets unique file_id
         file_info = await csv_repo.prepare_upload(
             file_name=file.filename
         )
@@ -444,18 +437,18 @@ async def list_csv_files(
     Returns:
         Dictionary with file list
     """
-    # This is a simple in-memory implementation
-    # In production, this would query a database
+    # Get all files from Redis using file_id based storage
+    all_files = csv_repo.redis_client.list_all_files()
     files = []
-    for file_name, file_info in csv_repo._metadata.items():
-        status = await csv_repo.get_status_by_id(file_info.file_id)
+    for file_id, metadata in all_files.items():
+        status = await csv_repo.get_status_by_id(file_id)
         files.append({
-            "file_id": file_info.file_id,
-            "csv_file": file_name,
+            "file_id": file_id,
+            "csv_file": metadata.get('csv_file'),
             "status": status or "none",
-            "size_bytes": file_info.size_bytes,
-            "uploaded_at": file_info.uploaded_at,
-            "replaced_at": file_info.replaced_at
+            "size_bytes": metadata.get('size_bytes'),
+            "uploaded_at": metadata.get('uploaded_at'),
+            "replaced_at": metadata.get('replaced_at')
         })
     
     return {
