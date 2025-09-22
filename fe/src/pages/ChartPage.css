@@ -15,7 +15,7 @@ html {
 .jp-wrap {
   min-height: 100vh;
   padding: 32px clamp(20px, 5vw, 64px);
-  background: #f7f2e6 url("/charts/hanji-bg.png") center/cover fixed no-repeat;
+  background: #f7f2e6 url("/charts/forest.png") center/cover fixed no-repeat;
   color: #2a241b;
 }
 
@@ -27,9 +27,7 @@ html {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 가로 중앙 정렬 */
   gap: 10px;
-  /* h1과 p 사이 간격 */
 }
 
 .jp-header h1 {
@@ -52,7 +50,6 @@ html {
   text-align: center;
 }
 
-
 /* === 라인차트 섹션 === */
 .jp-frame {
   max-width: 1180px;
@@ -64,95 +61,102 @@ html {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 2;
-  /* line-chart.png 비율 */
   background: url("/charts/line-chart.png") center/contain no-repeat;
 }
 
-
-
-.jp-page-image {
-  display: block;
-  max-width: 200px;
-  height: auto;
+/* === 새 반응형 이미지+차트 그룹 컨테이너 === */
+.jp-center-set {
   position: relative;
-  top: 50px;
-  left: 150px;
-  margin: 0;
-  z-index: 10;
-  transition: transform 0.3s ease;
-  transform-origin: center center;
+  width: 90vw;
+  max-width: 1180px;
+  aspect-ratio: 3 / 2;
+  margin: 0 auto;
+  min-width: 320px;
 }
 
+/* 각 이미지 절대 위치를 부모 대비 비율로 지정 */
+.jp-page-image,
+.jp-toad-image,
+.jp-water-image {
+  position: absolute;
+  width: auto;
+  height: auto;
+  max-width: none;
+  transition: all 0.2s ease;
+}
+
+/* 비율과 위치는 디자인베이스 기준(수정 가능) */
+.jp-page-image {
+  top: 2%;
+  left: 8%;
+  width: 17%;
+  z-index: 3;
+  cursor: pointer;
+  transform-origin: center center;
+  transition: transform 0.3s ease;
+}
 .jp-page-image:hover {
   transform: translateY(-5px) translateX(3px) rotate(2deg);
-  cursor: pointer;
 }
-
 
 .jp-toad-image {
-  transition: transform 0.3s ease;
-  display: block;
-  max-width: 250px;
-  height: auto;
-  position: relative;
-  top: -300px;
-  left: 900px;
-  margin: 0;
-  z-index: 10;
+  top: 2%;
+  right: 8%;
+  width: 17%;
+  z-index: 3;
+  cursor: pointer;
   transform-origin: 100% 100%;
-  /* 우측 하단을 기준점으로 */
+  transition: transform 0.3s ease;
 }
-
 .jp-toad-image:hover {
   transform: translateX(-3px) rotate(-5deg);
-  /* 왼쪽으로 3px 이동하며 5도 반시계 방향 회전 */
-  cursor: pointer;
 }
 
-
-
 .jp-water-image {
-  display: block;
-  max-width: 1180px;
+  bottom: 0;
+  left: 0;
+  width: 100%;
   height: auto;
-  position: relative;
-  top: -680px;
-  left: 60px;
-  margin: 0;
-  z-index: 5;
+  z-index: 2;
+}
+
+/* 라인차트 감싸는 컨테이너 */
+.jp-linechart-wrap {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 20%;
+  bottom: 9%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
 }
 
 /* 월간 소비 그래프 섹션 기본 스타일 유지 */
 .jp-frame {
   position: absolute;
-  /* 부모 요소 기준 절대 위치 */
   top: 500px;
   left: 230px;
   width: 950px;
   margin: 0;
   z-index: 15;
-  /* 필요한 경우 위에 보이도록 */
+  /* 필요시 조정 가능 */
 }
 
-
-
-
-
-/* 차트가 실제로 그려질 영역(돌담 안쪽만) */
+/* 차트 실제 그려질 영역(돌담 안쪽) */
 .jp-chart-canvas {
   position: absolute;
   inset: 9% 7% 13% 7%;
-  /* top right bottom left — 필요시 미세조정 */
   border: none;
 }
 
 /* Recharts 컨테이너가 캔버스를 꽉 채우도록 */
-.jp-chart-canvas>.recharts-responsive-container {
+.jp-chart-canvas > .recharts-responsive-container {
   width: 100% !important;
   height: 100% !important;
 }
 
-/* === 상세 카드 === */
+/* === 상세 카드 등 기존 스타일 유지 === */
 .jp-card {
   max-width: 1180px;
   margin: 0 auto 28px;
@@ -160,7 +164,7 @@ html {
   border: 2px solid #c7b899;
   border-radius: 18px;
   padding: 14px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, .06);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
 }
 
 #jp-detail {
@@ -185,7 +189,6 @@ html {
   color: #3b3125;
 }
 
-/* 레이아웃 */
 .jp-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -203,7 +206,7 @@ html {
   border: 1px solid #e1d6bf;
   border-radius: 14px;
   padding: 12px;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, .03);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.03);
 }
 
 /* 도구줄 / 셀렉트 */
@@ -228,12 +231,12 @@ html {
     #fffaf0;
   font-weight: 700;
   color: #3a2e22;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .7);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7);
 }
 
 .jp-select:focus {
   outline: none;
-  box-shadow: 0 0 0 4px rgba(191, 174, 141, .25);
+  box-shadow: 0 0 0 4px rgba(191, 174, 141, 0.25);
 }
 
 /* 표 */
@@ -277,7 +280,7 @@ html {
   border-radius: 999px;
   border: 2px solid #bfae8d;
   background: #efe6d1;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, .18);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
   font-weight: 900;
   color: #3b3125;
   cursor: pointer;
@@ -306,5 +309,5 @@ html {
 }
 
 .recharts-tooltip-wrapper {
-  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .1));
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.1));
 }
