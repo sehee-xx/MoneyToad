@@ -100,7 +100,6 @@ async def run_prophet_analysis(
                     continue
                     
                 current_month = cat_data.get('current_month', {})
-                next_month = cat_data.get('next_month', {})
                 
                 # Save current month prediction for this category
                 if year and month and current_month:
@@ -155,32 +154,7 @@ async def run_prophet_analysis(
                             )
                             db.add(leak)
                 
-                # Save next month prediction for this category
-                if next_month:
-                    next_month_num = month + 1 if month < 12 else 1
-                    next_year = year if month < 12 else year + 1
-                    next_date = f"{next_year}-{next_month_num:02d}-01"
-                    
-                    next_prediction = db.query(models.Prediction).filter(
-                        models.Prediction.file_id == file_id,
-                        models.Prediction.category == category,
-                        models.Prediction.prediction_date == next_date
-                    ).first()
-                    
-                    if not next_prediction:
-                        next_prediction = models.Prediction(
-                            file_id=file_id,
-                            category=category,
-                            prediction_date=next_date,
-                            predicted_amount=next_month.get('predicted', 0),
-                            lower_bound=next_month.get('lower_bound'),
-                            upper_bound=next_month.get('upper_bound')
-                        )
-                        db.add(next_prediction)
-                    else:
-                        next_prediction.predicted_amount = next_month.get('predicted', 0)
-                        next_prediction.lower_bound = next_month.get('lower_bound')
-                        next_prediction.upper_bound = next_month.get('upper_bound')
+                # Next month predictions removed - no longer needed
             
             # Save baseline predictions if available
             baseline_predictions = analysis_result.get('baseline_predictions', {})
@@ -232,7 +206,6 @@ async def run_prophet_analysis(
                     'prediction_id': analysis_result.get('prediction_id'),
                     'categories_analyzed': analysis_result.get('categories_analyzed'),
                     'total_current_predicted': analysis_result.get('total_current_predicted'),
-                    'total_next_predicted': analysis_result.get('total_next_predicted'),
                     'trend': analysis_result.get('trend'),
                     'baseline_months_calculated': baseline_predictions.get('months_calculated', 0)
                 }
@@ -445,47 +418,7 @@ async def get_leak_data(
             "analysis_data": leak_analysis.analysis_data
         })
     
-    # Get next month predictions
-    next_month = month + 1 if month < 12 else 1
-    next_year = year if month < 12 else year + 1
-    
-    next_query = db.query(models.Prediction).filter(
-        models.Prediction.file_id == file_id,
-        models.Prediction.prediction_date == f"{next_year}-{next_month:02d}-01"
-    )
-    
-    if category:
-        next_query = next_query.filter(models.Prediction.category == category)
-    
-    next_predictions = next_query.all()
-    
-    if next_predictions:
-        if category and len(next_predictions) == 1:
-            # Single category next month
-            details["next_month_prediction"] = {
-                "year": next_year,
-                "month": next_month,
-                "predicted_amount": float(next_predictions[0].predicted_amount),
-                "lower_bound": float(next_predictions[0].lower_bound) if next_predictions[0].lower_bound else None,
-                "upper_bound": float(next_predictions[0].upper_bound) if next_predictions[0].upper_bound else None
-            }
-        else:
-            # Multiple categories next month
-            next_total = sum(p.predicted_amount for p in next_predictions)
-            next_categories = {}
-            for pred in next_predictions:
-                next_categories[pred.category] = {
-                    "predicted_amount": float(pred.predicted_amount),
-                    "lower_bound": float(pred.lower_bound) if pred.lower_bound else None,
-                    "upper_bound": float(pred.upper_bound) if pred.upper_bound else None
-                }
-            
-            details["next_month_prediction"] = {
-                "year": next_year,
-                "month": next_month,
-                "total_predicted": float(next_total),
-                "category_predictions": next_categories
-            }
+    # Next month predictions removed - focusing on current month and baseline only
     
     return LeakDataResponse(
         file_id=file_id,
@@ -522,7 +455,7 @@ async def trigger_analysis(
 @router.get(
     "/baseline",
     summary="Get baseline predictions",
-    description="Retrieve baseline predictions for past 9 months (소비 기준 금액)"
+    description="Retrieve baseline predictions for past 11 months (소비 기준 금액)"
 )
 async def get_baseline_predictions(
     file_id: str = Query(..., description="File ID"),
@@ -530,7 +463,7 @@ async def get_baseline_predictions(
     db: Session = Depends(get_db)
 ):
     """
-    Get baseline predictions (소비 기준 금액) for past 9 months
+    Get baseline predictions (소비 기준 금액) for past 11 months
     Each month's prediction is calculated using only prior data
     """
     # Build query

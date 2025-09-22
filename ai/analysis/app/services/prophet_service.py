@@ -154,17 +154,15 @@ class ProphetService:
         if len(forecast) == 0:
             return {
                 'category': category,
-                'current_month': {'predicted': 0, 'lower_bound': 0, 'upper_bound': 0},
-                'next_month': {'predicted': 0, 'lower_bound': 0, 'upper_bound': 0}
+                'current_month': {'predicted': 0, 'lower_bound': 0, 'upper_bound': 0}
             }
         
         # Add month-year column to forecast
         forecast['month_year'] = pd.to_datetime(forecast['ds']).dt.to_period('M')
         
-        # Get current and next month
+        # Get current month
         current_date = datetime.now()
         current_month = current_date.strftime('%Y-%m')
-        next_month = (current_date.replace(day=28) + timedelta(days=4)).strftime('%Y-%m')
         
         # Calculate actual spending for current month if available
         current_month_actual = None
@@ -183,14 +181,11 @@ class ProphetService:
             'yhat_upper': 'sum'
         }).reset_index()
         
-        # Extract current and next month predictions
+        # Extract current month predictions
         current_month_pred = monthly_forecast[
             monthly_forecast['month_year'] == pd.Period(current_month, 'M')
         ]
-        next_month_pred = monthly_forecast[
-            monthly_forecast['month_year'] == pd.Period(next_month, 'M')
-        ]
-        
+
         return {
             'category': category,
             'current_month': {
@@ -198,11 +193,6 @@ class ProphetService:
                 'predicted': float(current_month_pred['yhat'].values[0]) if len(current_month_pred) > 0 else 0,
                 'lower_bound': float(current_month_pred['yhat_lower'].values[0]) if len(current_month_pred) > 0 else 0,
                 'upper_bound': float(current_month_pred['yhat_upper'].values[0]) if len(current_month_pred) > 0 else 0
-            },
-            'next_month': {
-                'predicted': float(next_month_pred['yhat'].values[0]) if len(next_month_pred) > 0 else 0,
-                'lower_bound': float(next_month_pred['yhat_lower'].values[0]) if len(next_month_pred) > 0 else 0,
-                'upper_bound': float(next_month_pred['yhat_upper'].values[0]) if len(next_month_pred) > 0 else 0
             }
         }
     
@@ -251,7 +241,6 @@ class ProphetService:
         # Store predictions for each category
         category_predictions = {}
         total_current_predicted = 0
-        total_next_predicted = 0
         
         # Process each category
         for category in categories:
@@ -283,24 +272,17 @@ class ProphetService:
                 
                 # Add to totals
                 total_current_predicted += results['current_month']['predicted']
-                total_next_predicted += results['next_month']['predicted']
                 
             except Exception as e:
                 logger.error(f"Error predicting for category '{category}': {e}")
                 category_predictions[category] = {
                     'category': category,
                     'error': str(e),
-                    'current_month': {'predicted': 0},
-                    'next_month': {'predicted': 0}
+                    'current_month': {'predicted': 0}
                 }
         
-        # Calculate overall trend
-        if total_next_predicted > total_current_predicted * 1.05:
-            trend = "increasing"
-        elif total_next_predicted < total_current_predicted * 0.95:
-            trend = "decreasing"
-        else:
-            trend = "stable"
+        # Set trend status
+        trend = "analyzed"
         
         # Get current date info
         current_date = datetime.now()
@@ -312,19 +294,18 @@ class ProphetService:
             'month': current_date.month,
             'category_predictions': category_predictions,
             'total_current_predicted': total_current_predicted,
-            'total_next_predicted': total_next_predicted,
             'trend': trend,
             'categories_analyzed': len(category_predictions)
         }
     
     def calculate_baseline_predictions(self, csv_data: pd.DataFrame) -> Dict[str, Any]:
         """
-        Calculate baseline predictions for January to current month using only prior data
-        가장 최근 1월부터 현재월까지 각 월별로 그 이전 데이터만 사용하여 예측값 생성 (소비 기준 금액)
-        
+        Calculate baseline predictions for past 11 months using only prior data
+        현재월 기준 과거 11개월에 대한 베이스라인 예측 (소비 기준 금액)
+
         Args:
             csv_data: Full transaction data
-            
+
         Returns:
             Dictionary with monthly baseline predictions by category
         """
@@ -346,10 +327,14 @@ class ProphetService:
         
         logger.info(f"Data range: {min_date} to {max_date}")
         
-        # Calculate for January to current month-1 (최근 1월부터 이번달 직전까지)
-        for month in range(1, current_month):  # 1월부터 현재월-1까지
-            target_year = current_year
-            target_month = month
+        # Calculate for past 11 months from current month
+        # 현재월 기준 과거 11개월 계산
+        months_to_calculate = []
+        for i in range(11, 0, -1):  # 11개월 전부터 1개월 전까지
+            calc_date = current_date - timedelta(days=30 * i)
+            months_to_calculate.append((calc_date.year, calc_date.month))
+
+        for target_year, target_month in months_to_calculate:
             month_key = f"{target_year}-{target_month:02d}"
             
             # Get data up to the end of previous month
@@ -437,11 +422,11 @@ class ProphetService:
     
     async def predict_with_baseline(self, csv_data: pd.DataFrame) -> Dict[str, Any]:
         """
-        Predict current/next month AND calculate baseline for past 9 months
-        
+        Predict current/next month AND calculate baseline for past 11 months
+
         Args:
             csv_data: Transaction data
-            
+
         Returns:
             Dictionary with both current predictions and baseline
         """
