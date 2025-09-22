@@ -123,10 +123,10 @@ html {
 /* 라인차트 감싸는 컨테이너 */
 .jp-linechart-wrap {
   position: absolute;
-  left: 7%;
-  right: 7%;
-  top: 20%;
-  bottom: 9%;
+  left: 20%;
+  right: 20%;
+  top: 30%;
+  bottom: 15%;
   z-index: 4;
   display: flex;
   align-items: center;

@@ -267,7 +267,7 @@ export default function ChartPage() {
                                                 {/* 우: 파이차트 */}
                                                 <div className="jp-panel">
                                                         <div className="jp-pie-frame">
-                                                                <ResponsiveContainer width="100%" height={1200}>
+                                                                <ResponsiveContainer width="100%" height={1000}>
                                                                         <PieChart>
                                                                                 <Pie
                                                                                         data={pieData}
