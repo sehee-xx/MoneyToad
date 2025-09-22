@@ -152,7 +152,9 @@
 }
 .water-animation.flip{ transform: scaleX(-1); }
 
-/* 종이 패널 & 슬라이더 */
+/* =========================
+   종이 패널 & 슬라이더
+   ========================= */
 .control-panel{
   position:relative;
   z-index:20;
@@ -193,42 +195,110 @@
 
 .slider-item{ padding:12px 0; border-bottom:1px solid rgba(120,113,108,.2); }
 .slider-item:last-child{ border-bottom:none; }
-.slider-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.slider-header{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
 .slider-label{ font-weight:bold; font-size:16px; transition:color .2s; color:#292524; }
 .slider-label.leaking{ color:#a12a2a; }
+
+/* 기존 오른쪽 정렬 액수(남겨둠: 필요시 숨겨도 됨) */
 .slider-amounts{ text-align:right; font-size:12px; font-weight:500; color:#57534e; flex-shrink:0; margin-left:8px; }
 .current-spending{ font-weight:bold; color:#292524; }
 .current-spending.leaking{ color:#a12a2a; }
 
-.slider-container{ position:relative; height:32px; display:flex; align-items:center; }
-.slider-track{
-  position:absolute; top:50%; transform:translateY(-50%);
-  width:100%; height:6px; background:#d6d3d1; border-radius:9999px; overflow:hidden;
+/* 사용자 친화적 라벨(이번 달 지출 | 설정한 한도) */
+.slider-legend{
+  display:inline-flex;
+  gap:6px;
+  align-items:baseline;
+  font-size:12px;
+  color:#49423a;
 }
-.slider-fill-normal{
-  position:absolute; top:50%; transform:translateY(-50%);
-  height:6px; border-radius:9999px; background:#5a7e63;
-}
-.slider-fill-leak{
-  position:absolute; top:50%; transform:translateY(-50%);
-  height:6px; background:#a12a2a; border-radius:9999px; clip-path:inset(0 round 9999px);
+.slider-legend .legend-label{ opacity:.85; }
+.slider-legend .legend-value{ font-weight:700; }
+.slider-legend .legend-value.leaking{ color:#a12a2a; }
+.slider-legend .legend-sep{ opacity:.5; }
+
+/* ---- 센터정렬 썸(엽전) + 끝까지 닿는 트랙 ---- */
+.slider-container{
+  --thumb-size: 52px;   /* 엽전 크기 */
+  --track-h:   8px;
+  position:relative;
+  height: max(32px, var(--thumb-size));
+  display:flex;
+  align-items:center;
 }
 
-.custom-slider{
-  width:100%;
-  position:absolute; top:0; left:0; height:100%;
-  -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer;
-  --thumb-size:48px; --track-size:12px;
+/* 트랙 */
+.slider-track{
+  position:absolute; left:0; right:0;
+  top:50%; transform:translateY(-50%);
+  height:var(--track-h);
+  background:#d6d3d1;
+  border-radius:9999px;
+  overflow:hidden;
 }
-.custom-slider:focus{ outline:none; }
-.custom-slider::-webkit-slider-runnable-track{ height:var(--track-size); background:transparent; }
+
+/* 정상 구간 채움 */
+.slider-fill-normal{
+  position:absolute; left:0;
+  top:50%; transform:translateY(-50%);
+  height:var(--track-h);
+  border-radius:9999px;
+  background:#5a7e63;
+  pointer-events:none;
+}
+
+/* 누수 구간 채움 */
+.slider-fill-leak{
+  position:absolute;
+  top:50%; transform:translateY(-50%);
+  height:var(--track-h);
+  background:#a12a2a;
+  border-radius:9999px;
+  pointer-events:none;
+}
+
+/* 네이티브 input:range는 이벤트만 받고 썸은 숨김 */
+.custom-slider{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  -webkit-appearance:none; appearance:none;
+  background:transparent; cursor:pointer;
+  outline:none; margin:0; border:0;
+}
+
+/* WebKit 썸 숨기기 */
 .custom-slider::-webkit-slider-thumb{
   -webkit-appearance:none; appearance:none;
   width:var(--thumb-size); height:var(--thumb-size);
-  margin-top:calc((var(--thumb-size) - var(--track-size)) / -2);
+  background:transparent; border:none; opacity:0;
+}
+/* Firefox 썸 숨기기 */
+.custom-slider::-moz-range-thumb{
+  width:var(--thumb-size); height:var(--thumb-size);
+  background:transparent; border:none; opacity:0;
+}
+/* MS/Edge(레거시) */
+.custom-slider::-ms-thumb{
+  width:var(--thumb-size); height:var(--thumb-size);
+  background:transparent; border:none; opacity:0;
+}
+/* 러너블 트랙도 투명처리(브라우저별) */
+.custom-slider::-webkit-slider-runnable-track{ height:var(--track-h); background:transparent; }
+.custom-slider::-moz-range-track{ height:var(--track-h); background:transparent; border:none; }
+
+/* 우리가 그리는 엽전 썸(중심 정렬 핵심: translateX(-50%)) */
+.coin-thumb{
+  position:absolute;
+  top:50%;
+  left:var(--threshold-pct); /* TS/JS에서 퍼센트 넣어줌 */
+  transform:translate(-50%, -50%);
+  width:var(--thumb-size); height:var(--thumb-size);
   background-image: var(--pointer);
-  background-size:contain; background-position:center; background-repeat:no-repeat;
-  border:none; cursor:pointer;
+  background-size:contain;
+  background-position:center;
+  background-repeat:no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+  pointer-events:none; /* 클릭/드래그는 input이 처리 */
 }
 
 /* 요약 */

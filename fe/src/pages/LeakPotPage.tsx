@@ -301,51 +301,84 @@ const CustomSlider: React.FC<{
   formatter: Intl.NumberFormat;
 }> = ({ cat, isLeaking, handleThresholdChange, formatter }) => {
   const max = Math.max(600000, cat.spending * 1.5);
-  const spendingPercentage = (cat.spending / max) * 100;
-  const thresholdPercentage = (cat.threshold / max) * 100;
+
+  // 퍼센트들
+  const spendingPct = (cat.spending / max) * 100;
+  const thresholdPct = (cat.threshold / max) * 100;
+
+  // 엽전 썸은 우리가 직접 배치 → thresholdPct 기준
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleThresholdChange(cat.id, parseInt(e.target.value, 10));
+  };
+
   return (
     <div className="slider-item">
       <div className="slider-header">
         <label className={`slider-label ${isLeaking ? "leaking" : ""}`}>
           {cat.name}
         </label>
-        <div className="slider-amounts">
-          <span className={`current-spending ${isLeaking ? "leaking" : ""}`}>
-            {formatter.format(cat.spending)}
-          </span>{" "}
-          / {formatter.format(cat.threshold)}
+
+        {/* 사용자 친화적인 금액 설명 */}
+        <div className="slider-legend" aria-live="polite">
+          <span className="legend-label">지출</span>
+          <strong className={`legend-value ${isLeaking ? "leaking" : ""}`}>
+            {formatter.format(cat.spending)}냥
+          </strong>
+          <span className="legend-sep"> | </span>
+          <span className="legend-label">한도</span>
+          <strong className="legend-value">
+            {formatter.format(cat.threshold)}냥
+          </strong>
         </div>
       </div>
-      <div className="slider-container">
-        <div className="slider-track"></div>
+
+      <div
+        className="slider-container"
+        style={
+          {
+            // CSS 변수로 퍼센트 넘겨서 썸 위치/바 채우기 제어
+            "--spending-pct": `${spendingPct}%`,
+            "--threshold-pct": `${thresholdPct}%`,
+          } as React.CSSProperties
+        }
+      >
+        <div className="slider-track" />
+
+        {/* 지출이 한도 이하인 구간 (정상) */}
         <div
           className="slider-fill-normal"
-          style={{
-            width: `${Math.min(spendingPercentage, thresholdPercentage)}%`,
-          }}
-        ></div>
+          style={{ width: `${Math.min(spendingPct, thresholdPct)}%` }}
+        />
+
+        {/* 지출이 한도 초과인 구간 (누수) */}
         {isLeaking && (
           <div
             className="slider-fill-leak"
             style={{
-              left: `${thresholdPercentage}%`,
-              width: `${Math.max(
-                0,
-                spendingPercentage - thresholdPercentage
-              )}%`,
+              left: `${thresholdPct}%`,
+              width: `${Math.max(0, spendingPct - thresholdPct)}%`,
             }}
           />
         )}
+
+        {/* 실제 range 입력 (접근성+이벤트만 담당, 썸은 숨김) */}
         <input
           type="range"
-          min="0"
+          min={0}
           max={max}
-          step="10000"
+          step={10000}
           value={cat.threshold}
-          onChange={(e) =>
-            handleThresholdChange(cat.id, parseInt(e.target.value))
-          }
+          onChange={handleChange}
+          aria-label={`${cat.name} 한도`}
           className={`custom-slider ${isLeaking ? "is-leaking" : ""}`}
+        />
+
+        {/* 우리가 그리는 엽전 썸: 중심이 퍼센트의 ‘정중앙’에 맞도록 translate(-50%) */}
+        <div
+          className="coin-thumb"
+          aria-hidden="true"
+          style={{ left: `var(--threshold-pct)` }}
+          title={`한도: ${formatter.format(cat.threshold)}냥`}
         />
       </div>
     </div>
