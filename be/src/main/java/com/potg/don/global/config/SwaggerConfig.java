@@ -1,4 +1,4 @@
-package com.potg.don.config;
+package com.potg.don.global.config;
 
 import java.util.List;
 

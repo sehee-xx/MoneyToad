@@ -54,6 +54,7 @@ public class TransactionController {
 		@AuthenticationPrincipal CustomUserDetails user,
 		@PathVariable Long transactionId,
 		@RequestBody @Valid UpdateCategoryRequest request) {
-		return ResponseEntity.ok(transactionService.updateTransactionCategory(user.getUserId(), transactionId, request));
+		return ResponseEntity.ok(
+			transactionService.updateTransactionCategory(user.getUserId(), transactionId, request));
 	}
 }

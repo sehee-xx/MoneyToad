@@ -41,4 +41,8 @@ public class User extends BaseTimeEntity {
 		this.gender = gender;
 		this.age = age;
 	}
+
+	public void updateFileId(String fileId) {
+		this.fileId = fileId;
+	}
 }

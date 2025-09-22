@@ -32,7 +32,8 @@ public class CardService {
 	}
 
 	public Card updateCard(Long userId, CardRequest request) {
-		Card cardToUpdate = cardRepository.findByUserId(userId).orElseThrow(() -> new EntityNotFoundException("카드를 찾을 수 없습니다"));
+		Card cardToUpdate = cardRepository.findByUserId(userId)
+			.orElseThrow(() -> new EntityNotFoundException("카드를 찾을 수 없습니다"));
 		return cardRepository.save(cardToUpdate.updateCard(request));
 	}
 

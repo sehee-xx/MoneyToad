@@ -113,13 +113,13 @@ public class TransactionService {
 	 * Controller 반환 타입: TransactionResponse
 	 */
 	@Transactional
-	public TransactionResponse updateTransactionCategory(Long userId, Long transactionId, UpdateCategoryRequest request) {
+	public TransactionResponse updateTransactionCategory(Long userId, Long transactionId,
+		UpdateCategoryRequest request) {
 		Transaction tx = transactionRepository.findByIdAndCard_User_Id(transactionId, userId)
 			.orElseThrow(() -> new NoSuchElementException("거래내역을 찾을 수 없거나 권한이 없습니다."));
 		tx.update(request.getCategory());
 		return TransactionResponse.from(transactionRepository.save(tx));
 	}
-
 
 	private TransactionResponse toTransactionResponse(Transaction t) {
 		return TransactionResponse.builder()
