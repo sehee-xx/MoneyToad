@@ -40,7 +40,8 @@ public class CardController {
 	}
 
 	@PatchMapping("")
-	public ResponseEntity<CardResponse> updateCard(@AuthenticationPrincipal CustomUserDetails user, @RequestBody CardRequest cardRequest) {
+	public ResponseEntity<CardResponse> updateCard(@AuthenticationPrincipal CustomUserDetails user,
+		@RequestBody CardRequest cardRequest) {
 		Card card = cardService.updateCard(user.getUserId(), cardRequest);
 		return ResponseEntity.ok(CardResponse.from(card));
 	}
