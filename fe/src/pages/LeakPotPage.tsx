@@ -222,28 +222,6 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           Z`;
   })();
 
-  // 화면 px -> SVG viewBox 좌표로 변환
-  const toSvg = (e: React.MouseEvent<SVGSVGElement>) => {
-    const svg = e.currentTarget as SVGSVGElement;
-    const rect = svg.getBoundingClientRect();
-    const lx = e.clientX - rect.left; // 로컬 px (툴팁 위치용)
-    const ly = e.clientY - rect.top;
-    const sx = (lx / rect.width) * VIEWBOX_W; // viewBox X
-    const sy = (ly / rect.height) * VIEWBOX_H; // viewBox Y
-    return { sx, sy, lx, ly };
-  };
-
-  // 항아리 몸통 타원 내부 판정
-  const isInsidePotSvg = (sx: number, sy: number) => {
-    const cx = POT_X + POT_W * 0.5;
-    const cy = POT_Y + POT_H * 0.56;
-    const rx = POT_W * 0.48;
-    const ry = POT_H * 0.46;
-    const nx = (sx - cx) / rx;
-    const ny = (sy - cy) / ry;
-    return nx * nx + ny * ny <= 1;
-  };
-
   // 컨테이너 기준 좌표로 변환
   const toLocal = (e: React.MouseEvent) => {
     const rect = potRef.current?.getBoundingClientRect();
