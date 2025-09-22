@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import Header from "../components/Header";
@@ -17,6 +17,7 @@ const potImage = "/leakPot/pot.png";
 const broken = "/leakPot/broken.png";
 const monthGood = "/leakPot/good.png";
 const monthBad = "/leakPot/bad.png";
+const tooltipToad = "/leakPot/tooltip.png";
 
 export const leakPotAssets = [
   cryingKongjwi,
@@ -31,6 +32,7 @@ export const leakPotAssets = [
   monthGood,
   monthBad,
   "/leakPot/water.json",
+  tooltipToad
 ];
 
 // --- 타입 정의 ---
@@ -179,6 +181,9 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
 
   // ✅ 누수량에 따라 웅덩이 크기 조절 (이미 계산하던 값)
   const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
+
+  // ---------- Tooltip: 여기부터 ----------
+  const potRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
     content: "",
@@ -186,30 +191,47 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     y: 0,
   });
 
-  const handleMouseOver = (e: React.MouseEvent, cat: LeakingCategory) => {
+  // 컨테이너 기준 좌표로 변환
+  const toLocal = (e: React.MouseEvent) => {
+    const rect = potRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  // 균열 진입 시: 내용 + 위치 세팅
+  const handleCrackEnter = (e: React.MouseEvent, cat: LeakingCategory) => {
     const leakAmount = cat.spending - cat.threshold;
+    const { x, y } = toLocal(e);
     setTooltip({
       visible: true,
       content: `${cat.name}: ${formatter.format(leakAmount)}냥 누수`,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
     });
   };
-  const handleMouseOut = () => setTooltip({ visible: false, content: "", x: 0, y: 0 });
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (tooltip.visible) setTooltip({ ...tooltip, x: e.clientX, y: e.clientY });
+
+  // SVG 내에서 마우스 이동: 보일 때만 좌표 갱신
+  const handleSvgMove = (e: React.MouseEvent) => {
+    if (!tooltip.visible) return;
+    const { x, y } = toLocal(e);
+    setTooltip((t) => ({ ...t, x, y }));
   };
 
+  // SVG 밖으로 나가면 숨김
+  const handleSvgLeave = () =>
+    setTooltip({ visible: false, content: "", x: 0, y: 0 });
+  // ---------- Tooltip: 여기까지 ----------
+
   return (
-    <div className="pot-container" onMouseMove={handleMouseMove}>
+    // CSS에서 pot-container가 pointer-events:none; 이라면
+    // 인라인 스타일로만 이벤트 가능하게 풀어줌(툴팁 전용 목적)
+    <div className="pot-container" ref={potRef} style={{ pointerEvents: "auto" }}>
       {tooltip.visible && (
-        <div className="tooltip" style={{ left: tooltip.x + 15, top: tooltip.y }}>
+        // 커서 중앙 위에 예쁘게 뜨도록 transform은 CSS에 이미 정의되어 있다고 가정
+        <div className="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
           {tooltip.content}
         </div>
       )}
-
-      {/* 캐릭터 */}
-
       {/* 캐릭터 */}
       <div className="characters">
         <img src={hasLeak ? cryingKongjwi : happyKongjwi} alt="콩쥐" className="kongjwi" />
@@ -217,13 +239,13 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
       </div>
 
       {/* 항아리 + 물 */}
-
-      {/* 항아리 + 물 */}
       <div className="pot-svg-container">
         <svg
           viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
           className="pot-svg"
           preserveAspectRatio="xMidYMax meet"
+          onMouseMove={handleSvgMove}
+          onMouseLeave={handleSvgLeave}
         >
           <defs>
             <radialGradient id="puddleGradient" cx="50%" cy="30%" r="70%">
@@ -246,7 +268,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           {/* puddle */}
           <g
             id="puddle-group"
-            transform={`translate(0, ${PUDDLE_DY})`}
+            transform={`translate(0, -25)`}
             style={{ opacity: hasLeak ? 0.7 : 0, transition: "opacity 0.7s ease-out" }}
           >
             <g
@@ -280,14 +302,13 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
                   y={(-450 / 2) * crackScale + y}
                   width={450 * crackScale}
                   height={450 * crackScale}
-                  onMouseEnter={(e) => handleMouseOver(e, cat)}
-                  onMouseLeave={handleMouseOut}
+                  onMouseEnter={(e) => handleCrackEnter(e, cat)}
                 />
               );
             })}
           </g>
 
-          {/* 물줄기 애니메이션 */}
+          {/* 물줄기 애니메이션 (그대로 유지) */}
           <g id="waters">
             {leakingCategories.map((cat) => {
               const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
@@ -332,7 +353,6 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     </div>
   );
 };
-
 
 // --- Custom Slider ---
 const CustomSlider: React.FC<{
@@ -530,7 +550,7 @@ const LeakPotPage = () => {
             leakedMonths={leakedMonths}
           />
           <div className="main-container">
-            <div className="pot-container">
+            <div className="pot-container" style={{ pointerEvents: "auto" }}>
               <PotVisualization
                 leakingCategories={leakingCategories}
                 totalLeak={totalLeak}
