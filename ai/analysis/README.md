@@ -1,43 +1,116 @@
-# 📊 Analysis Service - AI 기반 지출 예측 시스템
+# 📊 Analysis Service
 
-## 🎯 서비스 개요
+Facebook Prophet 기반 시계열 예측 서비스 - 카테고리별 지출 예측 및 베이스라인 분석
 
-Facebook Prophet을 활용한 **카테고리별 지출 예측 서비스**입니다. 사용자의 거래 내역을 분석하여 13개 카테고리별로 미래 지출을 예측하고, 데이터 기반 재무 인사이트를 제공합니다.
+## 🎯 Overview
 
-## ✨ 핵심 기능
+Analysis Service는 Facebook Prophet을 활용하여 사용자의 금융 거래 데이터를 분석하고 미래 지출을 예측하는 서비스입니다.
+13개 카테고리별로 독립적인 예측 모델을 구축하여 정확한 지출 예측과 소비 기준 금액(베이스라인)을 제공합니다.
 
-### 1. **카테고리별 시계열 예측** 
-- 13개 지출 카테고리 개별 분석
-- 카테고리 특성에 맞춘 커스텀 계절성 모델
-- 95% 신뢰구간 포함 예측값 제공
+## ✨ Key Features
 
-### 2. **비동기 대용량 처리**
-- FastAPI BackgroundTasks 기반 논블로킹 처리
-- ThreadPoolExecutor로 CPU 집약 작업 병렬화
-- Redis 기반 실시간 상태 추적
+### 예측 분석
+- **현재월 예측**: 카테고리별 당월 지출 예측
+- **11개월 베이스라인**: 과거 11개월 소비 기준 금액
+- **누수 분석**: 예측 대비 실제 지출 초과분 계산
+- **신뢰구간**: 95% 상한/하한 예측 범위
 
-### 3. **지능형 예측 모델**
-- 카테고리별 맞춤형 Prophet 파라미터
-- 주간/월간 계절성 자동 감지
-- 이상치 및 트렌드 변화점 자동 조정
+### 모델 최적화
+- **카테고리별 커스터마이징**: 지출 패턴별 최적 파라미터
+- **계절성 분석**: 주간/월간 패턴 자동 감지
+- **병렬 처리**: ThreadPoolExecutor 4 workers
+- **순차 실행**: 현재월 우선 처리 후 베이스라인 계산
 
-## 🏗 시스템 아키텍처
+### 데이터 관리
+- **MySQL 저장**: 예측 결과 영구 보관
+- **Redis 캐싱**: 상태 및 메타데이터 고속 처리
+- **S3 연동**: CSV 파일 직접 다운로드
+- **비동기 처리**: BackgroundTasks 활용
 
+## 🚀 API Endpoints
+
+### 1. 분석 시작
+```bash
+POST /api/ai/data?file_id=abc-123
+
+# Response (202 Accepted)
+{
+  "file_id": "abc-123",
+  "year": 2024,
+  "month": 12,
+  "total_leak": 0,
+  "message": "Prophet analysis started. Job ID: xyz-789"
+}
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│  API Gateway│────▶│  Analysis   │
-└─────────────┘     └─────────────┘     │   Service   │
-                                        └──────┬──────┘
-                                               │
-                    ┌──────────────────────────┼──────────────────────────┐
-                    ▼                          ▼                          ▼
-            ┌─────────────┐            ┌─────────────┐            ┌─────────────┐
-            │    Redis    │            │  PostgreSQL │            │   S3/MinIO  │
-            │  (Status)   │            │ (Predictions)│           │   (Files)   │
-            └─────────────┘            └─────────────┘            └─────────────┘
+
+### 2. 현재월 예측 및 누수 조회
+```bash
+GET /api/ai/data/leak?file_id=abc-123
+
+# Response
+{
+  "file_id": "abc-123",
+  "year": 2024,
+  "month": 12,
+  "leak_amount": 0,
+  "transactions_count": 13,
+  "details": {
+    "total_predicted": 1058850.54,
+    "categories_count": 13,
+    "category_predictions": {
+      "식비": {
+        "predicted_amount": 228906.00,
+        "lower_bound": 210543.00,
+        "upper_bound": 247269.00
+      },
+      "교통/차량": {
+        "predicted_amount": 106261.00,
+        "lower_bound": 95635.00,
+        "upper_bound": 116887.00
+      }
+      // ... 11개 카테고리 더
+    }
+  }
+}
 ```
 
-## 📁 프로젝트 구조
+### 3. 과거 11개월 베이스라인 조회
+```bash
+GET /api/ai/data/baseline?file_id=abc-123
+
+# Response
+{
+  "file_id": "abc-123",
+  "baseline_months": [
+    {
+      "year": 2024,
+      "month": 11,
+      "total_predicted": 1100431.42,
+      "categories_count": 13,
+      "category_predictions": {
+        "식비": {
+          "predicted_amount": 450000,
+          "lower_bound": 420000,
+          "upper_bound": 480000
+        }
+      },
+      "training_data_until": "2024-10-31"
+    }
+    // ... 10개월 더
+  ],
+  "months_count": 11,
+  "category_filter": null
+}
+```
+
+### 4. 특정 카테고리 베이스라인
+```bash
+GET /api/ai/data/baseline?file_id=abc-123&category=식비
+
+# Response: 식비 카테고리만 필터링된 11개월 베이스라인
+```
+
+## 📁 Project Structure
 
 ```
 analysis/
@@ -46,79 +119,75 @@ analysis/
 │   │   └── endpoints/
 │   │       └── data.py          # API 엔드포인트
 │   ├── db/
-│   │   ├── database.py          # DB 연결 관리
-│   │   └── models.py            # SQLAlchemy 모델
+│   │   ├── database.py         # MySQL 연결
+│   │   └── models.py           # SQLAlchemy 모델
 │   ├── services/
-│   │   ├── prophet_service.py   # Prophet 예측 엔진
-│   │   ├── redis_client.py      # Redis 상태 관리
-│   │   └── s3_client.py         # S3 파일 처리
-│   └── main.py                  # FastAPI 앱
+│   │   ├── prophet_service.py  # Prophet 예측 엔진
+│   │   ├── redis_client.py     # Redis 클라이언트
+│   │   └── s3_client.py        # S3 파일 처리
+│   ├── models/
+│   │   └── schemas.py          # Pydantic 모델
+│   └── main.py                 # FastAPI 앱
 ├── Dockerfile
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
 
-## 🔄 상태 관리 시스템
+## 🏗️ Architecture
 
-### 단순화된 4-State 시스템
-
-| 상태 | 설명 | 다음 가능 상태 |
-|------|------|--------------|
-| `none` | 유휴 상태 (초기/완료/실패) | `uploading`, `analyzing` |
-| `uploading` | 파일 업로드 중 | `ingesting`, `none` |
-| `ingesting` | 데이터 처리 중 | `none` |
-| `analyzing` | Prophet 분석 중 | `none` |
-
-### 상태 전이 다이어그램
-
-```mermaid
-stateDiagram-v2
-    [*] --> none: 초기
-    none --> uploading: 파일 업로드
-    uploading --> ingesting: 처리 시작
-    uploading --> none: 실패
-    ingesting --> none: 완료/실패
-    none --> analyzing: 분석 시작
-    analyzing --> none: 완료/실패
-    none --> [*]: 종료
+### 시스템 구조
+```
+┌─────────────────┐
+│   API Gateway   │
+└────────┬────────┘
+         │ /api/ai/data/*
+         ▼
+┌─────────────────┐
+│   Analysis      │◄──── Prophet Engine
+│    Service      │       (13 Models)
+└────┬───────┬────┘
+     │       │
+     ▼       ▼
+┌────────┐ ┌────────┐
+│ MySQL  │ │ Redis  │
+│   DB   │ │ Cache  │
+└────────┘ └────────┘
 ```
 
-### Redis 키 구조
+### 처리 프로세스
 
-```bash
-csv:status:{file_id}          # 통합 상태 관리 (모든 서비스 공유)
-csv:metadata:id:{file_id}     # CSV 파일 메타데이터
-analysis:metadata:{file_id}   # 분석 결과/오류 정보 (TTL: 24시간)
-```
+#### 분석 워크플로우
+1. **CSV 다운로드** → S3에서 파일 가져오기
+2. **데이터 전처리** → 카테고리별 일일 집계
+3. **현재월 예측** → 전체 데이터로 당월 예측
+4. **DB 저장** → 현재월 결과 즉시 커밋
+5. **베이스라인 계산** → 과거 11개월 순차 계산
+6. **최종 저장** → 베이스라인 결과 저장
 
 ## 🧠 Prophet 예측 엔진
 
-### 카테고리별 최적화 전략
-
+### 카테고리별 최적화
 ```python
-# 식비/카페 - 강한 주간 패턴
-if category in ['식비', '카페']:
+# 식비/카페 - 주간 패턴 강함
+if category in ['식비', '카페/간식']:
     model = Prophet(
-        weekly_seasonality=True,      # 주말/주중 패턴
-        yearly_seasonality=False,      
-        changepoint_prior_scale=0.1,   # 민감한 변화 감지
-        interval_width=0.95            # 95% 신뢰구간
+        weekly_seasonality=True,
+        changepoint_prior_scale=0.1,
+        interval_width=0.95
     )
 
 # 교통비 - 월간 정기 패턴
 elif category in ['교통/차량']:
     model = Prophet(
         weekly_seasonality=False,
-        yearly_seasonality=False,
-        changepoint_prior_scale=0.05    # 안정적 패턴
+        changepoint_prior_scale=0.05
     )
     model.add_seasonality(
-        name='monthly', 
-        period=30.5, 
+        name='monthly',
+        period=30.5,
         fourier_order=5
     )
 
-# 기타 카테고리 - 균형잡힌 설정
+# 기타 - 균형 설정
 else:
     model = Prophet(
         weekly_seasonality=True,
@@ -127,303 +196,90 @@ else:
     )
 ```
 
-### 예측 프로세스
-
-1. **데이터 준비**
-   - 카테고리별 일일 지출 집계
-   - 누락 날짜 0원으로 보충
-   - 이상치 자동 처리
-
-2. **모델 학습**
-   - 카테고리별 독립 모델
-   - 최소 2일 이상 데이터 필요
-   - 병렬 처리로 성능 최적화
-
-3. **예측 생성**
-   - 현재월 & 다음월 예측
-   - 과거 9개월 기준값 (Baseline) 예측
-   - 상한/하한 신뢰구간
-   - 트렌드 분석 (상승/하락/안정)
-
-## 🎯 1월~현재 기준값 예측 (Baseline Predictions)
-
-### 개념
-**소비 기준 금액**: 가장 최근 1월부터 현재월까지 각 월별로 그 이전 데이터만 사용하여 계산한 예상 지출액
-- 실제 지출과 비교하여 과소비/절약 판단 기준
-- 시점별 데이터 격리로 과적합 방지
-- 연간 소비 패턴 전체 추적 가능
-
-### 구현 방식
+### 베이스라인 계산 로직
 ```python
-# 현재가 2025년 9월인 경우
-for month in range(1, 9):  # 1월부터 8월까지
-    target_month = month
-    # 예: 8월 기준값 계산
-    cutoff_date = datetime(2025, 7, 31)  # 7월 31일까지 데이터만 사용
+# 현재 12월인 경우 - 과거 11개월 계산
+months_to_calculate = []
+for i in range(11, 0, -1):  # 11개월 전부터 1개월 전까지
+    calc_date = current_date - timedelta(days=30 * i)
+    months_to_calculate.append((calc_date.year, calc_date.month))
+
+# 예: 1월~11월 각각 계산
+for target_year, target_month in months_to_calculate:
+    # 해당 월 이전 데이터만 사용
+    cutoff_date = datetime(target_year, target_month, 1) - timedelta(days=1)
     train_data = csv_data[csv_data['date'] <= cutoff_date]
-    
-    # 각 카테고리별로 Prophet 모델 학습
+
+    # Prophet 모델 학습 및 예측
     for category in categories:
-        model = train_prophet_model(train_data[category])
-        august_prediction = model.predict(august_2025)
+        model = train_prophet_model(train_data, category)
+        prediction = model.predict(target_month)
 ```
 
-### 데이터 흐름 (현재: 9월)
-```
-1월 기준값 → 전년 12월까지 데이터로 1월 예측
-2월 기준값 → 1월까지 데이터로 2월 예측
-3월 기준값 → 2월까지 데이터로 3월 예측
-...
-8월 기준값 → 7월까지 데이터로 8월 예측  
-9월 (현재) → 8월까지 데이터로 9월 예측
-```
+## 💾 Database Schema
 
-### 병렬 처리 최적화
-```python
-async def predict_with_baseline(csv_data):
-    # 현재/미래 예측과 기준값 계산을 동시 실행
-    current_future = loop.run_in_executor(executor, predict_current)
-    baseline_future = loop.run_in_executor(executor, calculate_baseline)
-    
-    current_result = await current_future
-    baseline_result = await baseline_future
-    return combined_results
-```
-
-## 💾 데이터베이스 스키마
-
-### Predictions 테이블
+### predictions 테이블
 ```sql
 CREATE TABLE predictions (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     file_id VARCHAR(255) NOT NULL,
-    category VARCHAR(100) NOT NULL,       -- 카테고리명
-    prediction_date DATE NOT NULL,        -- 예측 대상 월
-    predicted_amount NUMERIC NOT NULL,    -- 예측 금액
-    lower_bound NUMERIC,                  -- 하한 신뢰구간
-    upper_bound NUMERIC,                  -- 상한 신뢰구간
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(file_id, category, prediction_date)
+    category VARCHAR(100) NOT NULL,
+    prediction_date DATE NOT NULL,
+    predicted_amount DECIMAL(15,2),
+    lower_bound DECIMAL(15,2),
+    upper_bound DECIMAL(15,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_file_category (file_id, category),
+    INDEX idx_date (prediction_date)
 );
 ```
 
-### BaselinePrediction 테이블
+### baseline_predictions 테이블
 ```sql
 CREATE TABLE baseline_predictions (
-    id SERIAL PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     file_id VARCHAR(255) NOT NULL,
-    category VARCHAR(100) NOT NULL,       -- 카테고리명
-    year INTEGER NOT NULL,                -- 기준 연도
-    month INTEGER NOT NULL,               -- 기준 월
-    predicted_amount NUMERIC NOT NULL,    -- 예측 금액
-    lower_bound NUMERIC,                  -- 하한 신뢰구간
-    upper_bound NUMERIC,                  -- 상한 신뢰구간
-    training_cutoff_date DATE,            -- 학습 데이터 기준일
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(file_id, category, year, month)
+    category VARCHAR(100) NOT NULL,
+    year INT NOT NULL,
+    month INT NOT NULL,
+    predicted_amount DECIMAL(15,2),
+    lower_bound DECIMAL(15,2),
+    upper_bound DECIMAL(15,2),
+    training_cutoff_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_file_year_month (file_id, year, month),
+    UNIQUE KEY uk_file_category_date (file_id, category, year, month)
 );
 ```
 
-### AnalysisJob 테이블
+### leak_analysis 테이블
 ```sql
-CREATE TABLE analysis_jobs (
-    id SERIAL PRIMARY KEY,
-    job_id VARCHAR(255) UNIQUE NOT NULL,
+CREATE TABLE leak_analysis (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     file_id VARCHAR(255) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
-    job_metadata JSONB,                   -- 분석 결과 요약
-    error_message TEXT,
-    completed_at TIMESTAMP
+    year INT NOT NULL,
+    month INT NOT NULL,
+    actual_amount DECIMAL(15,2),
+    predicted_amount DECIMAL(15,2),
+    leak_amount DECIMAL(15,2),
+    analysis_data JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_file_date (file_id, year, month)
 );
 ```
 
-## 🚀 API 사용 가이드
-
-### 1. 분석 시작
-```bash
-POST /api/ai/data?file_id={file_id}
-
-# 응답
-{
-    "file_id": "test-001",
-    "year": 2025,
-    "month": 9,
-    "message": "Prophet analysis started. Job ID: abc-123"
-}
-```
-
-### 2. 전체 카테고리 예측 조회
-```bash
-GET /api/ai/data/leak?file_id={file_id}&year=2025&month=9
-
-# 응답
-{
-    "file_id": "test-001",
-    "year": 2025,
-    "month": 9,
-    "details": {
-        "total_predicted": 1058850.54,
-        "categories_count": 13,
-        "category_predictions": {
-            "식비": {
-                "predicted_amount": 228906.00,
-                "lower_bound": 210543.00,
-                "upper_bound": 247269.00
-            },
-            "교통/차량": {
-                "predicted_amount": 106261.00,
-                "lower_bound": 95635.00,
-                "upper_bound": 116887.00
-            }
-            // ... 11개 카테고리 더
-        },
-        "next_month_prediction": {
-            "year": 2025,
-            "month": 10,
-            "total_predicted": 1095430.00
-        }
-    }
-}
-```
-
-### 3. 특정 카테고리 예측 조회
-```bash
-GET /api/ai/data/leak?file_id={file_id}&category=식비
-
-# 응답
-{
-    "file_id": "test-001",
-    "category": "식비",
-    "details": {
-        "predicted_amount": 228906.00,
-        "lower_bound": 210543.00,
-        "upper_bound": 247269.00,
-        "trend": "stable"
-    }
-}
-```
-
-### 4. 기준값 조회 (1월~현재)
-```bash
-GET /api/ai/data/baseline?file_id={file_id}
-
-# 응답 (현재가 9월인 경우)
-{
-    "file_id": "test-001",
-    "baseline_months": [
-        {
-            "year": 2025,
-            "month": 1,
-            "total_predicted": 1100431.42,
-            "categories_count": 13,
-            "category_predictions": {
-                "식비": {
-                    "predicted_amount": 220000.00,
-                    "lower_bound": 200000.00,
-                    "upper_bound": 240000.00
-                }
-            },
-            "training_data_until": "2024-12-31"  // 전년 12월까지 데이터로 1월 예측
-        },
-        {
-            "year": 2025,
-            "month": 2,
-            "total_predicted": 1009359.16,
-            "training_data_until": "2025-01-31"  // 1월까지 데이터로 2월 예측
-        },
-        // ... 3월~8월 (6개월 더)
-    ],
-    "months_count": 8  // 1월~8월 (9월은 현재이므로 제외)
-}
-```
-
-### 5. 특정 카테고리 기준값 조회
-```bash
-GET /api/ai/data/baseline?file_id={file_id}&category=식비
-
-# 응답: 식비 카테고리만 필터링된 1월~8월 기준값
-```
-
-### 6. 상태 확인
-```bash
-GET /api/ai/csv/status?file_id={file_id}
-
-# 응답
-{
-    "csv_file": "transactions.csv",
-    "status": "none",  # or "analyzing"
-    "last_updated": "2025-09-18T10:30:00Z"
-}
-```
-
-## 📊 기준값 예측 실제 결과 (1월~8월)
-
-### 월별 총 예측액 추이 (현재: 9월)
-| 연월 | 총 예측액 | 학습 데이터 기준 | 특징 |
-|------|----------|-----------------|------|
-| 2025-01 | 1,100,431원 | ~2024-12-31 | 새해 시작 |
-| 2025-02 | 1,009,359원 | ~2025-01-31 | 설 명절 |
-| 2025-03 | 1,141,506원 | ~2025-02-28 | 연초 지출 |
-| 2025-04 | 1,021,196원 | ~2025-03-31 | 신학기 |
-| 2025-05 | 1,025,717원 | ~2025-04-30 | 봄 시즌 |
-| 2025-06 | 1,029,279원 | ~2025-05-31 | 안정기 |
-| 2025-07 | 1,092,203원 | ~2025-06-30 | 상반기 마지막 |
-| 2025-08 | 1,122,711원 | ~2025-07-31 | 여름 휴가철 |
-
-### 활용 방안
-1. **과소비 판단**: 실제 지출 > 기준값 = 과소비 신호
-2. **트렌드 분석**: 기준값 변화로 소비 패턴 변화 감지
-3. **예산 설정**: 기준값을 월별 예산 기준으로 활용
-
-## 📈 분석된 카테고리 (13개)
-
-| 카테고리 | 평균 월 지출 | 계절성 패턴 |
-|---------|------------|-----------|
-| 식비 | 228,906원 | 주간 (주말↑) |
-| 교통/차량 | 106,261원 | 월간 (정기) |
-| 마트/편의점 | 143,775원 | 주간 |
-| 온라인쇼핑 | 73,141원 | 이벤트 |
-| 카페/간식 | 84,543원 | 주간 |
-| 의료/건강 | 63,214원 | 비정기 |
-| 문화/여가 | 52,483원 | 주말 |
-| 생활 | 83,216원 | 월간 |
-| 뷰티/미용 | 42,567원 | 월간 |
-| 여행/숙박 | 35,821원 | 계절 |
-| 교육 | 95,234원 | 분기 |
-| 술/유흥 | 28,945원 | 주말 |
-| 기타 | 20,744원 | 랜덤 |
-
-## ⚡ 성능 최적화
-
-### 1. **병렬 처리**
-- ThreadPoolExecutor (4 workers)
-- 카테고리별 독립 모델 동시 학습
-- 평균 처리 시간: 3-5초 (13개 카테고리)
-
-### 2. **데이터베이스 최적화**
-```sql
-CREATE INDEX idx_predictions_file_category ON predictions(file_id, category);
-CREATE INDEX idx_predictions_date ON predictions(prediction_date);
-CREATE INDEX idx_jobs_file_id ON analysis_jobs(file_id);
-```
-
-### 3. **Redis 캐싱**
-- TTL 24시간 자동 만료
-- 상태 조회 O(1) 복잡도
-- 메모리 효율적 관리
-
-## 🔧 환경 설정
+## 🔧 Configuration
 
 ### 환경 변수 (.env)
 ```bash
-# PostgreSQL
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_DB=fintech_ai
-POSTGRES_USER=fintech
-POSTGRES_PASSWORD=fintech123
+# MySQL
+MYSQL_HOST=mysql
+MYSQL_PORT=3306
+MYSQL_DATABASE=fintech_ai
+MYSQL_USER=fintech
+MYSQL_PASSWORD=fintech123
 
-# Redis  
+# Redis
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_DB=0
@@ -437,92 +293,154 @@ S3_BUCKET=csv-uploads
 # Service
 SERVICE_PORT=8002
 LOG_LEVEL=INFO
+
+# Prophet
+MAX_WORKERS=4
+PREDICTION_DAYS=60
+CONFIDENCE_INTERVAL=0.95
 ```
 
-### Docker 실행
+## 📊 지원 카테고리
+
+| 카테고리 | 계절성 | 평균 월지출 | 특징 |
+|----------|--------|------------|------|
+| 식비 | 주간 | 22만원 | 주말 증가 |
+| 교통/차량 | 월간 | 10만원 | 정기 지출 |
+| 마트/편의점 | 주간 | 14만원 | 주말 장보기 |
+| 온라인쇼핑 | 이벤트 | 7만원 | 불규칙 |
+| 카페/간식 | 주간 | 8만원 | 평일 집중 |
+| 의료/건강 | 비정기 | 6만원 | 돌발 지출 |
+| 문화/여가 | 주말 | 5만원 | 주말 집중 |
+| 생활 | 월간 | 8만원 | 고정 지출 |
+| 뷰티/미용 | 월간 | 4만원 | 주기적 |
+| 여행/숙박 | 계절 | 3만원 | 휴가철 |
+| 교육 | 분기 | 9만원 | 학기별 |
+| 술/유흥 | 주말 | 2만원 | 금토 집중 |
+| 기타 | 랜덤 | 2만원 | 패턴 없음 |
+
+## 🚀 Development
+
+### 로컬 개발
 ```bash
-# 개별 실행
-docker build -t analysis-service .
-docker run -p 8002:8002 --env-file .env analysis-service
+# 독립 실행
+cd analysis
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8002
 
-# Docker Compose
-docker-compose up -d analysis
+# Docker 실행
+docker build -t analysis .
+docker run -p 8002:8002 --env-file ../.env analysis
 ```
 
-## 🐛 트러블슈팅
-
-### 문제: "No prediction data found"
+### 테스트
 ```bash
-# 해결: 분석 먼저 실행
-POST /api/ai/data?file_id={file_id}
-# 상태 확인 후 조회
-GET /api/ai/csv/status?file_id={file_id}
+# 단위 테스트
+pytest tests/
+
+# 예측 정확도 테스트
+python tests/prophet_accuracy.py
+
+# 통합 테스트
+pytest tests/integration/
 ```
 
-### 문제: "Analysis already in progress"
-```bash
-# 해결: 상태가 none이 될 때까지 대기
-while [ "$(curl -s /status | jq -r .status)" != "none" ]; do
-  sleep 1
-done
+## 📈 성능 최적화
+
+### 병렬 처리
+- ThreadPoolExecutor (4 workers)
+- 카테고리별 독립 모델
+- 평균 처리: 3-5초 (13개 카테고리)
+
+### 순차 실행 전략
+```python
+# 1. 현재월 먼저 처리
+current_month_result = await prophet_service.predict_by_category(csv_data)
+db.commit()  # 즉시 저장
+
+# 2. 베이스라인 계산
+baseline_predictions = await prophet_service.calculate_baseline_predictions_async(csv_data)
 ```
 
-### 문제: 특정 카테고리 예측 실패
-```bash
-# 원인: 해당 카테고리 데이터 부족 (< 2일)
-# 해결: 메타데이터에서 오류 확인
-GET /api/ai/data/leak?file_id={file_id}
-# response.details.category_predictions.{category}.error
-```
+### 데이터베이스 최적화
+- 적절한 인덱싱
+- 배치 INSERT
+- 커넥션 풀링 (max=10)
 
-## 📊 모니터링
+## 🔍 Monitoring
 
-### 헬스체크
+### Health Check
 ```bash
 GET /health
 
+# Response
 {
-    "status": "healthy",
+  "status": "healthy",
+  "service": "analysis",
+  "dependencies": {
     "database": "connected",
     "redis": "connected",
-    "version": "1.0.0"
+    "s3": "connected"
+  }
 }
 ```
 
-### 메트릭
-- 평균 응답 시간: < 100ms (조회)
-- 분석 처리 시간: 3-5초
-- 동시 처리 가능: 10개 파일
-- 메모리 사용: < 512MB
+### 메트릭스
+- 평균 응답: < 100ms (조회)
+- 분석 시간: 3-5초 (전체)
+- 동시 처리: 10개 파일
+- 메모리: < 512MB
 
-## 🔮 향후 개선 계획
+## 📝 주요 변경사항
 
-1. **고급 예측 기능**
-   - 다변량 시계열 분석
-   - 외부 경제 지표 연동
-   - 개인화된 소비 패턴 학습
+### v2.0.0 (현재)
+- ✅ 11개월 베이스라인으로 확장
+- ✅ 현재월 우선 처리 구현
+- ✅ 다음월 예측 제거
+- ✅ MySQL 마이그레이션 (PostgreSQL → MySQL)
+- ✅ 순차 실행 최적화
 
-2. **실시간 알림**
-   - 예산 초과 예측 시 알림
-   - 비정상 지출 패턴 감지
-   - 월말 지출 예측 리포트
+### v1.0.0
+- 초기 릴리스
+- 9개월 베이스라인
+- PostgreSQL 사용
 
-3. **시각화 대시보드**
-   - 카테고리별 트렌드 차트
-   - 예측 정확도 추적
-   - 지출 히트맵
+## 🐛 트러블슈팅
 
-## 📝 라이선스
+### 분석 시작 안 됨
+```bash
+# 상태 확인
+GET /api/ai/csv/status?file_id=abc-123
 
-MIT License - 자유롭게 사용 및 수정 가능
+# 분류 완료 확인 후 재시도
+POST /api/ai/data?file_id=abc-123
+```
 
-## 👥 기여 방법
+### 특정 카테고리 누락
+- 원인: 데이터 부족 (< 2일)
+- 해결: 해당 카테고리 0원으로 처리
 
-1. Fork 후 feature 브랜치 생성
-2. 변경사항 커밋
-3. Pull Request 제출
-4. 코드 리뷰 후 머지
+### MySQL 연결 실패
+```bash
+# MySQL 재시작
+docker-compose restart mysql
 
----
+# 연결 테스트
+docker exec mysql mysql -u fintech -p
+```
 
-**Built with ❤️ using Prophet, FastAPI, and PostgreSQL**
+## 🤝 Integration
+
+이 서비스는 다음 서비스들과 통합됩니다:
+
+- **API Gateway**: 요청 라우팅
+- **CSV Manager**: 파일 다운로드
+- **Classifier**: 분류된 데이터 수신
+- **Redis**: 상태 공유
+- **MySQL**: 결과 저장
+
+## 🔗 관련 문서
+
+- [Main README](../README.md)
+- [API Gateway](../gateway/README.md)
+- [CSV Manager Service](../csv-manager/README.md)
+- [Classifier Service](../classifier/README.md)

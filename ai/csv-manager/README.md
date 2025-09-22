@@ -1,92 +1,110 @@
-# CSV Manager Service
+# 📂 CSV Manager Service
 
-CSV 파일 관리를 위한 독립적인 마이크로서비스 - MinIO/S3 스토리지를 사용한 보안 파일 관리
+CSV 파일 관리를 위한 독립적인 마이크로서비스 - MinIO/S3 스토리지와 Redis 캐시를 활용한 안정적인 파일 관리
 
 ## 🎯 Overview
 
-CSV Manager는 금융 데이터 CSV 파일의 업로드, 저장, 상태 관리를 담당하는 전용 서비스입니다. 
-MinIO 또는 AWS S3와 통합되어 안전하고 확장 가능한 파일 스토리지를 제공합니다.
+CSV Manager는 금융 데이터 CSV 파일의 업로드, 저장, 상태 관리를 담당하는 전용 서비스입니다.
+고유 file_id를 통해 중복 파일명도 허용하며, Redis를 통한 메타데이터 관리로 빠른 응답을 제공합니다.
 
-## ✨ Features
+## ✨ Key Features
 
 ### 파일 관리
-- **업로드**: CSV 파일을 안전하게 업로드 및 저장
-- **교체**: 기존 파일을 새 버전으로 교체
-- **삭제**: 파일 및 관련 메타데이터 완전 제거
-- **상태 추적**: 파일 처리 상태 모니터링
-
-### 보안
-- JWT 기반 인증
-- Role 기반 접근 제어 (Admin/User)
-- SHA-256 체크섬 검증
-- Presigned URL을 통한 안전한 다운로드
+- **중복 파일명 허용**: 동일한 파일명도 고유 file_id로 구분
+- **비동기 업로드**: 백그라운드 처리로 빠른 응답
+- **파일 교체**: 기존 file_id 유지하며 새 버전으로 교체
+- **안전한 삭제**: 처리 중 상태 확인 후 삭제
 
 ### 스토리지
-- MinIO/S3 호환 스토리지
-- 자동 버킷 생성 및 관리
-- 메타데이터 추적
-- 파일 버전 관리
+- **MinIO/S3 통합**: S3 호환 객체 스토리지
+- **Redis 캐싱**: 메타데이터 및 상태 정보 고속 처리
+- **자동 버킷 관리**: 시작 시 버킷 자동 생성
+- **SHA-256 체크섬**: 파일 무결성 검증
+
+### 보안
+- **토큰 기반 인증**: Admin/User 역할 분리
+- **Presigned URL**: 안전한 다운로드 링크 생성
+- **파일 검증**: CSV 형식 및 Content-Type 확인
 
 ## 🚀 API Endpoints
 
-### 파일 업로드
+### 1. 파일 업로드 (비동기)
 ```bash
 POST /api/ai/csv/upload
-Authorization: Bearer <admin_token>
+X-Admin-Token: admin-token
 Content-Type: multipart/form-data
 
 # Request
 file: transactions.csv
 
-# Response
+# Response (202 Accepted)
 {
   "csv_file": "transactions.csv",
-  "file_id": "uuid-1234",
-  "checksum": "sha256hash...",
-  "size_bytes": 1024,
-  "uploaded_at": "2024-01-01T00:00:00Z",
-  "s3_key": "uuid-1234_transactions.csv",
-  "s3_url": "https://..."
+  "file_id": "abc-123-def-456",  # 고유 ID
+  "status": "uploading",
+  "checksum": "pending",
+  "size_bytes": 0,
+  "uploaded_at": "2024-12-01T00:00:00Z",
+  "s3_key": "abc-123-def-456_transactions.csv"
 }
 ```
 
-### 파일 삭제
+### 2. 상태 확인
 ```bash
-DELETE /api/ai/csv/delete?file_id=abc-123
-Authorization: Bearer <admin_token>
+GET /api/ai/csv/status?file_id=abc-123-def-456
+X-User-Token: user-token
+
+# Response
+{
+  "csv_file": "transactions.csv",
+  "status": "none",  # uploading/analyzing/none
+  "progress": null,
+  "last_updated": "2024-12-01T00:01:00Z",
+  "details": null
+}
+```
+
+### 3. 파일 정보 조회
+```bash
+GET /api/ai/csv/file?file_id=abc-123-def-456
+X-User-Token: user-token
+
+# Response
+{
+  "csv_file": "transactions.csv",
+  "file_id": "abc-123-def-456",
+  "checksum": "a1b2c3d4...",
+  "size_bytes": 102400,
+  "uploaded_at": "2024-12-01T00:00:00Z",
+  "replaced_at": null,
+  "s3_key": "abc-123-def-456_transactions.csv",
+  "s3_url": "https://..."  # Presigned URL
+}
+```
+
+### 4. 파일 삭제
+```bash
+DELETE /api/ai/csv/delete?file_id=abc-123-def-456
+X-Admin-Token: admin-token
 
 # Response: 204 No Content
 ```
 
-### 파일 교체
+### 5. 파일 교체 (비동기)
 ```bash
-PUT /api/ai/csv/change?file_id=abc-123
-Authorization: Bearer <admin_token>
+PUT /api/ai/csv/change?file_id=abc-123-def-456
+X-Admin-Token: admin-token
 Content-Type: multipart/form-data
 
 # Request
 file: new_transactions.csv
 
-# Response
+# Response (202 Accepted)
 {
   "csv_file": "transactions.csv",
-  "file_id": "uuid-5678",
-  "replaced_at": "2024-01-02T00:00:00Z",
-  ...
-}
-```
-
-### 상태 확인
-```bash
-GET /api/ai/csv/status?file_id=abc-123
-Authorization: Bearer <user_token>
-
-# Response
-{
-  "csv_file": "transactions.csv",
-  "status": "ingesting",  // or "analyzing", "none"
-  "progress": null,
-  "last_updated": "2024-01-01T00:00:00Z"
+  "file_id": "abc-123-def-456",  # 동일한 ID 유지
+  "status": "uploading",
+  "replaced_at": "2024-12-02T00:00:00Z"
 }
 ```
 
@@ -97,15 +115,16 @@ csv-manager/
 ├── app/
 │   ├── api/
 │   │   └── endpoints/
-│   │       └── csv.py         # CSV 관련 엔드포인트
+│   │       └── csv.py         # API 엔드포인트
 │   ├── core/
 │   │   └── config.py         # 환경 설정
 │   ├── deps/
-│   │   └── auth.py          # 인증 의존성
+│   │   └── auth.py          # 인증 미들웨어
 │   ├── models/
 │   │   └── schemas.py       # Pydantic 모델
 │   ├── repos/
-│   │   └── csv_repo.py      # S3/MinIO 저장소
+│   │   ├── csv_repo.py      # S3/MinIO 저장소
+│   │   └── redis_client.py  # Redis 클라이언트
 │   └── main.py              # FastAPI 앱
 ├── Dockerfile
 └── requirements.txt
@@ -113,34 +132,37 @@ csv-manager/
 
 ## 🔧 Configuration
 
-### 환경 변수
-```env
+### 환경 변수 (.env)
+```bash
 # MinIO/S3 설정
-MINIO_ENDPOINT=localhost:9000
+MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=csv-storage
+MINIO_BUCKET=csv-uploads
 MINIO_SECURE=false
 MINIO_REGION=us-east-1
-
-# Presigned URL 설정
-PRESIGNED_URL_EXPIRY=3600  # 1 hour
-
-# 상태 자동 초기화
-CSV_STATUS_AUTO_CLEAR=true
-CSV_STATUS_CLEAR_DELAY=300  # 5 minutes
-
-# JWT 인증
-JWT_SECRET_KEY=your-secret-key
-JWT_ALGORITHM=HS256
-
-# SSL 검증 (개발용)
 VERIFY_SSL=false
+
+# Redis 설정
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=
+
+# 인증 토큰
+ADMIN_TOKEN=admin-token
+USER_TOKEN=user-token
+
+# Presigned URL 만료 시간 (초)
+PRESIGNED_URL_EXPIRY=3600  # 1시간
+
+# 로깅
+LOG_LEVEL=INFO
 ```
 
 ## 🏗️ Architecture
 
-### 컴포넌트 구조
+### 시스템 구조
 ```
 ┌─────────────────┐
 │   API Gateway   │
@@ -148,90 +170,181 @@ VERIFY_SSL=false
          │ /api/ai/csv/*
          ▼
 ┌─────────────────┐
-│  CSV Manager    │
-│   Service       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  MinIO/S3       │
-│   Storage       │
-└─────────────────┘
+│  CSV Manager    │◄──── 비동기 처리
+│    Service      │       (BackgroundTasks)
+└────┬───────┬────┘
+     │       │
+     ▼       ▼
+┌────────┐ ┌────────┐
+│ MinIO  │ │ Redis  │
+│  /S3   │ │ Cache  │
+└────────┘ └────────┘
 ```
 
-### 파일 처리 흐름
-1. **Upload**: 파일 업로드 → 체크섬 계산 → S3 저장 → 메타데이터 기록
-2. **Status**: 초기 상태 "ingesting" → 처리 중 상태 변경 → 완료 후 "none"
-3. **Replace**: 기존 파일 백업 → 새 파일 업로드 → 메타데이터 업데이트
-4. **Delete**: 상태 확인 → S3에서 삭제 → 메타데이터 제거
+### 데이터 흐름
+1. **업로드 요청** → 즉시 file_id 반환 (202)
+2. **백그라운드 처리** → S3 업로드 + 체크섬 계산
+3. **메타데이터 저장** → Redis에 파일 정보 저장
+4. **상태 업데이트** → uploading → none
+
+## 🔄 상태 관리
+
+### 파일 상태
+| Status | Description | 다음 가능 동작 |
+|--------|-------------|--------------|
+| `uploading` | 파일 업로드 중 | 대기 |
+| `analyzing` | AI 분석 진행 중 | 대기 |
+| `none` | 유휴 상태 | 모든 작업 가능 |
+
+### Redis 키 구조
+```
+csv:metadata:id:{file_id}     # 파일 메타데이터
+csv:status:{file_id}          # 처리 상태
+csv:all_file_ids              # 모든 file_id Set
+```
 
 ## 🔒 Security
 
-### 인증 및 권한
-- **Admin**: 모든 작업 가능 (업로드, 삭제, 교체)
-- **User**: 읽기 전용 (상태 확인)
+### 인증 체계
+- **Admin Token** (`X-Admin-Token`)
+  - 파일 업로드/삭제/교체
+  - 모든 파일 조회
+
+- **User Token** (`X-User-Token`)
+  - 파일 상태 확인
+  - 파일 정보 조회
 
 ### 파일 검증
-- CSV 확장자 검증
-- Content-Type 확인
-- SHA-256 체크섬 생성 및 저장
+```python
+# 허용 Content-Type
+- text/csv
+- application/csv
+- application/vnd.ms-excel
+- text/plain
+
+# 파일 확장자
+- .csv (대소문자 구분 없음)
+```
 
 ## 🚀 Development
 
-### 로컬 실행
+### 로컬 개발
 ```bash
 # 독립 실행
 cd csv-manager
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8003
 
-# Docker로 실행
+# Docker 실행
 docker build -t csv-manager .
-docker run -p 8003:8003 csv-manager
+docker run -p 8003:8003 --env-file ../.env csv-manager
 ```
 
-### MinIO 설정
+### 테스트
 ```bash
-# MinIO 서버 시작
-docker run -p 9000:9000 -p 9001:9001 \
-  -e MINIO_ROOT_USER=minioadmin \
-  -e MINIO_ROOT_PASSWORD=minioadmin \
-  minio/minio server /data --console-address ":9001"
+# 단위 테스트
+pytest tests/
+
+# 통합 테스트
+pytest tests/integration/
+
+# 커버리지
+pytest --cov=app tests/
 ```
 
-## 📊 Status Types
+## 📊 성능 최적화
 
-| Status | Description | Next Action |
-|--------|------------|-------------|
-| `ingesting` | 파일 업로드 및 초기 처리 중 | 데이터 검증 |
-| `leakage_calculating` | 데이터 누출 계산 중 | 분석 준비 |
-| `analyzing` | AI 분석 진행 중 | 결과 생성 |
-| `none` | 처리 완료 또는 대기 상태 | - |
+### 비동기 처리
+- FastAPI BackgroundTasks 활용
+- 파일 업로드 즉시 응답 (202 Accepted)
+- 백그라운드에서 S3 업로드 처리
+
+### 캐싱 전략
+- Redis를 통한 메타데이터 캐싱
+- file_id 기반 빠른 조회
+- Set 구조로 모든 파일 ID 관리
+
+### 스토리지 최적화
+- StreamingHashWrapper로 업로드 중 체크섬 계산
+- Presigned URL로 직접 다운로드 제공
+- 타임스탬프 기반 파일 버저닝
 
 ## 🔍 Monitoring
 
 ### Health Check
 ```bash
 GET /health
-# Response: {"status": "healthy", "service": "csv-manager"}
+
+# Response
+{
+  "status": "healthy",
+  "service": "csv-manager",
+  "dependencies": {
+    "minio": "connected",
+    "redis": "connected"
+  }
+}
 ```
 
-### Service Info
+### 메트릭스
+- 업로드된 파일 수
+- 평균 파일 크기
+- 처리 시간
+- 에러율
+
+## 📝 주요 변경사항
+
+### v2.0.0 (현재)
+- ✅ 중복 파일명 허용 (file_id 기반 관리)
+- ✅ Redis를 primary storage로 변경
+- ✅ 비동기 업로드/교체 구현
+- ✅ 백그라운드 태스크 처리
+- ✅ ingesting 상태 제거 (간소화)
+
+### v1.0.0
+- 초기 릴리스
+- MinIO 통합
+- 기본 CRUD 작업
+
+## 🐛 트러블슈팅
+
+### MinIO 연결 실패
 ```bash
-GET /
-# Response: Service information and available endpoints
+# MinIO 상태 확인
+docker-compose ps minio
+
+# 로그 확인
+docker-compose logs minio
+
+# 버킷 수동 생성
+docker exec -it minio mc mb local/csv-uploads
 ```
 
-## 📝 Notes
+### Redis 연결 문제
+```bash
+# Redis 재시작
+docker-compose restart redis
 
-- 메타데이터는 현재 메모리에 저장 (프로덕션에서는 DB 사용 권장)
-- 파일명은 고유해야 함 (중복 불가)
-- 처리 중인 파일은 삭제/교체 불가
-- Presigned URL은 1시간 후 만료
+# 연결 테스트
+docker exec redis redis-cli ping
+```
+
+### 파일 업로드 실패
+- 파일 크기 제한 확인 (기본 100MB)
+- CSV 형식 검증
+- 디스크 공간 확인
 
 ## 🤝 Integration
 
-이 서비스는 API Gateway를 통해 접근하며, 다른 마이크로서비스들과 협업합니다:
-- **Gateway**: 요청 라우팅 및 인증
-- **Classifier**: 업로드된 CSV 분류
-- **Analysis**: CSV 데이터 분석
+이 서비스는 다음 서비스들과 통합됩니다:
+
+- **API Gateway**: 요청 라우팅 및 인증
+- **Classifier Service**: 업로드된 CSV 분류
+- **Analysis Service**: CSV 데이터 분석
+
+## 🔗 관련 문서
+
+- [Main README](../README.md)
+- [API Gateway](../gateway/README.md)
+- [Classifier Service](../classifier/README.md)
+- [Analysis Service](../analysis/README.md)
