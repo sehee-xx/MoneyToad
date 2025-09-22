@@ -156,7 +156,6 @@ const WATER_BASE_W = 120;
 const WATER_BASE_H = 180;
 const WATER_STREAM_ORIGIN_X_RATIO = 0.03;
 const WATER_STREAM_ORIGIN_Y_RATIO = 0.28;
-const PUDDLE_DY = -25;
 
 interface PotVisualizationProps {
   leakingCategories: LeakingCategory[];
