@@ -32,7 +32,7 @@ export const leakPotAssets = [
   monthGood,
   monthBad,
   "/leakPot/water.json",
-  tooltipToad
+  tooltipToad,
 ];
 
 // --- 타입 정의 ---
@@ -190,6 +190,60 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     y: 0,
   });
 
+  // 항아리 몸통 path 참조
+  const potBodyRef = useRef<SVGPathElement>(null);
+
+  // 항아리 이미지(POT_X/Y/W/H)를 기준으로 몸통 실루엣 path (대충 항아리 곡면 형태)
+  const potBodyD = (() => {
+    const x = POT_X,
+      y = POT_Y,
+      w = POT_W,
+      h = POT_H;
+    const top = y + h * 0.2;
+    const neck = y + h * 0.3;
+    const mid = y + h * 0.55;
+    const bottom = y + h * 0.92;
+    const cx = x + w / 2;
+
+    const leftTop = x + w * 0.25;
+    const rightTop = x + w * 0.75;
+    const leftNeck = x + w * 0.2;
+    const rightNeck = x + w * 0.8;
+    const leftMid = x + w * 0.08;
+    const rightMid = x + w * 0.92;
+    const leftBottom = x + w * 0.12;
+    const rightBottom = x + w * 0.88;
+
+    // 약간 목이 들어갔다가 배가 불룩한 항아리 실루엣
+    return `M ${leftNeck},${neck}
+          C ${leftTop},${top} ${rightTop},${top} ${rightNeck},${neck}
+          C ${rightMid},${mid} ${rightBottom},${bottom} ${cx},${bottom}
+          C ${leftBottom},${bottom} ${leftMid},${mid} ${leftNeck},${neck}
+          Z`;
+  })();
+
+  // 화면 px -> SVG viewBox 좌표로 변환
+  const toSvg = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const lx = e.clientX - rect.left; // 로컬 px (툴팁 위치용)
+    const ly = e.clientY - rect.top;
+    const sx = (lx / rect.width) * VIEWBOX_W; // viewBox X
+    const sy = (ly / rect.height) * VIEWBOX_H; // viewBox Y
+    return { sx, sy, lx, ly };
+  };
+
+  // 항아리 몸통 타원 내부 판정
+  const isInsidePotSvg = (sx: number, sy: number) => {
+    const cx = POT_X + POT_W * 0.5;
+    const cy = POT_Y + POT_H * 0.56;
+    const rx = POT_W * 0.48;
+    const ry = POT_H * 0.46;
+    const nx = (sx - cx) / rx;
+    const ny = (sy - cy) / ry;
+    return nx * nx + ny * ny <= 1;
+  };
+
   // 컨테이너 기준 좌표로 변환
   const toLocal = (e: React.MouseEvent) => {
     const rect = potRef.current?.getBoundingClientRect();
@@ -209,11 +263,36 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     });
   };
 
-  // SVG 내에서 마우스 이동: 보일 때만 좌표 갱신
-  const handleSvgMove = (e: React.MouseEvent) => {
-    if (!tooltip.visible) return;
-    const { x, y } = toLocal(e);
-    setTooltip((t) => ({ ...t, x, y }));
+  const handleSvgMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const lx = e.clientX - rect.left;
+    const ly = e.clientY - rect.top;
+
+    // path 내부 판정: SVGGeometryElement.isPointInFill 사용
+    if (potBodyRef.current) {
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+
+      const ctm = potBodyRef.current.getScreenCTM();
+      if (ctm) {
+        const local = pt.matrixTransform(ctm.inverse());
+        // 타입 가드 회피용 any (isPointInFill은 SVGGeometryElement 메서드)
+        const inside = (potBodyRef.current as any).isPointInFill(local);
+
+        if (!inside) {
+          if (tooltip.visible)
+            setTooltip({ visible: false, content: "", x: 0, y: 0 });
+          return;
+        }
+      }
+    }
+
+    // 몸통 안이면 떠있는 경우에만 위치 갱신
+    if (tooltip.visible) {
+      setTooltip((t) => ({ ...t, x: lx, y: ly }));
+    }
   };
 
   // SVG 밖으로 나가면 숨김
@@ -224,7 +303,11 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   return (
     // CSS에서 pot-container가 pointer-events:none; 이라면
     // 인라인 스타일로만 이벤트 가능하게 풀어줌(툴팁 전용 목적)
-    <div className="pot-container" ref={potRef} style={{ pointerEvents: "auto" }}>
+    <div
+      className="pot-container"
+      ref={potRef}
+      style={{ pointerEvents: "auto" }}
+    >
       {tooltip.visible && (
         // 커서 중앙 위에 예쁘게 뜨도록 transform은 CSS에 이미 정의되어 있다고 가정
         <div className="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
@@ -233,8 +316,16 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
       )}
       {/* 캐릭터 */}
       <div className="characters">
-        <img src={hasLeak ? cryingKongjwi : happyKongjwi} alt="콩쥐" className="kongjwi" />
-        <img src={hasLeak ? angryToad : happyToad} alt="두꺼비" className="toad" />
+        <img
+          src={hasLeak ? cryingKongjwi : happyKongjwi}
+          alt="콩쥐"
+          className="kongjwi"
+        />
+        <img
+          src={hasLeak ? angryToad : happyToad}
+          alt="두꺼비"
+          className="toad"
+        />
       </div>
 
       {/* 항아리 + 물 */}
@@ -258,9 +349,24 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
               <stop offset="50%" stopColor="#87CEEB" stopOpacity="0.2" />
               <stop offset="100%" stopColor="#4682B4" stopOpacity="0.1" />
             </radialGradient>
-            <filter id="waterDistortion" x="-10%" y="-10%" width="120%" height="120%">
-              <feTurbulence baseFrequency="0.03 0.09" numOctaves="2" seed="2" result="turbulence" />
-              <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="8" />
+            <filter
+              id="waterDistortion"
+              x="-10%"
+              y="-10%"
+              width="120%"
+              height="120%"
+            >
+              <feTurbulence
+                baseFrequency="0.03 0.09"
+                numOctaves="2"
+                seed="2"
+                result="turbulence"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="turbulence"
+                scale="8"
+              />
             </filter>
           </defs>
 
@@ -268,29 +374,64 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           <g
             id="puddle-group"
             transform={`translate(0, -25)`}
-            style={{ opacity: hasLeak ? 0.7 : 0, transition: "opacity 0.7s ease-out" }}
+            style={{
+              opacity: hasLeak ? 0.7 : 0,
+              transition: "opacity 0.7s ease-out",
+            }}
           >
             <g
-              transform={`translate(250, ${FLOOR_Y}) scale(${hasLeak ? puddleScale : 0}) translate(-250, -${FLOOR_Y})`}
+              transform={`translate(250, ${FLOOR_Y}) scale(${
+                hasLeak ? puddleScale : 0
+              }) translate(-250, -${FLOOR_Y})`}
               style={{ transition: "transform 0.7s ease-out" }}
             >
-              <ellipse cx="250" cy={FLOOR_Y} rx="95" ry="16" fill="url(#puddleGradient)" filter="url(#waterDistortion)" />
-              <ellipse cx="240" cy={FLOOR_Y - 3} rx="46" ry="6" fill="url(#puddleReflection)" filter="url(#waterDistortion)" />
+              <ellipse
+                cx="250"
+                cy={FLOOR_Y}
+                rx="95"
+                ry="16"
+                fill="url(#puddleGradient)"
+                filter="url(#waterDistortion)"
+              />
+              <ellipse
+                cx="240"
+                cy={FLOOR_Y - 3}
+                rx="46"
+                ry="6"
+                fill="url(#puddleReflection)"
+                filter="url(#waterDistortion)"
+              />
             </g>
           </g>
 
           {/* pot */}
           <g id="pot-body">
-            <image href={potImage} x={POT_X} y={POT_Y} width={POT_W} height={POT_H} />
+            <image
+              href={potImage}
+              x={POT_X}
+              y={POT_Y}
+              width={POT_W}
+              height={POT_H}
+            />
+            <path
+              ref={potBodyRef}
+              d={potBodyD}
+              fill="white"
+              fillOpacity={0.001} // 눈에는 안 보이되 isPointInFill 가능
+              pointerEvents="none" // 마우스 이벤트는 기존처럼 SVG에 맡김
+            />
           </g>
 
           {/* 균열 */}
           <g id="cracks">
             {leakingCategories.map((cat) => {
-              const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
+              const anchor =
+                LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
               const { x, y, scale: baseScale } = anchorToAbs(anchor);
               const leakAmount = cat.spending - cat.threshold;
-              const crackScale = baseScale * Math.max(0.4, Math.min(1.5, 0.4 + leakAmount / 80000));
+              const crackScale =
+                baseScale *
+                Math.max(0.4, Math.min(1.5, 0.4 + leakAmount / 80000));
 
               return (
                 <image
@@ -310,11 +451,15 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           {/* 물줄기 애니메이션 (그대로 유지) */}
           <g id="waters">
             {leakingCategories.map((cat) => {
-              const anchor = LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
+              const anchor =
+                LEAK_ANCHORS[cat.originalIndex % LEAK_ANCHORS.length];
               const { x, y, scale: baseScale } = anchorToAbs(anchor);
               const leakAmount = cat.spending - cat.threshold;
               const isLeft = anchor.u < 0.5;
-              const waterScale = Math.max(0.2, Math.min(2.0, 0.3 + leakAmount / 80000));
+              const waterScale = Math.max(
+                0.2,
+                Math.min(2.0, 0.3 + leakAmount / 80000)
+              );
 
               return (
                 <foreignObject
@@ -336,8 +481,16 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
                           position: "absolute",
                           width: `${WATER_BASE_W * waterScale}px`,
                           height: `${WATER_BASE_H * waterScale}px`,
-                          left: `calc(50% - ${WATER_BASE_W * waterScale * WATER_STREAM_ORIGIN_X_RATIO}px)`,
-                          top:  `calc(50% - ${WATER_BASE_H * waterScale * WATER_STREAM_ORIGIN_Y_RATIO}px)`,
+                          left: `calc(50% - ${
+                            WATER_BASE_W *
+                            waterScale *
+                            WATER_STREAM_ORIGIN_X_RATIO
+                          }px)`,
+                          top: `calc(50% - ${
+                            WATER_BASE_H *
+                            waterScale *
+                            WATER_STREAM_ORIGIN_Y_RATIO
+                          }px)`,
                           pointerEvents: "none",
                         }}
                       />
