@@ -1,8 +1,9 @@
-package com.potg.don.card.entity;
+package com.potg.don.transaction.entity;
 
-import com.potg.don.card.dto.request.CardRequest;
+import java.time.LocalDateTime;
+
+import com.potg.don.card.entity.Card;
 import com.potg.don.global.entity.BaseTimeEntity;
-import com.potg.don.user.entity.User;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -16,26 +17,26 @@ import lombok.Getter;
 
 @Entity
 @Getter
-@Table(name = "cards")
-public class Card extends BaseTimeEntity {
+@Table(name = "transactions")
+public class Transaction extends BaseTimeEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "user_id", nullable = false)
-	private User user;
+	@JoinColumn(name = "card_id")
+	private Card card;
 
-	private String cardNo;
+	private LocalDateTime transactionDateTime;
 
-	private String cvc;
+	private Integer amount;
 
-	public static Card createCard(CardRequest cardRequest, User user) {
-		Card card = new Card();
-		card.user = user;
-		card.cardNo = cardRequest.getCardNo();
-		card.cvc = cardRequest.getCvc();
-		return card;
+	private String merchantName;
+
+	private String category;
+
+	public void update(String category) {
+		this.category = category;
 	}
 }
