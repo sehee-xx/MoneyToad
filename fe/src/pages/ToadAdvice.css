@@ -1,0 +1,200 @@
+:root {
+  --ink: #000;
+  --shadow: rgba(0, 0, 0, 0.16);
+
+  /* 조절 포인트 */
+  --header-h: 64px;   /* Header 높이 */
+  --toad-w: 420px;    /* 오른쪽 두꺼비 자리 폭 */
+  --gap: 24px;
+}
+
+/* 전체 레이아웃: 화면 고정 + 세로 스크롤 제거 */
+.toadAdvice__wrap {
+  position: relative;
+  height: 100vh;
+  color: var(--ink);
+  overflow: hidden;
+}
+
+/* 배경은 맨 뒤 */
+.toadAdvice__bg {
+  position: absolute;
+  inset: 0;
+  background: url("/toadAdvice/background.png") center/cover no-repeat;
+  filter: sepia(0.2) contrast(0.95) brightness(0.98);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 컨텐츠: 위는 헤더 여백, 오른쪽은 두꺼비 자리 확보 */
+.toadAdvice__content {
+  position: relative;
+  z-index: 1;
+  height: calc(100vh - var(--header-h));
+  padding: var(--gap) calc(var(--toad-w) + var(--gap)) var(--gap) var(--gap);
+  box-sizing: border-box;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+/* 조언이 없을 때는 오른쪽 여백 제거(중앙 정렬을 위해) */
+.toadAdvice__content:has(.toadAdvice__emptyCenter) {
+  padding: var(--gap);
+}
+
+/* 우하단 큰 두꺼비 */
+.toadAdvice__toadFixed {
+  position: fixed;
+  right: 16px;
+  bottom: 0;
+  z-index: 1;
+  height: 420px;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 두루마리 그리드: 2행 × 6열 고정 (최대 12개) */
+.paperGrid {
+  height: 100%;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--gap);
+  align-content: center;   /* 세로 중앙 */
+  justify-content: start;  /* 왼쪽 정렬 */
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* 카드 버튼 */
+.paperItem { }
+.paperClose {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.paperClose__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px var(--shadow));
+}
+
+/* 빨간 영역 텍스트 (이미지 내 패널에 맞춰 인셋 조정) */
+.paperClose__title {
+  position: absolute;
+  inset: 36% 12% 38% 12%; /* top right bottom left */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;               /* 요구 색상 */
+  font-weight: 800;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.25;
+  word-break: keep-all;
+  white-space: normal;       /* 줄바꿈 허용 */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+/* —— 펼친 두루마리 모달 —— */
+.paperOpen__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+}
+.paperOpen__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border: 0;
+}
+.paperOpen__stage {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, 94vw);
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.paperOpen__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.28));
+}
+/* 두루마리 안쪽 텍스트 박스 */
+.paperOpen__text {
+  position: absolute;
+  inset: 32% 20% 12% 30%; /* 이미지에 맞춰 조정한 내부 여백 */
+  overflow: auto;
+  color: #000;
+  font-size: 20px;
+  line-height: 1.7;
+  white-space: pre-line;    /* \n 줄바꿈 반영 */
+}
+.paperOpen__title {
+  margin: 0 0 10px;
+  font-weight: 900;
+  color: #C55125;
+  font-size: 22px;
+}
+.paperOpen__close {
+  position: absolute;
+  top: 24%;
+  right: 26%;
+  border: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: none;
+  box-shadow: none;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+/* —— 조언 0개: 중앙 해피두꺼비 + 흰 문구 —— */
+.toadAdvice__emptyCenter {
+  position: absolute;  /* 부모(.toadAdvice__content) 기준 */
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0;
+  z-index: 2;
+}
+.toadAdvice__emptyToad {
+  height: 560px;       /* 반응형 불필요 조건: 고정 크기 */
+  width: auto;
+  filter: drop-shadow(0 12px 20px rgba(0,0,0,.25));
+  user-select: none;
+  pointer-events: none;
+}
+.toadAdvice__emptyText {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;          /* 이미지 위에 확실히 */
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+  font-size: 28px;
+  line-height: 1.3;
+  text-shadow: 0 2px 6px rgba(0,0,0,.45), 0 0 1px rgba(0,0,0,.4);
+  padding: 8px 14px;
+  border-radius: 10px;
+}

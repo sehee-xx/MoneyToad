@@ -2,6 +2,7 @@
   background: transparent;
   z-index: 100;
   padding: 20px 0;
+  z-index: 1000; 
 }
 
 .app-header .nav {

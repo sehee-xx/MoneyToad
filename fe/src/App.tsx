@@ -9,6 +9,7 @@ import Mypage, { mypageAssets } from "./pages/Mypage";
 import NotFound, { notFoundAssets } from "./pages/NotFound";
 import RouteGuard from "./components/RouteGuard";
 import LoadingOverlay from "./components/LoadingOverlay";
+import ToadAdvice, { toadAdviceAssets } from "./pages/ToadAdvice";
 
 const allAssets = [
   ...scrollLandingAssets,
@@ -16,6 +17,7 @@ const allAssets = [
   ...leakPotAssets,
   ...mypageAssets,
   ...notFoundAssets,
+  ...toadAdviceAssets,
 ];
 
 export default function App() {
@@ -55,6 +57,7 @@ export default function App() {
         <Route path="/pot/:month" element={<RouteGuard><LeakPotPage /></RouteGuard>} />
         <Route path="/chart" element={<RouteGuard><ChartPage /></RouteGuard>} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="toadAdvice" element={<RouteGuard><ToadAdvice></ToadAdvice></RouteGuard>} />
         <Route path="/mypage" element={<RouteGuard><Mypage /></RouteGuard>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

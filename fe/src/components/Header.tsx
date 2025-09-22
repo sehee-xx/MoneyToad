@@ -26,7 +26,7 @@ export default function Header() {
           콩쥐의 씀씀이
         </NavLink>
 
-        <NavLink to="/" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
+        <NavLink to="/toadAdvice" className={({isActive}) => `nav-item ${isActive ? "active" : ""}`}>
           두꺼비의 조언
         </NavLink>
 
