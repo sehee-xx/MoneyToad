@@ -20,9 +20,14 @@ const allAssets = [
 
 export default function App() {
   const location = useLocation();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (location.pathname.startsWith("/pot/")) {
+      setLoading(false);         
+      return;
+    }
+
     setLoading(true);
     Promise.all(
       allAssets.map(
@@ -38,9 +43,7 @@ export default function App() {
             }
           })
       )
-    ).finally(() => {
-      setLoading(false);
-    });
+    ).finally(() => setLoading(false));
   }, [location]);
 
   return (
