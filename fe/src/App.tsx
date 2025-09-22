@@ -5,6 +5,7 @@ import UserInfoInputPage from "./pages/UserInfoInputPage";
 import ChartPage from "./pages/ChartPage";
 import AuthCallback from "./pages/AuthCallback";
 import Mypage from "./pages/Mypage";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
       <Route path="chart" element={<ChartPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/mypage" element={<Mypage />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
