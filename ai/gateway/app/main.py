@@ -62,10 +62,13 @@ SERVICES = {
 async def fetch_service_openapi(service_name: str, service_config: dict) -> Optional[dict]:
     """Fetch OpenAPI spec from a service"""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(f"{service_config['url']}/openapi.json")
             if response.status_code == 200:
+                logger.info(f"Successfully fetched OpenAPI spec from {service_name}")
                 return response.json()
+            else:
+                logger.error(f"Failed to fetch OpenAPI spec from {service_name}: Status {response.status_code}")
     except Exception as e:
         logger.error(f"Failed to fetch OpenAPI spec from {service_name}: {e}")
     return None
