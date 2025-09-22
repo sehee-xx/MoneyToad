@@ -4,3 +4,11 @@ export interface TransactionYear {
   date: string;
   totalAmount: number;
 }
+
+export interface MonthlyTransaction {
+  id: number;
+  transactionDateTime: string;
+  amount: number;
+  merchantName: string;
+  category: string;
+}

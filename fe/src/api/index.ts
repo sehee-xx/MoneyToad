@@ -8,7 +8,7 @@ export { setupAuthInterceptor } from './interceptors';
 // Query hooks
 export { useUserInfoQuery } from './queries/userQuery';
 export { useCardInfoQuery } from './queries/cardQuery';
-export { useYearTransactionQuery } from './queries/transactionQuery';
+export { useYearTransactionQuery, useMonthlyTransactionsQuery } from './queries/transactionQuery';
 
 // Mutation hooks
 export { useUpdateUserBasicInfoMutation } from './mutation/userMutation';

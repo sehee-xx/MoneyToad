@@ -11,4 +11,5 @@ export const cardQueryKeys = {
 export const transactionQueryKeys = {
   all: ['transactions'] as const,
   year: () => [...transactionQueryKeys.all, 'year'] as const,
+  monthly: (year: number, month: number) => [...transactionQueryKeys.all, 'monthly', year, month] as const,
 } as const;
