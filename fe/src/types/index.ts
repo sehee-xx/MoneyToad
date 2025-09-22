@@ -17,3 +17,7 @@ export interface CategoryTransaction {
   category: string;
   totalAmount: number;
 }
+
+export interface UpdateCategoryRequest {
+  category: string;
+}

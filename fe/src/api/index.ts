@@ -13,5 +13,6 @@ export { useYearTransactionQuery, useMonthlyTransactionsQuery, useCategoryTransa
 // Mutation hooks
 export { useUpdateUserBasicInfoMutation } from './mutation/userMutation';
 export { useRegisterCardMutation, useDeleteCardMutation } from './mutation/cardMutation';
+export { useUpdateTransactionCategoryMutation } from './mutation/transactionMutation';
 
 
