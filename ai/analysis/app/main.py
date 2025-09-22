@@ -50,9 +50,7 @@ async def root():
         "endpoints": {
             "start_analysis": "POST /ai/data",
             "get_predictions": "GET /ai/data/leak",
-            "get_baseline": "GET /ai/data/baseline",
-            "trigger_analysis": "POST /ai/data/analyze",
-            "get_report": "GET /ai/data/report"
+            "get_baseline": "GET /ai/data/baseline"
         }
     }
 

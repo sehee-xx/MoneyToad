@@ -42,21 +42,6 @@ class LeakDataResponse(BaseModel):
     details: dict
 
 
-class AnalysisResponse(BaseModel):
-    file_id: str
-    analysis_id: str
-    status: str
-    message: str
-
-
-class AnalysisReportResponse(BaseModel):
-    file_id: str
-    year: int
-    month: int
-    report: dict
-    generated_at: str
-
-
 async def run_prophet_analysis(
     file_id: str,
     job_id: str,
@@ -440,26 +425,7 @@ async def get_leak_data(
     )
 
 
-@router.post(
-    "/analyze",
-    response_model=AnalysisResponse,
-    summary="Trigger data analysis",
-    description="Start comprehensive data analysis"
-)
-async def trigger_analysis(
-    file_id: str = Query(..., description="File ID to analyze")
-) -> AnalysisResponse:
-    """
-    Trigger comprehensive analysis (alias for calculate_monthly_leak).
-    """
-    # This is an alias endpoint that calls the same analysis
-    # Redirect to calculate_monthly_leak
-    return AnalysisResponse(
-        file_id=file_id,
-        analysis_id=str(uuid.uuid4()),
-        status="started",
-        message="Analysis started. Use POST /api/ai/data endpoint for Prophet analysis."
-    )
+# /analyze endpoint removed - use POST /api/ai/data instead
 
 
 @router.get(
@@ -540,58 +506,4 @@ async def get_baseline_predictions(
     }
 
 
-@router.get(
-    "/report",
-    response_model=AnalysisReportResponse,
-    summary="Get analysis report",
-    description="Retrieve comprehensive analysis report"
-)
-async def get_analysis_report(
-    file_id: str = Query(..., description="File ID"),
-    year: int = Query(..., description="Year for the report"),
-    month: int = Query(..., ge=1, le=12, description="Month for the report (1-12)"),
-    db: Session = Depends(get_db)
-) -> AnalysisReportResponse:
-    """
-    Get comprehensive analysis report.
-    """
-    # Get all predictions for the file
-    predictions = db.query(models.Prediction).filter(
-        models.Prediction.file_id == file_id
-    ).all()
-    
-    # Get leak analysis
-    leak_analyses = db.query(models.LeakAnalysis).filter(
-        models.LeakAnalysis.file_id == file_id
-    ).all()
-    
-    report = {
-        "predictions_count": len(predictions),
-        "leak_analyses_count": len(leak_analyses),
-        "monthly_predictions": {},
-        "leak_summary": {}
-    }
-    
-    for pred in predictions:
-        month_key = pred.prediction_date.strftime("%Y-%m")
-        report["monthly_predictions"][month_key] = {
-            "predicted_amount": float(pred.predicted_amount),
-            "lower_bound": float(pred.lower_bound) if pred.lower_bound else None,
-            "upper_bound": float(pred.upper_bound) if pred.upper_bound else None
-        }
-    
-    for leak in leak_analyses:
-        month_key = f"{leak.year}-{leak.month:02d}"
-        report["leak_summary"][month_key] = {
-            "actual": float(leak.actual_amount) if leak.actual_amount else None,
-            "predicted": float(leak.predicted_amount) if leak.predicted_amount else None,
-            "leak": float(leak.leak_amount) if leak.leak_amount else None
-        }
-    
-    return AnalysisReportResponse(
-        file_id=file_id,
-        year=year,
-        month=month,
-        report=report,
-        generated_at=datetime.now().isoformat()
-    )
+# /report endpoint removed - use GET /api/ai/data/leak and GET /api/ai/data/baseline instead
