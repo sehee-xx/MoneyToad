@@ -14,59 +14,67 @@ import com.potg.don.transaction.projection.MonthlyTotalProjection;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 	@Query("""
-        select t
-        from Transaction t
-          join t.card c
-          join c.user u
-        where u.id = :userId
-          and t.transactionDateTime >= :start
-          and t.transactionDateTime < :end
-        """)
+		select t
+		from Transaction t
+		  join t.card c
+		  join c.user u
+		where u.id = :userId
+		  and t.transactionDateTime >= :start
+		  and t.transactionDateTime < :end
+		""")
 	List<Transaction> findAllByUserAndBetween(
 		@Param("userId") Long userId,
 		@Param("start") LocalDateTime start,
 		@Param("end") LocalDateTime end
 	);
 
-	/** 최근 12개월(포함 범위는 서비스에서 결정) 월별 총액 집계 */
+	/**
+	 * 최근 12개월(포함 범위는 서비스에서 결정) 월별 총액 집계
+	 */
 	@Query("""
-        select year(t.transactionDateTime) as year,
-               month(t.transactionDateTime) as month,
-               sum(t.amount) as total
-        from Transaction t
-          join t.card c
-          join c.user u
-        where u.id = :userId
-          and t.transactionDateTime >= :start
-          and t.transactionDateTime < :end
-        group by year(t.transactionDateTime), month(t.transactionDateTime)
-        order by year(t.transactionDateTime), month(t.transactionDateTime)
-        """)
+		select year(t.transactionDateTime) as year,
+		       month(t.transactionDateTime) as month,
+		       sum(t.amount) as total
+		from Transaction t
+		  join t.card c
+		  join c.user u
+		where u.id = :userId
+		  and t.transactionDateTime >= :start
+		  and t.transactionDateTime < :end
+		group by year(t.transactionDateTime), month(t.transactionDateTime)
+		order by year(t.transactionDateTime), month(t.transactionDateTime)
+		""")
 	List<MonthlyTotalProjection> aggregateMonthlyTotals(
 		@Param("userId") Long userId,
 		@Param("start") LocalDateTime start,
 		@Param("end") LocalDateTime end
 	);
 
-	/** 특정 월 카테고리 합계 */
+	/**
+	 * 특정 월 카테고리 합계
+	 */
 	@Query("""
-        select t.category as category,
-               coalesce(sum(t.amount), 0) as total
-        from Transaction t
-          join t.card c
-          join c.user u
-        where u.id = :userId
-          and t.transactionDateTime >= :start
-          and t.transactionDateTime < :end
-        group by t.category
-        order by sum(t.amount) desc
-        """)
+		select t.category as category,
+		       coalesce(sum(t.amount), 0) as total
+		from Transaction t
+		  join t.card c
+		  join c.user u
+		where u.id = :userId
+		  and t.transactionDateTime >= :start
+		  and t.transactionDateTime < :end
+		group by t.category
+		order by sum(t.amount) desc
+		""")
 	List<CategoryTotalProjection> aggregateCategoryTotals(
 		@Param("userId") Long userId,
 		@Param("start") LocalDateTime start,
 		@Param("end") LocalDateTime end
 	);
 
-	/** 소유권 검증 포함 단건 조회 (업데이트용) */
+	/**
+	 * 소유권 검증 포함 단건 조회 (업데이트용)
+	 */
 	Optional<Transaction> findByIdAndCard_User_Id(Long id, Long userId);
+
+	List<Transaction> findAllByCard_IdOrderByTransactionDateTimeAsc(Long cardId);
 }
