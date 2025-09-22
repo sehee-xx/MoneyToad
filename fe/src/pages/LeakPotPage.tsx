@@ -19,6 +19,22 @@ const broken        = "/leakPot/broken.png";
 const monthGood     = "/leakPot/good.png";
 const monthBad      = "/leakPot/bad.png";
 
+
+export const leakPotAssets = [
+  "/leakPot/cryingKongjwi.png",
+  "/leakPot/happyKongjwi.png",
+  "/leakPot/happyToad.png",
+  "/leakPot/angryToad.png",
+  "/leakPot/joseon-bg.png",
+  "/leakPot/money.png",
+  "/leakPot/paper.png",
+  "/leakPot/pot.png",
+  "/leakPot/broken.png",
+  "/leakPot/good.png",
+  "/leakPot/bad.png",
+  "/leakPot/water.json", // 애니메이션 JSON도 포함
+];
+
 // --- 타입 정의 ---
 interface Category { id: string; name: string; spending: number; threshold: number; }
 interface LeakingCategory extends Category { originalIndex: number; }

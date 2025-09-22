@@ -6,6 +6,10 @@ import "./UserInfoInputPage.css";
 
 const SCENE_BG = "/userInfo/talk-scene.png";
 
+export const userInfoAssets = [
+  SCENE_BG,
+];
+
 // 유틸
 const digitsOnly = (v: string, max?: number) =>
   v.replace(/\D/g, "").slice(0, typeof max === "number" ? max : undefined);

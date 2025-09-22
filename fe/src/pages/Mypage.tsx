@@ -22,6 +22,13 @@ const IMG_OPEN   = "/mypage/open.png";
 const IMG_SIT    = "/mypage/sitting.png";
 const IMG_PAPER  = "/mypage/paper.png";   
 
+export const mypageAssets = [
+  "/mypage/close.png",
+  "/mypage/open.png",
+  "/mypage/sitting.png",
+  "/mypage/paper.png",
+];
+
 const digitsOnly = (v: string, max?: number) =>
   v.replace(/\D/g, "").slice(0, typeof max === "number" ? max : undefined);
 
