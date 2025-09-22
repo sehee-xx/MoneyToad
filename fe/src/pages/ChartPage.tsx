@@ -6,9 +6,6 @@ import {
 } from "recharts";
 import "./ChartPage.css";
 import Header from "../components/Header";
-import sittingGirl from "../assets/sitting_girl.png";
-import toad from "../assets/toad.png";
-import water from "../assets/water.png";
 
 /* ===== 공통 ===== */
 const CATEGORIES = [
@@ -133,7 +130,6 @@ export default function ChartPage() {
                                 <circle cx={cx} cy={cy} r={12} fill="none" stroke={color} strokeOpacity={0.18} strokeWidth={6} />
                                 <circle cx={cx} cy={cy} r={8} fill="none" stroke={color} strokeOpacity={0.45} strokeWidth={3} />
                                 <circle cx={cx} cy={cy} r={5} fill={color} stroke="#1b140c" strokeWidth={2} />
-
                         </g>
                 );
         };
@@ -171,9 +167,10 @@ export default function ChartPage() {
 
                         {/* === 반응형 이미지+차트 그룹 === */}
                         <div className="jp-center-set">
-                                <img src={sittingGirl} alt="Sitting Girl" className="jp-page-image" />
-                                <img src={toad} alt="Toad" className="jp-toad-image" />
-                                <img src={water} alt="Water" className="jp-water-image" />
+                                {/* 이미지 경로 public/charts 로 변경됨 */}
+                                <img src="/charts/sitting_girl.png" alt="Sitting Girl" className="jp-page-image" />
+                                <img src="/charts/toad.png" alt="Toad" className="jp-toad-image" />
+                                <img src="/charts/water.png" alt="Water" className="jp-water-image" />
 
                                 <div className="jp-linechart-wrap">
                                         <ResponsiveContainer width="100%" height="100%">
@@ -241,7 +238,12 @@ export default function ChartPage() {
 
                                                         <table className="jp-table">
                                                                 <thead>
-                                                                        <tr><th>날짜</th><th className="left">가맹점</th><th>금액</th><th>카테고리</th></tr>
+                                                                        <tr>
+                                                                                <th>날짜</th>
+                                                                                <th className="left">가맹점</th>
+                                                                                <th>금액</th>
+                                                                                <th>카테고리</th>
+                                                                        </tr>
                                                                 </thead>
                                                                 <tbody>
                                                                         {filteredTxns.map(tx => (

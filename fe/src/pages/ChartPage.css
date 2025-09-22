@@ -19,6 +19,7 @@ html {
   color: #2a241b;
 }
 
+
 /* 헤더 */
 .jp-header {
   position: relative;
@@ -34,7 +35,7 @@ html {
   margin: 0;
   font-size: clamp(18px, 2.6vw, 28px);
   position: relative;
-  top: -750px;
+  top: -70px;
   left: 0;
   transform: none;
   text-align: center;
@@ -44,7 +45,7 @@ html {
   margin: 0;
   color: #6b5e4a;
   position: relative;
-  top: -740px;
+  top: -60px;
   left: 0;
   transform: none;
   text-align: center;
@@ -69,7 +70,7 @@ html {
   position: relative;
   width: 90vw;
   max-width: 1180px;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 3 / 1.9;
   margin: 0 auto;
   min-width: 320px;
 }
@@ -120,12 +121,12 @@ html {
   z-index: 2;
 }
 
-/* 라인차트 감싸는 컨테이너 */
+/* 라인차트 감싸는 컨테이너. 라인차트 위치 조절 */
 .jp-linechart-wrap {
   position: absolute;
-  left: 20%;
-  right: 20%;
-  top: 30%;
+  left: 15%;
+  right: 15%;
+  top: 38%;
   bottom: 15%;
   z-index: 4;
   display: flex;
@@ -156,7 +157,7 @@ html {
   height: 100% !important;
 }
 
-/* === 상세 카드 등 기존 스타일 유지 === */
+
 .jp-card {
   max-width: 1180px;
   margin: 0 auto 28px;
@@ -167,8 +168,10 @@ html {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
 }
 
+/* === table과 pie chart 감싸는 컨테이너 위치 조절 === */
 #jp-detail {
   scroll-margin-top: 24px;
+  margin-top: 600px;
 }
 
 .jp-card-head {
@@ -201,13 +204,35 @@ html {
   }
 }
 
+/*테이블과 파이차트 감싸는 컨테이너*/
 .jp-panel {
   background: #fffaf0;
   border: 1px solid #e1d6bf;
   border-radius: 14px;
   padding: 12px;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.03);
+  max-height: 500px; /* 높이 제한 */
+  overflow-y: scroll; /* 스크롤 항상 표시 */
 }
+
+/* 크롬, 엣지, 사파리용 커스텀 스크롤바 */
+.jp-panel::-webkit-scrollbar {
+  width: 14px;
+  background: #e5decf;
+}
+
+.jp-panel::-webkit-scrollbar-thumb {
+  background: #bfae8d;
+  border-radius: 8px;
+  border: 3px solid #e5decf;
+  box-shadow: 0 0 4px rgba(44, 38, 26, 0.12);
+}
+
+.jp-panel::-webkit-scrollbar-track {
+  background: #f6efdf;
+  border-radius: 8px;
+}
+
 
 /* 도구줄 / 셀렉트 */
 .jp-toolbar {
@@ -261,14 +286,21 @@ html {
   text-align: left;
 }
 
-/* 파이 액자 */
 .jp-pie-frame {
   border: 2px solid #c7b899;
   border-radius: 12px;
   padding: 8px;
-  height: 100%;
+  height: 96%;               /* 부모 높이 100% 유지 */
   box-shadow: inset 0 0 0 6px #f3ead7;
+
+  display: flex;             /* 플렉스 박스 활성화 */
+  justify-content: center;   /* 가로 중앙 정렬 */
+  align-items: center;       /* 세로 중앙 정렬 */
+
+  overflow: hidden;          /* 필요시 넘침 숨김 */
 }
+
+
 
 /* 플로팅 버튼 */
 .jp-fab {
