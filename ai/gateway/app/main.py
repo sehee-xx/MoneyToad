@@ -169,12 +169,12 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
                 
                 merged['paths'][new_path] = updated_path_item
     
-    # Add tags description
+    # Add tags description - must match exactly with operation tags
     merged['tags'] = [
         {"name": "Gateway", "description": "API Gateway endpoints"},
-        {"name": SERVICES['csv-manager']['name'], "description": "CSV file upload and management endpoints"},
-        {"name": SERVICES['classifier']['name'], "description": "Expense classification endpoints"},
-        {"name": SERVICES['analysis']['name'], "description": "Data analysis endpoints"}
+        {"name": "CSV Management", "description": "CSV file upload and management endpoints"},
+        {"name": "Expense Classifier", "description": "Expense classification endpoints"},
+        {"name": "Data Analysis", "description": "Data analysis endpoints"}
     ]
     
     return merged
