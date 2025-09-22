@@ -442,20 +442,28 @@ async def get_baseline_predictions(
     Get baseline predictions (소비 기준 금액) for past 11 months
     Each month's prediction is calculated using only prior data
     """
+    # Check if analysis is in progress
+    analysis_status = redis_client.get_csv_status(file_id)
+    if analysis_status == 'analyzing':
+        raise HTTPException(
+            status_code=status.HTTP_202_ACCEPTED,
+            detail="Analysis is still in progress. Please try again later."
+        )
+
     # Build query
     query = db.query(models.BaselinePrediction).filter(
         models.BaselinePrediction.file_id == file_id
     )
-    
+
     if category:
         query = query.filter(models.BaselinePrediction.category == category)
-    
+
     # Order by year and month descending (most recent first)
     baselines = query.order_by(
         models.BaselinePrediction.year.desc(),
         models.BaselinePrediction.month.desc()
     ).all()
-    
+
     if not baselines:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
