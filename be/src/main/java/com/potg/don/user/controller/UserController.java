@@ -36,4 +36,10 @@ public class UserController {
 		User updatedUser = userService.updateUser(me.getUserId(), req);
 		return ResponseEntity.ok(UserResponse.from(updatedUser));
 	}
+
+	@GetMapping("/file")
+	public ResponseEntity<String> getFileId(@AuthenticationPrincipal CustomUserDetails me) {
+		User user = userService.getUser(me.getUserId());
+		return ResponseEntity.ok(user.getFileId());
+	}
 }

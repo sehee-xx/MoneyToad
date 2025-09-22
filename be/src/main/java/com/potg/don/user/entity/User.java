@@ -27,6 +27,9 @@ public class User extends BaseTimeEntity {
 	@Column
 	private Integer age;    // nullable
 
+	@Column
+	private String fileId;
+
 	public static User createUser(String email, String name) {
 		User user = new User();
 		user.email = email;

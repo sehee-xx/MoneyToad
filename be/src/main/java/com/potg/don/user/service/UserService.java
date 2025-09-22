@@ -34,4 +34,6 @@ public class UserService {
 		userToUpdate.updateUser(req.gender(), req.age());
 		return userRepository.save(userToUpdate);
 	}
+
+
 }
