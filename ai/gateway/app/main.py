@@ -60,17 +60,25 @@ SERVICES = {
 
 
 async def fetch_service_openapi(service_name: str, service_config: dict) -> Optional[dict]:
-    """Fetch OpenAPI spec from a service"""
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(f"{service_config['url']}/openapi.json")
-            if response.status_code == 200:
-                logger.info(f"Successfully fetched OpenAPI spec from {service_name}")
-                return response.json()
-            else:
-                logger.error(f"Failed to fetch OpenAPI spec from {service_name}: Status {response.status_code}")
-    except Exception as e:
-        logger.error(f"Failed to fetch OpenAPI spec from {service_name}: {e}")
+    """Fetch OpenAPI spec from a service with retry logic"""
+    max_retries = 3
+    for retry in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:  # Increased timeout
+                response = await client.get(f"{service_config['url']}/openapi.json")
+                if response.status_code == 200:
+                    spec = response.json()
+                    paths = spec.get('paths', {})
+                    logger.info(f"Successfully fetched OpenAPI spec from {service_name} with {len(paths)} endpoints")
+                    return spec
+                else:
+                    logger.error(f"Failed to fetch OpenAPI spec from {service_name}: Status {response.status_code}, attempt {retry + 1}/{max_retries}")
+        except Exception as e:
+            logger.error(f"Failed to fetch OpenAPI spec from {service_name}: {e}, attempt {retry + 1}/{max_retries}")
+
+        if retry < max_retries - 1:
+            await asyncio.sleep(2)
+
     return None
 
 
@@ -498,22 +506,26 @@ async def startup_event():
     """Fetch service schemas on startup"""
     import asyncio
     # Wait a bit for services to be ready
-    await asyncio.sleep(3)
-    
+    await asyncio.sleep(5)  # Increased wait time for services to fully initialize
+
     # Try multiple times to fetch schemas
-    max_retries = 5
+    max_retries = 10  # Increased retries
     for attempt in range(max_retries):
         await fetch_and_cache_schemas()
-        if _service_schemas_cache:
-            logger.info(f"Service schemas fetched successfully on attempt {attempt + 1}")
+        if len(_service_schemas_cache) == len(SERVICES):  # Check if all services cached
+            logger.info(f"All service schemas fetched successfully on attempt {attempt + 1}")
             break
         else:
-            logger.warning(f"Failed to fetch schemas on attempt {attempt + 1}, retrying...")
-            await asyncio.sleep(2)
-    
+            missing = [s for s in SERVICES.keys() if s not in _service_schemas_cache]
+            logger.warning(f"Attempt {attempt + 1}: Missing schemas for {missing}, retrying...")
+            await asyncio.sleep(3)  # Increased retry delay
+
     # Log final status
     if _service_schemas_cache:
         logger.info(f"Cached schemas for: {list(_service_schemas_cache.keys())}")
+        for service, spec in _service_schemas_cache.items():
+            paths = spec.get('paths', {})
+            logger.info(f"Service '{service}' has {len(paths)} endpoints")
     else:
         logger.error("Failed to fetch any service schemas after all retries")
 
@@ -522,7 +534,7 @@ async def startup_event():
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     # Get base gateway schema
     gateway_schema = get_openapi(
         title=app.title,
@@ -530,23 +542,36 @@ def custom_openapi():
         description=app.description,
         routes=app.routes,
     )
-    
+
     # Use cached schemas or fetch synchronously
     service_specs = _service_schemas_cache.copy()
-    
-    # If cache is empty, try to fetch synchronously (fallback)
-    if not service_specs:
-        logger.warning("Service schemas not cached, returning basic gateway schema")
-        # Just return gateway schema without merged services
-        gateway_schema['tags'] = [
-            {"name": "Gateway", "description": "API Gateway endpoints"}
-        ]
-        app.openapi_schema = gateway_schema
-        return app.openapi_schema
-    
+
+    # If cache is empty or incomplete, try to fetch synchronously (fallback)
+    if len(service_specs) < len(SERVICES):
+        missing = [s for s in SERVICES.keys() if s not in service_specs]
+        logger.warning(f"Service schemas missing for {missing}, attempting synchronous fetch...")
+
+        # Try to fetch missing schemas synchronously
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            for service_name in missing:
+                service_config = SERVICES[service_name]
+                spec = loop.run_until_complete(fetch_service_openapi(service_name, service_config))
+                if spec:
+                    service_specs[service_name] = spec
+                    _service_schemas_cache[service_name] = spec
+                    logger.info(f"Successfully fetched {service_name} schema synchronously")
+        finally:
+            loop.close()
+
+    # Log what we have
+    logger.info(f"Building OpenAPI with schemas for: {list(service_specs.keys())}")
+
     # Merge schemas
     merged_schema = merge_openapi_specs(gateway_schema, service_specs)
-    
+
     app.openapi_schema = merged_schema
     return app.openapi_schema
 
