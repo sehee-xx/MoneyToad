@@ -46,7 +46,7 @@ public class TransactionController {
 		@AuthenticationPrincipal CustomUserDetails user,
 		@PathVariable Integer year,
 		@PathVariable Integer month) {
-		return ResponseEntity.ok(transactionService.getMonthlyCategorySpendig(user.getUserId(), year, month));
+		return ResponseEntity.ok(transactionService.getMonthlyCategorySpending(user.getUserId(), year, month));
 	}
 
 	@PatchMapping("/{transactionId}/category")
