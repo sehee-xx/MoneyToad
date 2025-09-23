@@ -640,7 +640,7 @@ const LeakPotPage = () => {
   const updateBudgetMutation = useUpdateBudgetMutation();
 
   // debounce 타이머
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimer = useRef<number | null>(null);
 
   // 첫 진입 시 에셋 프리로드
   useEffect(() => {
@@ -734,8 +734,6 @@ const LeakPotPage = () => {
     },
     [updateBudgetMutation]
   );
-
-  const hasLeakThisMonth = leakingCategories.length > 0;
 
   // 현재 월의 실시간 누수 상태 계산 (낙관적 업데이트용)
   const currentMonthLeaked = categories.some(cat => cat.spending > cat.threshold);
