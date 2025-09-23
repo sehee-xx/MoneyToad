@@ -1,41 +1,92 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   ResponsiveContainer,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import "./ChartPage.css";
 import Header from "../components/Header";
+import JPSelect from "../components/JPSelect";
+
+/* ------------------------------ 상수/타입 ------------------------------ */
 
 const CATEGORIES = [
-  "식비", "카페", "마트 / 편의점", "문화생활", "교통 / 차량", "패션 / 미용", "생활용품",
-  "주거 / 통신", "건강 / 병원", "교육", "경조사 / 회비", "보험 / 세금", "기타",
+  "식비",
+  "카페",
+  "마트 / 편의점",
+  "문화생활",
+  "교통 / 차량",
+  "패션 / 미용",
+  "생활용품",
+  "주거 / 통신",
+  "건강 / 병원",
+  "교육",
+  "경조사 / 회비",
+  "보험 / 세금",
+  "기타",
 ] as const;
 
-type Category = typeof CATEGORIES[number];
-type Txn = { id: string; date: string; merchant: string; amount: number; category: Category };
+type Category = (typeof CATEGORIES)[number];
+
+type Txn = {
+  id: string;
+  date: string;
+  merchant: string;
+  amount: number;
+  category: Category;
+};
 
 const JP_COLORS = [
-  "#B82647", "#F9D537", "#BA4160", "#31B675", "#F15B5B", "#F7B938", "#E2A6B4",
-  "#417141", "#F5C8D7", "#16AA52", "#EBA6BA", "#E17691", "#5DC198", "#E16350",
+  "#8B4A6B", // 자주색 (茄紫)
+  "#D4AF37", // 황금색 (金色)
+  "#4A6741", // 청록색 (靑綠)
+  "#B87333", // 갈색 (褐色)
+  "#6B8E23", // 올리브색 (橄欖)
+  "#8B7355", // 베이지 갈색
+  "#556B2F", // 진한 올리브
+  "#CD853F", // 모래 갈색
+  "#708090", // 청회색
+  "#A0522D", // 황토색
+  "#8FBC8F", // 연한 청록
+  "#F4A460", // 모래색
+  "#9370DB", // 자주 보라
+  "#20B2AA", // 진한 청록
 ];
 
 const monthLabel = (i: number) => `${i + 1}월`;
 const KRW = (n: number) => n.toLocaleString("ko-KR");
 const toNum = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
 
+/* ------------------------------ Tooltip ------------------------------ */
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const me = payload.find((p: any) => p.dataKey === "me");
     const peer = payload.find((p: any) => p.dataKey === "peers");
     return (
-      <div style={{ background: "#fff", border: "1px solid #ccc", padding: 12, borderRadius: 4 }}>
-        <div style={{ fontWeight: "bold", color: "#000" }}>{label}</div>
-        <div style={{ color: "#32CD32" }}>
-          내 소비 : {me ? me.value.toLocaleString() : "-"}원
+      <div
+        style={{
+          background: "#fff",
+          border: "none",
+          padding: 12,
+          borderRadius: 4,
+          boxShadow: "0 4px 12px rgba(0,0,0,.4)",
+        }}
+      >
+        <div style={{ fontWeight: "bold", color: "#2A3437" }}>{label}</div>
+        <div style={{ color: "#817716" }}>
+          내 소비 : {me ? KRW(me.value) : "-"}원
         </div>
-        <div style={{ color: "#1E90FF" }}>
-          또래 소비 : {peer ? peer.value.toLocaleString() : "-"}원
+        <div style={{ color: "#BA5910" }}>
+          또래 소비 : {peer ? KRW(peer.value) : "-"}원
         </div>
       </div>
     );
@@ -43,9 +94,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+/* ------------------------------ 더미 생성 ------------------------------ */
+
 function seedMonth(monthIdx: number): Txn[] {
-  const rnd = (seed: number) => { const x = Math.sin(seed * 991 + monthIdx * 37) * 10000; return x - Math.floor(x); };
-  const list: Txn[] = []; const cnt = 14 + Math.floor(rnd(1) * 10);
+  const rnd = (seed: number) => {
+    const x = Math.sin(seed * 991 + monthIdx * 37) * 10000;
+    return x - Math.floor(x);
+  };
+  const list: Txn[] = [];
+  const cnt = 14 + Math.floor(rnd(1) * 10);
   for (let i = 0; i < cnt; i++) {
     const amt = Math.round((30_000 + rnd(i + 2) * 220_000) / 100) * 100;
     const cat = CATEGORIES[Math.floor(rnd(i + 3) * CATEGORIES.length)];
@@ -53,84 +110,151 @@ function seedMonth(monthIdx: number): Txn[] {
     list.push({
       id: `${monthIdx}-${i}`,
       date: `${monthIdx + 1}/${String(d).padStart(2, "0")}`,
-      merchant: ["방앗간", "주막", "장터", "포목점", "기와집", "전당포"][Math.floor(rnd(i + 5) * 6)],
+      merchant: ["방앗간", "주막", "장터", "포목점", "기와집", "전당포"][
+        Math.floor(rnd(i + 5) * 6)
+      ],
       amount: amt,
-      category: cat
+      category: cat,
     });
   }
   return list;
 }
 
+/* ============================== 메인 컴포넌트 ============================== */
+
 export default function ChartPage() {
+  /* 무대(연못)의 비율 고정용 상태 */
+  const [pondAR, setPondAR] = useState(16 / 9);
+
+  const screen1Ref = useRef<HTMLElement | null>(null);
+
+  /* 더미 트랜잭션 */
   const [txnsByMonth, setTxnsByMonth] = useState<Txn[][]>(
     Array.from({ length: 12 }, (_, i) => seedMonth(i))
   );
 
-  const myMonthly = useMemo(() => txnsByMonth.map(m => m.reduce((a, t) => a + t.amount, 0)), [txnsByMonth]);
-  const peerMonthly = useMemo(() => myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100))), [myMonthly]);
+  /* 월별 합계 */
+  const myMonthly = useMemo(
+    () => txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0)),
+    [txnsByMonth]
+  );
+  const peerMonthly = useMemo(
+    () =>
+      myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100))),
+    [myMonthly]
+  );
 
+  /* 최대 지점(연꽃) */
   const maxPointIndex = useMemo(() => {
     const maxVal = Math.max(...myMonthly);
-    return myMonthly.findIndex(v => v === maxVal);
+    return myMonthly.findIndex((v) => v === maxVal);
   }, [myMonthly]);
 
-  const lineData = useMemo(() => (
-    Array.from({ length: 12 }, (_, i) => ({ idx: i, month: monthLabel(i), me: myMonthly[i], peers: peerMonthly[i] }))
-  ), [myMonthly, peerMonthly]);
+  /* 라인차트 데이터 */
+  const lineData = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        idx: i,
+        month: monthLabel(i),
+        me: myMonthly[i],
+        peers: peerMonthly[i],
+      })),
+    [myMonthly, peerMonthly]
+  );
 
+  /* 상세 상태 */
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<"전체" | Category>("전체");
+  const [selectedCategory, setSelectedCategory] = useState<"전체" | Category>(
+    "전체"
+  );
 
-  const scrollToTop = () => document.getElementById("jp-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  /* 안전 클릭 핸들러: index → payload.idx */
+  const onPointClickSafe = (props: any) => {
+    const idx =
+      typeof props?.index === "number"
+        ? props.index
+        : typeof props?.payload?.idx === "number"
+        ? props.payload.idx
+        : null;
 
-  const onPointClick = (payload: any) => {
-    const idx = payload?.payload?.idx;
-    if (typeof idx === "number") {
+    if (idx !== null) {
       setSelectedMonth(idx);
       setSelectedCategory("전체");
       requestAnimationFrame(() => {
-        document.getElementById("jp-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document
+          .getElementById("screen2")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
   };
 
+  /* 카테고리 수정 */
   const updateTxnCategory = (month: number, id: string, cat: Category) => {
-    setTxnsByMonth(prev => {
-      const next = prev.map(arr => arr.slice());
-      const idx = next[month].findIndex(t => t.id === id);
+    setTxnsByMonth((prev) => {
+      const next = prev.map((arr) => arr.slice());
+      const idx = next[month].findIndex((t) => t.id === id);
       if (idx >= 0) next[month][idx] = { ...next[month][idx], category: cat };
       return next;
     });
   };
 
+  /* 상세/필터링/합계 */
   const detailTxns = selectedMonth === null ? [] : txnsByMonth[selectedMonth];
-  const filteredTxns = selectedMonth === null
-    ? []
-    : (selectedCategory === "전체" ? detailTxns : detailTxns.filter(t => t.category === selectedCategory));
-  const monthTotal = selectedMonth === null ? 0 : detailTxns.reduce((a, t) => a + t.amount, 0);
+  const filteredTxns =
+    selectedMonth === null
+      ? []
+      : selectedCategory === "전체"
+      ? detailTxns
+      : detailTxns.filter((t) => t.category === selectedCategory);
+  const monthTotal =
+    selectedMonth === null ? 0 : detailTxns.reduce((a, t) => a + t.amount, 0);
 
+  /* 파이 데이터 */
   const pieData = useMemo(() => {
     if (selectedMonth === null) return [];
-    if (selectedCategory === "전체") {
-      return CATEGORIES.map((c, i) => ({
-        name: c,
-        value: detailTxns.filter(t => t.category === c).reduce((a, t) => a + t.amount, 0),
-        color: JP_COLORS[i % JP_COLORS.length]
-      }));
-    }
-    const sel = detailTxns.filter(t => t.category === selectedCategory).reduce((a, t) => a + t.amount, 0);
-    const others = monthTotal - sel;
-    return [
-      { name: selectedCategory, value: sel, color: "#2f5d1e" },
-      { name: "기타", value: others, color: "#e5dfd2" },
-    ];
-  }, [selectedMonth, selectedCategory, txnsByMonth]);
 
-  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }: any) => {
-    if (percent < 0.01) return null;
+    if (selectedCategory === "전체") {
+      const categoryData = CATEGORIES.map((c, i) => ({
+        name: c,
+        value: detailTxns
+          .filter((t) => t.category === c)
+          .reduce((a, t) => a + t.amount, 0),
+        color: JP_COLORS[i % JP_COLORS.length],
+      })).filter((item) => item.value > 0); // 0원인 항목 제거
+
+      return categoryData;
+    }
+
+    const sel = detailTxns
+      .filter((t) => t.category === selectedCategory)
+      .reduce((a, t) => a + t.amount, 0);
+    const others = monthTotal - sel;
+
+    // 하나의 카테고리만 선택된 경우 또는 선택된 카테고리가 100%인 경우
+    if (others === 0 || sel === monthTotal) {
+      return [{ name: selectedCategory, value: sel, color: "#D4AF37" }];
+    }
+
+    return [
+      { name: selectedCategory, value: sel, color: "#D4AF37" },
+      { name: "기타", value: others, color: "#4a5568" },
+    ];
+  }, [selectedMonth, selectedCategory, txnsByMonth, detailTxns, monthTotal]);
+
+  /* 파이 라벨 */
+  // 파이차트 커스텀 라벨 - 균일한 위치
+  const renderCustomLabel = ({
+    cx,
+    cy,
+    midAngle,
+    outerRadius,
+    percent,
+    name,
+  }: any) => {
+    if (percent < 0.03) return null; // 3% 미만은 라벨 숨김
 
     const RADIAN = Math.PI / 180;
-    const labelRadius = outerRadius + 35;
+    const labelRadius = outerRadius + 50; // 일정한 거리
     const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
     const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
 
@@ -138,218 +262,312 @@ export default function ChartPage() {
       <text
         x={x}
         y={y}
-        fill="black"
-        fontSize={10}
-        fontWeight="normal"
+        fill="#f0e6d2"
+        fontSize={11}
+        fontWeight="600"
         textAnchor="middle"
         dominantBaseline="central"
         pointerEvents="none"
+        style={{
+          textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+          filter: "drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))",
+        }}
       >
-        {`${name} ${(percent * 100).toFixed(0)}%`}
+        {`${name}`}
       </text>
     );
   };
 
+  /* 커스텀 점 */
   const MyConsumptionDot = (props: any): React.ReactElement<SVGElement> => {
     const { cx, cy, index } = props;
-    if (cx === undefined || cy === undefined) return <g />;
+    if (cx == null || cy == null) return <g />;
 
     const isMax = index === maxPointIndex;
     const href = isMax ? "/charts/flower.png" : "/charts/leaf.png";
-    const size = 50;
+    const size = 40;
+    const x = cx - size / 2;
+    const y = cy - size / 2;
 
     return (
-      <svg
-        x={cx - size / 2}
-        y={cy - size / 2}
-        width={size}
-        height={size}
-        style={{ overflow: "visible", cursor: "pointer" }}
-        onClick={() => onPointClick(props)}
+      <g
+        transform={`translate(${x}, ${y})`}
+        style={{ cursor: "pointer" }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPointClickSafe(props);
+        }}
       >
-        <image href={href} width={size} height={size} />
-      </svg>
+        <image xlinkHref={href} width={size} height={size} />
+      </g>
     );
   };
 
   const PeerDot = (props: any): React.ReactElement<SVGElement> => {
     const { cx, cy } = props;
-    if (cx === undefined || cy === undefined) return <g />;
-
+    if (cx == null || cy == null) return <g />;
     return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={5}
-        stroke="#00BFFF"
-        strokeWidth={2}
-        fill="#ffffff"
+      <g
+        onClick={(e) => {
+          e.stopPropagation();
+          onPointClickSafe(props);
+        }}
         style={{ cursor: "pointer" }}
-        onClick={() => onPointClick(props)}
-      />
+      >
+        <circle
+          cx={cx}
+          cy={cy}
+          r={5}
+          stroke="#F2AB9A"
+          strokeWidth={2}
+          fill="#F2AB9A"
+        />
+      </g>
     );
   };
 
-  // 전역 스크롤 스타일 조작은 제거 혹은 주석처리
+  /* 화면1이 보일 때만 애니메이션 실행 */
   useEffect(() => {
-    /*
-    const html = document.documentElement;
-    const prevBodyOverflow = document.body.style.overflowY;
-    const prevHtmlOverflow = html.style.overflowY;
-    const prevBodyH = document.body.style.height;
-    const prevHtmlH = html.style.height;
-
-    html.classList.add("allow-scroll");
-    document.body.classList.add("allow-scroll");
-
-    document.body.style.overflowY = "auto";
-    html.style.overflowY = "auto";
-    document.body.style.height = "auto";
-    html.style.height = "auto";
-
-    return () => {
-      document.body.style.overflowY = prevBodyOverflow;
-      html.style.overflowY = prevHtmlOverflow;
-      document.body.style.height = prevBodyH;
-      html.style.height = prevHtmlH;
-      html.classList.remove("allow-scroll");
-      document.body.classList.remove("allow-scroll");
-    };
-    */
+    const el = screen1Ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) el.classList.add("is-visible");
+          else el.classList.remove("is-visible");
+        });
+      },
+      { threshold: 0.35 } // 화면에 35% 이상 보이면 실행
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
+
+  /* ------------------------------ 렌더 ------------------------------ */
 
   return (
     <div className="jp-wrap">
       <Header />
-      <div id="jp-top" />
 
-      <div className="jp-center-set">
-        <img src="/charts/sitting_girl.png" alt="Sitting Girl" className="jp-page-image" />
-        <img src="/charts/toad.png" alt="Toad" className="jp-toad-image" />
-        <img src="/charts/water.png" alt="Water" className="jp-water-image" />
-
-        <div className="jp-linechart-wrap">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={lineData} margin={{ top: 18, right: 24, left: 12, bottom: 10 }}>
-              <CartesianGrid stroke="#bbbbbb" strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fill: "#ffffff" }} />
-              <YAxis tickFormatter={(v) => `${Math.round(toNum(v) / 10000)}만`} tick={{ fill: "#ffffff" }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="me"
-                name="내 소비"
-                stroke="#7CFC00"
-                strokeWidth={3}
-                dot={MyConsumptionDot}
-                activeDot={MyConsumptionDot}
-              />
-              <Line
-                type="monotone"
-                dataKey="peers"
-                name="또래 소비"
-                stroke="#00BFFF"
-                strokeWidth={3}
-                strokeDasharray="5 3"
-                dot={PeerDot}
-                activeDot={{ r: 7 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <header className="jp-header">
-        <h1>월간 소비 비교</h1>
-        <p>반짝이는 점을 클릭하면 아래에 해당 달의 상세가 열립니다.</p>
-      </header>
-
-      {selectedMonth !== null && (
-        <section id="jp-detail" className="jp-card">
-          <div className="jp-card-head">
-            <h2>{monthLabel(selectedMonth)} 상세</h2>
-            <div className="jp-head-actions">
-              <span className="jp-total">합계: {KRW(monthTotal)}원</span>
-              <button className="jp-top-btn" onClick={scrollToTop}>라인차트로 ↑</button>
-              <button className="jp-close" onClick={() => setSelectedMonth(null)}>닫기</button>
-            </div>
+      {/* ===== 화면 1: 라인차트 섹션 ===== */}
+      <section id="screen1" className="jp-screen" ref={screen1Ref}>
+        {/* '무대' : 고정 비율 컨테이너 */}
+        <div className="jp-stage" style={{ aspectRatio: pondAR }}>
+          <div className="jp-page-title-section">
+            <h1>월간 소비 비교</h1>
+            <p>연꽃과 잎을 클릭하면 해당 달의 상세 소비를 볼 수 있습니다!</p>
           </div>
 
-          <div className="jp-grid">
-            <div className="jp-panel">
-              <div className="jp-toolbar">
-                <label>보기</label>
-                <select
-                  className="jp-select"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value as any)}
-                >
-                  <option value="전체">전체</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+          {/* 연못 바닥: onLoad에서 실제 비율로 교체 */}
+          <img
+            src="/charts/water.png"
+            alt="Water"
+            className="jp-water-image"
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setPondAR(img.naturalWidth / img.naturalHeight);
+              }
+            }}
+          />
 
-              <table className="jp-table">
-                <thead>
-                  <tr>
-                    <th>날짜</th>
-                    <th className="left">가맹점</th>
-                    <th>금액</th>
-                    <th>카테고리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTxns.map(tx => (
-                    <tr key={tx.id}>
-                      <td>{tx.date}</td>
-                      <td className="left">{tx.merchant}</td>
-                      <td>{KRW(tx.amount)}원</td>
-                      <td>
-                        <select
-                          className="jp-select"
-                          value={tx.category}
-                          onChange={(e) => updateTxnCategory(selectedMonth!, tx.id, e.target.value as Category)}
-                        >
-                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* 장식 이미지(무대 내부의 % 좌표) */}
+          <img
+            src="/charts/sitting_girl.png"
+            alt="Sitting Girl"
+            className="jp-page-image"
+          />
+          <img src="/charts/toad.png" alt="Toad" className="jp-toad-image" />
+
+          {/* 라인차트 */}
+          <div className="jp-linechart-wrap">
+            {/* @ts-ignore */}
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                className="jp-linechart"
+                data={lineData}
+                margin={{ top: 24, right: 12, left: 0, bottom: 20 }}
+              >
+                <CartesianGrid stroke="#fff" strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fill: "#ffffff" }}
+                  axisLine={false}
+                  tickLine={false}
+                  padding={{ left: 20, right: 20 }}
+                  tickMargin={8}
+                />
+                <YAxis
+                  tickFormatter={(v) => `${KRW(toNum(v) / 10000)}만`}
+                  tick={{ fill: "#ffffff" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={false} />
+                <Legend
+                  wrapperStyle={{ color: "#E0FFFF", paddingTop: "10px" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="me"
+                  name="내 소비"
+                  stroke="#817716"
+                  strokeWidth={3}
+                  dot={MyConsumptionDot}
+                  activeDot={MyConsumptionDot}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="peers"
+                  name="또래 소비"
+                  stroke="#F2AB9A"
+                  strokeWidth={3}
+                  dot={PeerDot}
+                  activeDot={{ r: 7 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== 화면 2: 상세(선택 시 나타남) ===== */}
+      {selectedMonth !== null && (
+        <section id="screen2" className="jp-screen jp-detail-screen">
+          <div className="jp-card">
+            <div className="jp-card-head">
+              <h2>{monthLabel(selectedMonth)} 상세</h2>
+              <div className="jp-head-actions">
+                <span className="jp-total">합계: {KRW(monthTotal)}원</span>
+                <button
+                  className="jp-close"
+                  onClick={() => {
+                    setSelectedMonth(null);
+                    // 사용자가 위로 스크롤하여 라인차트로 올라가면 됨
+                  }}
+                >
+                  닫기
+                </button>
+              </div>
             </div>
 
-            <div className="jp-panel">
-              <div className="jp-pie-frame">
-                <ResponsiveContainer width="100%" height={1000}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="name"
-                      outerRadius={160}
-                      paddingAngle={1}
-                      label={renderCustomLabel}
-                      labelLine={false}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={entry.name} fill={entry.color || JP_COLORS[index % JP_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any, name: any) => [`${KRW(toNum(value))}원`, name]} />
-                  </PieChart>
-                </ResponsiveContainer>
+            <div className="jp-grid">
+              <div className="jp-panel">
+                <div className="jp-toolbar">
+                  <JPSelect
+                    value={selectedCategory}
+                    onChange={(v) => setSelectedCategory(v as any)}
+                    options={[
+                      { label: "전체", value: "전체" },
+                      ...CATEGORIES.map((c) => ({ label: c, value: c })),
+                    ]}
+                  />
+                </div>
+
+                <table className="jp-table">
+                  <thead>
+                    <tr>
+                      <th>날짜</th>
+                      <th className="left">가맹점</th>
+                      <th>금액</th>
+                      <th>카테고리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTxns.map((tx) => (
+                      <tr key={tx.id}>
+                        <td>{tx.date}</td>
+                        <td className="left">{tx.merchant}</td>
+                        <td>{KRW(tx.amount)}원</td>
+                        <td>
+                          <JPSelect
+                            value={tx.category}
+                            onChange={(v) =>
+                              updateTxnCategory(
+                                selectedMonth!,
+                                tx.id,
+                                v as Category
+                              )
+                            }
+                            options={CATEGORIES.map((c) => ({
+                              label: c,
+                              value: c,
+                            }))}
+                            className="min-w-[120px]"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="jp-panel jp-pie-panel">
+                <div className="jp-pie-frame">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius={160}
+                        paddingAngle={0}
+                        label={renderCustomLabel}
+                        labelLine={false}
+                        stroke="transparent"
+                        strokeWidth={0}
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell
+                            key={entry.name}
+                            fill={
+                              entry.color || JP_COLORS[index % JP_COLORS.length]
+                            }
+                            stroke="transparent"
+                            strokeWidth={0}
+                            style={{
+                              filter:
+                                "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))",
+                            }}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: any, name: any) => [
+                          `${KRW(toNum(value))}원`,
+                          name,
+                        ]}
+                        position={{ x: undefined, y: undefined }} // 자동 위치 조정
+                        allowEscapeViewBox={{ x: false, y: false }}
+                        contentStyle={{
+                          background:
+                            "linear-gradient(145deg, rgba(42, 56, 84, 0.95), rgba(30, 42, 58, 0.95))",
+                          border: "none",
+                          borderRadius: "12px",
+                          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+                          color: "#f0e6d2",
+                          backdropFilter: "blur(10px)",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          padding: "12px 16px",
+                        }}
+                        labelStyle={{
+                          color: "#ffd700",
+                          fontWeight: "bold",
+                          marginBottom: "4px",
+                        }}
+                        itemStyle={{
+                          color: "#f0e6d2",
+                          fontSize: "13px",
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
         </section>
-      )}
-
-      {selectedMonth !== null && (
-        <button className="jp-fab" onClick={scrollToTop} aria-label="라인차트로 돌아가기">
-          ↑
-        </button>
       )}
     </div>
   );
