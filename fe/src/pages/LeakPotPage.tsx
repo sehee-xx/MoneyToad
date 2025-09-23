@@ -48,8 +48,8 @@ export const leakPotAssets = [
   broken,
   monthGood,
   monthBad,
-  badGray,   // ← 프리로드 추가
-  goodGray,  // ← 프리로드 추가
+  badGray,  
+  goodGray,  
   "/leakPot/water.json",
   tooltipToad,
 ];
