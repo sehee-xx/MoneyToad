@@ -19,7 +19,6 @@ html {
   color: #2a241b;
 }
 
-
 /* 헤더 */
 .jp-header {
   position: relative;
@@ -157,7 +156,6 @@ html {
   height: 100% !important;
 }
 
-
 .jp-card {
   max-width: 1180px;
   margin: 0 auto 28px;
@@ -233,7 +231,6 @@ html {
   border-radius: 8px;
 }
 
-
 /* 도구줄 / 셀렉트 */
 .jp-toolbar {
   display: flex;
@@ -300,8 +297,6 @@ html {
   overflow: hidden;          /* 필요시 넘침 숨김 */
 }
 
-
-
 /* 플로팅 버튼 */
 .jp-fab {
   position: fixed;
@@ -343,3 +338,11 @@ html {
 .recharts-tooltip-wrapper {
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.1));
 }
+
+
+
+
+
+
+
+
