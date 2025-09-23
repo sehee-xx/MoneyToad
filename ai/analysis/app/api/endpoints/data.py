@@ -1,7 +1,7 @@
 """
 Data analysis endpoints for financial data processing
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Query, HTTPException, status, BackgroundTasks, Depends
 from pydantic import BaseModel
 from datetime import datetime
@@ -53,21 +53,38 @@ async def run_prophet_analysis(
     try:
         # Update status to analyzing
         redis_client.set_csv_status(file_id, "analyzing")
-        
+
         # Get file metadata from Redis
         file_metadata = redis_client.get_file_metadata(file_id)
         if not file_metadata:
             raise ValueError(f"File metadata not found for {file_id}")
-        
+
         # Fetch CSV data from S3
         s3_key = file_metadata.get('s3_key')
         if not s3_key:
             raise ValueError(f"S3 key not found for {file_id}")
-        
+
         csv_data = await s3_client.fetch_csv_data(file_id, s3_key)
         if csv_data is None:
             raise ValueError(f"Failed to fetch CSV data for {file_id}")
-        
+
+        # Calculate doojo statistics (min/max per category)
+        import pandas as pd
+        # Use 'ts' column instead of 'date' as per Prophet service expectations
+        csv_data['year_month'] = pd.to_datetime(csv_data['ts']).dt.to_period('M')
+        monthly_spending = csv_data.groupby(['category', 'year_month'])['amount'].sum().reset_index()
+        category_stats = monthly_spending.groupby('category')['amount'].agg(['min', 'max']).to_dict('index')
+
+        # Get current month actual spending if available
+        current_date = datetime.now()
+        current_year = current_date.year
+        current_month = current_date.month
+        current_period = f"{current_year}-{current_month:02d}"
+        current_month_data = csv_data[csv_data['year_month'].astype(str) == current_period]
+        current_month_actual = {}
+        if not current_month_data.empty:
+            current_month_actual = current_month_data.groupby('category')['amount'].sum().to_dict()
+
         # STEP 1: Run current month prediction first
         logger.info(f"Starting current month prediction for {file_id}")
         current_month_result = await prophet_service.predict_by_category(csv_data)
@@ -119,14 +136,14 @@ async def run_prophet_analysis(
                             predicted_spending=current_month['predicted'],
                             category=category
                         )
-                        
+
                         # Note: You may want to add category field to LeakAnalysis model
                         leak = db.query(models.LeakAnalysis).filter(
                             models.LeakAnalysis.file_id == file_id,
                             models.LeakAnalysis.year == year,
                             models.LeakAnalysis.month == month
                         ).first()
-                        
+
                         if not leak:
                             leak = models.LeakAnalysis(
                                 file_id=file_id,
@@ -138,6 +155,41 @@ async def run_prophet_analysis(
                                 analysis_data={'categories': category_predictions}
                             )
                             db.add(leak)
+
+                    # Save doojo analysis for this category
+                    cat_stats = category_stats.get(category, {'min': 0, 'max': 0})
+                    real_amount = current_month_actual.get(category, None)
+                    result = None
+                    if real_amount is not None:
+                        result = 'true' if real_amount > current_month.get('predicted', 0) else 'false'
+
+                    # Check if doojo analysis exists
+                    doojo = db.query(models.DoojoAnalysis).filter(
+                        models.DoojoAnalysis.file_id == file_id,
+                        models.DoojoAnalysis.category == category,
+                        models.DoojoAnalysis.year == year,
+                        models.DoojoAnalysis.month == month
+                    ).first()
+
+                    if not doojo:
+                        doojo = models.DoojoAnalysis(
+                            file_id=file_id,
+                            category=category,
+                            year=year,
+                            month=month,
+                            min_amount=float(cat_stats['min']),
+                            max_amount=float(cat_stats['max']),
+                            current_threshold=current_month.get('predicted', 0),
+                            real_amount=real_amount,
+                            result=result
+                        )
+                        db.add(doojo)
+                    else:
+                        doojo.min_amount = float(cat_stats['min'])
+                        doojo.max_amount = float(cat_stats['max'])
+                        doojo.current_threshold = current_month.get('predicted', 0)
+                        doojo.real_amount = real_amount
+                        doojo.result = result
                 
                 # Next month predictions removed - no longer needed
 
@@ -515,3 +567,112 @@ async def get_baseline_predictions(
 
 
 # /report endpoint removed - use GET /api/ai/data/leak and GET /api/ai/data/baseline instead
+
+
+class CategoryDoojo(BaseModel):
+    """두꺼비 조언 카테고리별 데이터"""
+    min: float
+    max: float
+    current: float
+    real: Optional[float] = None
+    result: Optional[bool] = None
+
+
+class DoojoMonthData(BaseModel):
+    """두꺼비 조언 월별 데이터"""
+    month: int
+    year: int
+    categories_count: int
+    categories_prediction: Dict[str, CategoryDoojo]
+
+
+class DoojoResponse(BaseModel):
+    """두꺼비 조언 응답 모델"""
+    file_id: str
+    doojo: List[DoojoMonthData]
+
+
+@router.get(
+    "/doojo",
+    response_model=DoojoResponse,
+    summary="Get doojo (stamp breaking) data",
+    description="Get category spending analysis with min/max ranges and leak thresholds from MySQL"
+)
+async def get_doojo_data(
+    file_id: str = Query(..., description="File ID"),
+    db: Session = Depends(get_db)
+) -> DoojoResponse:
+    """
+    두꺼비 조언 데이터 조회 - MySQL에서 카테고리별 지출 분석 조회
+
+    각 카테고리별로 다음 정보를 제공:
+    - min: 과거 12개월간 최소 지출액
+    - max: 과거 12개월간 최대 지출액
+    - current: 이번달 누수 기준 (예측값)
+    - real: 실제 사용 금액
+    - result: real > current 이면 true, 아니면 false
+
+    Args:
+        file_id: 파일 ID
+        db: Database session
+
+    Returns:
+        DoojoResponse with category analysis from MySQL
+    """
+    # Check if analysis is in progress
+    analysis_status = redis_client.get_csv_status(file_id)
+    if analysis_status == 'analyzing':
+        raise HTTPException(
+            status_code=status.HTTP_202_ACCEPTED,
+            detail="Analysis is still in progress. Please try again later."
+        )
+
+    # Get current month and year
+    current_date = datetime.now()
+    current_year = current_date.year
+    current_month = current_date.month
+
+    # Get doojo data from MySQL
+    doojo_data = db.query(models.DoojoAnalysis).filter(
+        models.DoojoAnalysis.file_id == file_id,
+        models.DoojoAnalysis.year == current_year,
+        models.DoojoAnalysis.month == current_month
+    ).all()
+
+    if not doojo_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No doojo analysis data found for {current_year}-{current_month:02d}. Please run analysis first."
+        )
+
+    # Build categories prediction data from MySQL
+    categories_prediction = {}
+
+    for doojo in doojo_data:
+        # Convert result string to boolean
+        result = None
+        if doojo.result == 'true':
+            result = True
+        elif doojo.result == 'false':
+            result = False
+
+        categories_prediction[doojo.category] = CategoryDoojo(
+            min=float(doojo.min_amount),
+            max=float(doojo.max_amount),
+            current=float(doojo.current_threshold),
+            real=float(doojo.real_amount) if doojo.real_amount is not None else None,
+            result=result
+        )
+
+    # Create month data
+    doojo_month = DoojoMonthData(
+        month=current_month,
+        year=current_year,
+        categories_count=len(categories_prediction),
+        categories_prediction=categories_prediction
+    )
+
+    return DoojoResponse(
+        file_id=file_id,
+        doojo=[doojo_month]
+    )

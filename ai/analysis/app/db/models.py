@@ -62,7 +62,7 @@ class BaselinePrediction(Base):
 class LeakAnalysis(Base):
     """Model for storing leak analysis results"""
     __tablename__ = "leak_analysis"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     file_id = Column(String(255), nullable=False, index=True)
     year = Column(Integer, nullable=False)
@@ -72,7 +72,29 @@ class LeakAnalysis(Base):
     leak_amount = Column(Float)
     analysis_data = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     __table_args__ = (
         UniqueConstraint('file_id', 'year', 'month', name='uq_file_year_month'),
+    )
+
+
+class DoojoAnalysis(Base):
+    """Model for storing doojo (stamp breaking) analysis results"""
+    __tablename__ = "doojo_analysis"
+
+    id = Column(Integer, primary_key=True, index=True)
+    file_id = Column(String(255), nullable=False, index=True)
+    category = Column(String(100), nullable=False, index=True)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    min_amount = Column(Float, nullable=False)  # 12개월 최소값
+    max_amount = Column(Float, nullable=False)  # 12개월 최대값
+    current_threshold = Column(Float, nullable=False)  # 누수 기준 (예측값)
+    real_amount = Column(Float, nullable=True)  # 실제 사용 금액
+    result = Column(String(10), nullable=True)  # 'true' or 'false' or null
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('file_id', 'category', 'year', 'month', name='uq_doojo_file_cat_year_month'),
     )

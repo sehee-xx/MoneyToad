@@ -304,39 +304,189 @@ baseline = response.json()
 print(f"Baseline for {baseline['months_count']} months")
 ```
 
-## 🗄 데이터베이스 스키마
+## 🗄 데이터베이스 ERD
 
-### predictions 테이블
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    PREDICTIONS ||--o{ ANALYSIS_JOBS : "belongs to"
+    BASELINE_PREDICTIONS ||--o{ ANALYSIS_JOBS : "belongs to"
+    LEAK_ANALYSIS ||--o{ ANALYSIS_JOBS : "belongs to"
+    DOOJO_ANALYSIS ||--o{ ANALYSIS_JOBS : "belongs to"
+
+    PREDICTIONS {
+        int id PK
+        string file_id FK
+        string category
+        date prediction_date
+        float predicted_amount
+        float lower_bound
+        float upper_bound
+        datetime created_at
+        datetime updated_at
+    }
+
+    BASELINE_PREDICTIONS {
+        int id PK
+        string file_id FK
+        string category
+        int year
+        int month
+        float predicted_amount
+        float lower_bound
+        float upper_bound
+        date training_cutoff_date
+        datetime created_at
+    }
+
+    LEAK_ANALYSIS {
+        int id PK
+        string file_id FK
+        int year
+        int month
+        float actual_amount
+        float predicted_amount
+        float leak_amount
+        json analysis_data
+        datetime created_at
+    }
+
+    DOOJO_ANALYSIS {
+        int id PK
+        string file_id FK
+        string category
+        int year
+        int month
+        float min_amount
+        float max_amount
+        float current_threshold
+        float real_amount
+        string result
+        datetime created_at
+        datetime updated_at
+    }
+
+    ANALYSIS_JOBS {
+        int id PK
+        string job_id UK
+        string file_id FK
+        string status
+        string error_message
+        datetime created_at
+        datetime completed_at
+        json job_metadata
+    }
+```
+
+### 테이블 상세 설명
+
+#### 1. **predictions** - 현재월 예측 데이터
 ```sql
 CREATE TABLE predictions (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    file_id VARCHAR(255) NOT NULL,
-    category VARCHAR(100) NOT NULL,
-    prediction_date DATE NOT NULL,
-    predicted_amount DECIMAL(15,2),
-    lower_bound DECIMAL(15,2),
-    upper_bound DECIMAL(15,2),
+    file_id VARCHAR(255) NOT NULL,          -- CSV 파일 식별자
+    category VARCHAR(100) NOT NULL,          -- 카테고리명
+    prediction_date DATE NOT NULL,           -- 예측 날짜 (YYYY-MM-01)
+    predicted_amount FLOAT,                  -- 예측 금액
+    lower_bound FLOAT,                       -- 신뢰구간 하한
+    upper_bound FLOAT,                       -- 신뢰구간 상한
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_file_cat_date (file_id, category, prediction_date),
+    INDEX idx_file_id (file_id)
+);
+```
+
+#### 2. **baseline_predictions** - 과거 11개월 기준선 예측
+```sql
+CREATE TABLE baseline_predictions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id VARCHAR(255) NOT NULL,          -- CSV 파일 식별자
+    category VARCHAR(100) NOT NULL,          -- 카테고리명
+    year INT NOT NULL,                      -- 예측 연도
+    month INT NOT NULL,                     -- 예측 월
+    predicted_amount FLOAT,                  -- 예측 금액
+    lower_bound FLOAT,                       -- 신뢰구간 하한
+    upper_bound FLOAT,                       -- 신뢰구간 상한
+    training_cutoff_date DATE,              -- 학습 데이터 마감일
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_baseline_file_cat_year_month (file_id, category, year, month),
+    INDEX idx_file_year_month (file_id, year, month)
+);
+```
+
+#### 3. **leak_analysis** - 누수(초과지출) 분석
+```sql
+CREATE TABLE leak_analysis (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id VARCHAR(255) NOT NULL,          -- CSV 파일 식별자
+    year INT NOT NULL,                      -- 분석 연도
+    month INT NOT NULL,                     -- 분석 월
+    actual_amount FLOAT,                    -- 실제 지출액
+    predicted_amount FLOAT,                  -- 예측 지출액
+    leak_amount FLOAT,                      -- 누수 금액 (실제 - 예측)
+    analysis_data JSON,                     -- 상세 분석 데이터
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_file_year_month (file_id, year, month),
+    INDEX idx_file_id (file_id)
+);
+```
+
+#### 4. **doojo_analysis** - 두꺼비 조언(카테고리별 지출 달성) 분석
+```sql
+CREATE TABLE doojo_analysis (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id VARCHAR(255) NOT NULL,          -- CSV 파일 식별자
+    category VARCHAR(100) NOT NULL,          -- 카테고리명
+    year INT NOT NULL,                      -- 분석 연도
+    month INT NOT NULL,                     -- 분석 월
+    min_amount FLOAT NOT NULL,              -- 12개월 최소 지출
+    max_amount FLOAT NOT NULL,              -- 12개월 최대 지출
+    current_threshold FLOAT NOT NULL,       -- 현재월 누수 기준
+    real_amount FLOAT,                      -- 실제 사용 금액
+    result VARCHAR(10),                     -- 'true'(누수) / 'false'(정상)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_doojo_file_cat_year_month (file_id, category, year, month),
     INDEX idx_file_category (file_id, category)
 );
 ```
 
-### baseline_predictions 테이블
+#### 5. **analysis_jobs** - 비동기 분석 작업 추적
 ```sql
-CREATE TABLE baseline_predictions (
+CREATE TABLE analysis_jobs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    file_id VARCHAR(255) NOT NULL,
-    category VARCHAR(100) NOT NULL,
-    year INT NOT NULL,
-    month INT NOT NULL,
-    predicted_amount DECIMAL(15,2),
-    lower_bound DECIMAL(15,2),
-    upper_bound DECIMAL(15,2),
-    training_cutoff_date DATE,
+    job_id VARCHAR(255) UNIQUE NOT NULL,    -- 작업 고유 ID
+    file_id VARCHAR(255) NOT NULL,          -- CSV 파일 식별자
+    status VARCHAR(50) NOT NULL DEFAULT 'pending', -- pending/completed/failed
+    error_message VARCHAR(1000),            -- 오류 메시지
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_file_year_month (file_id, year, month)
+    completed_at TIMESTAMP NULL,            -- 완료 시간
+    job_metadata JSON,                      -- 작업 메타데이터
+    INDEX idx_job_id (job_id),
+    INDEX idx_file_id (file_id),
+    INDEX idx_status (status)
 );
 ```
+
+### 데이터 흐름
+
+1. **CSV 업로드** → file_id 생성
+2. **분석 시작** → analysis_jobs 레코드 생성
+3. **Prophet 분석 실행**:
+   - predictions 테이블에 현재월 예측 저장
+   - doojo_analysis 테이블에 두꺼비 조언 데이터 저장
+   - leak_analysis 테이블에 누수 분석 저장
+4. **Baseline 계산** → baseline_predictions에 11개월 데이터 저장
+5. **분석 완료** → analysis_jobs 상태 업데이트
+
+### 인덱스 전략
+
+- **file_id**: 모든 테이블의 주요 검색 키
+- **category**: 카테고리별 집계 쿼리 최적화
+- **year, month**: 시계열 데이터 조회 최적화
+- **Unique Constraints**: 중복 데이터 방지
 
 ## 📊 모니터링 & 로깅
 

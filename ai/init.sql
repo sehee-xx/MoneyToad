@@ -67,3 +67,23 @@ CREATE TABLE IF NOT EXISTS leak_analysis (
     INDEX idx_leak_file_id (file_id),
     INDEX idx_leak_year_month (year, month)
 );
+
+-- Create doojo_analysis table for storing category spending thresholds
+CREATE TABLE IF NOT EXISTS doojo_analysis (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    year INT NOT NULL,
+    month INT NOT NULL,
+    min_amount DECIMAL(15, 2) NOT NULL,
+    max_amount DECIMAL(15, 2) NOT NULL,
+    current_threshold DECIMAL(15, 2) NOT NULL,
+    real_amount DECIMAL(15, 2),
+    result VARCHAR(10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_doojo_file_cat_year_month (file_id, category, year, month),
+    INDEX idx_doojo_file_id (file_id),
+    INDEX idx_doojo_category (category),
+    INDEX idx_doojo_year_month (year, month)
+);
