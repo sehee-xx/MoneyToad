@@ -1,14 +1,26 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import Header from "../components/Header";
 import "./LeakPotPage.css";
 import LoadingOverlay from "../components/LoadingOverlay";
-import { useMonthlyBudgetsQuery, useYearlyBudgetLeaksQuery } from "../api/queries/budgetQuery";
+import {
+  useMonthlyBudgetsQuery,
+  useYearlyBudgetLeaksQuery,
+} from "../api/queries/budgetQuery";
 import { useUpdateBudgetMutation } from "../api/mutation/budgetMutation";
-import type { MonthlyBudgetResponse, YearlyBudgetLeakResponse } from "../types";
+import type {
+  MonthlyBudgetResponse,
+  YearlyBudgetLeakResponse,
+} from "../types";
 
-// --- 이미지 & 애니메이션 ---
+/* ------------------------------ 이미지 & 애니메이션 ------------------------------ */
 const cryingKongjwi = "/leakPot/cryingKongjwi.png";
 const happyKongjwi = "/leakPot/happyKongjwi.png";
 const happyToad = "/leakPot/happyToad.png";
@@ -20,6 +32,8 @@ const potImage = "/leakPot/pot.png";
 const broken = "/leakPot/broken.png";
 const monthGood = "/leakPot/good.png";
 const monthBad = "/leakPot/bad.png";
+const badGray = "/leakPot/bad_gray.png";   // ← 경로 수정
+const goodGray = "/leakPot/good_gray.png"; // ← 경로 수정
 const tooltipToad = "/leakPot/tooltip.png";
 
 export const leakPotAssets = [
@@ -34,11 +48,13 @@ export const leakPotAssets = [
   broken,
   monthGood,
   monthBad,
+  badGray,   // ← 프리로드 추가
+  goodGray,  // ← 프리로드 추가
   "/leakPot/water.json",
   tooltipToad,
 ];
 
-// --- 타입 정의 ---
+/* ------------------------------ 타입 ------------------------------ */
 interface Category {
   id: number;
   name: string;
@@ -65,7 +81,7 @@ interface AbsPosition {
   scale: number;
 }
 
-// --- 데이터 ---
+/* ------------------------------ 데이터 ------------------------------ */
 const INITIAL_CATEGORIES: Category[] = [
   { id: 1, name: "식비", spending: 300000, threshold: 300000 },
   { id: 2, name: "쇼핑", spending: 220000, threshold: 220000 },
@@ -81,13 +97,12 @@ const INITIAL_CATEGORIES: Category[] = [
   { id: 12, name: "기타", spending: 50000, threshold: 50000 },
 ];
 
-// 월 데이터
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
   value: i + 1,
   label: `${i + 1}월`,
 }));
 
-// 레이아웃 값
+/* ------------------------------ 레이아웃 상수 ------------------------------ */
 const VIEWBOX_W = 500;
 const VIEWBOX_H = 520;
 const FLOOR_Y = 515;
@@ -96,7 +111,7 @@ const POT_H = 330;
 const POT_X = 95;
 const POT_Y = FLOOR_Y - 8 - POT_H;
 
-// 깨짐 위치
+/* ------------------------------ 균열 위치 ------------------------------ */
 const LEAK_ANCHORS: LeakAnchor[] = [
   { u: 0.5, v: 0.35, scale: 0.17 },
   { u: 0.3, v: 0.4, scale: 0.15 },
@@ -117,35 +132,57 @@ const anchorToAbs = (a: LeakAnchor): AbsPosition => ({
   scale: a.scale,
 });
 
-// --- Month Navigation ---
+/* ------------------------------ 유틸: 연-월 누수 인덱스 ------------------------------ */
+const buildLeakIndex = (rows: YearlyBudgetLeakResponse[] = []) => {
+  const map = new Map<string, boolean>();
+  rows.forEach((r) => {
+    // r.budgetDate: "YYYY-MM" 가정
+    const [y, m] = (r.budgetDate || "").split("-").map(Number);
+    if (!y || !m) return;
+    map.set(`${y}-${m}`, !!r.leaked);
+  });
+  return map;
+};
+
+/* ------------------------------ Month Navigation ------------------------------ */
 const MonthNavigation: React.FC<{
-  currentMonth: number;
+  selectedMonth: number;                 // 현재 화면에서 선택된 달
+  nowMonth: number;                      // 오늘 기준 달
+  nowYear: number;                       // 오늘 기준 연도
+  leakIndex: Map<string, boolean>;       // `${year}-${month}` -> leaked
   onMonthChange: (month: number) => void;
-  leakedMonths: number[];
-}> = ({ currentMonth, onMonthChange, leakedMonths }) => {
-  const isLeaked = (m: number) => leakedMonths.includes(m);
+  optimisticCurrentMonthLeaked?: boolean;
+}> = ({ selectedMonth, nowMonth, nowYear, leakIndex, onMonthChange, optimisticCurrentMonthLeaked }) => {
   return (
     <div className="month-navigation">
       <div className="month-grid">
         {MONTHS.map((m) => {
-          const active = currentMonth === m.value;
-          const leaked = isLeaked(m.value);
+          // 오늘 기준으로 10,11,12월은 작년으로 고정
+          const isLastYear = m.value > nowMonth;
+          const yearForBtn = isLastYear ? nowYear - 1 : nowYear;
+
+          // 기본 누수 여부 (연-월 인덱스 사용)
+          let leaked = !!leakIndex.get(`${yearForBtn}-${m.value}`);
+
+          // 낙관 반영은 "올해의 현재 달"만
+          if (yearForBtn === nowYear && m.value === nowMonth && typeof optimisticCurrentMonthLeaked === "boolean") {
+            leaked = optimisticCurrentMonthLeaked;
+          }
+
+          // 아이콘: 작년은 회색, 올해는 컬러(선택 여부와 무관)
+          const imgSrc = isLastYear
+            ? (leaked ? badGray : goodGray)
+            : (leaked ? monthBad : monthGood);
+
           return (
             <button
               key={m.value}
               onClick={() => onMonthChange(m.value)}
               onMouseDown={(e) => e.preventDefault()}
-              className={`month-button ${active ? "active" : ""}`}
+              className={`month-button ${m.value === selectedMonth ? "active" : ""}`}
             >
-              <img
-                src={leaked ? monthBad : monthGood}
-                alt={leaked ? "누수" : "정상"}
-                className="month-img"
-                draggable={false}
-              />
-              <span className={`month-badge ${leaked ? "leaked" : "good"}`}>
-                {m.label}
-              </span>
+              <img src={imgSrc} alt={leaked ? "누수" : "정상"} className="month-img" draggable={false} />
+              <span className={`month-badge ${leaked ? "leaked" : "good"}`}>{m.label}</span>
             </button>
           );
         })}
@@ -154,7 +191,7 @@ const MonthNavigation: React.FC<{
   );
 };
 
-// --- Pot Visualization ---
+/* ------------------------------ Pot Visualization ------------------------------ */
 const WATER_BASE_W = 120;
 const WATER_BASE_H = 180;
 const WATER_STREAM_ORIGIN_X_RATIO = 0.03;
@@ -180,11 +217,9 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   }, []);
 
   const hasLeak = leakingCategories.length > 0;
-
-  // ✅ 누수량에 따라 웅덩이 크기 조절 (이미 계산하던 값)
   const puddleScale = Math.min(1.0 + totalLeak / 300000, 2.2);
 
-  // ---------- Tooltip: 여기부터 ----------
+  // tooltip
   const potRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
@@ -192,11 +227,8 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     x: 0,
     y: 0,
   });
-
-  // 항아리 몸통 path 참조
   const potBodyRef = useRef<SVGPathElement>(null);
 
-  // 항아리 이미지(POT_X/Y/W/H)를 기준으로 몸통 실루엣 path (대충 항아리 곡면 형태)
   const potBodyD = (() => {
     const x = POT_X,
       y = POT_Y,
@@ -217,7 +249,6 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     const leftBottom = x + w * 0.12;
     const rightBottom = x + w * 0.88;
 
-    // 약간 목이 들어갔다가 배가 불룩한 항아리 실루엣
     return `M ${leftNeck},${neck}
           C ${leftTop},${top} ${rightTop},${top} ${rightNeck},${neck}
           C ${rightMid},${mid} ${rightBottom},${bottom} ${cx},${bottom}
@@ -225,14 +256,12 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
           Z`;
   })();
 
-  // 컨테이너 기준 좌표로 변환
   const toLocal = (e: React.MouseEvent) => {
     const rect = potRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
-  // 균열 진입 시: 내용 + 위치 세팅
   const handleCrackEnter = (e: React.MouseEvent, cat: LeakingCategory) => {
     const leakAmount = cat.spending - cat.threshold;
     const { x, y } = toLocal(e);
@@ -250,7 +279,6 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
     const lx = e.clientX - rect.left;
     const ly = e.clientY - rect.top;
 
-    // path 내부 판정: SVGGeometryElement.isPointInFill 사용
     if (potBodyRef.current) {
       const pt = svg.createSVGPoint();
       pt.x = e.clientX;
@@ -259,9 +287,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
       const ctm = potBodyRef.current.getScreenCTM();
       if (ctm) {
         const local = pt.matrixTransform(ctm.inverse());
-        // 타입 가드 회피용 any (isPointInFill은 SVGGeometryElement 메서드)
         const inside = (potBodyRef.current as any).isPointInFill(local);
-
         if (!inside) {
           if (tooltip.visible)
             setTooltip({ visible: false, content: "", x: 0, y: 0 });
@@ -269,32 +295,24 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
         }
       }
     }
-
-    // 몸통 안이면 떠있는 경우에만 위치 갱신
-    if (tooltip.visible) {
-      setTooltip((t) => ({ ...t, x: lx, y: ly }));
-    }
+    if (tooltip.visible) setTooltip((t) => ({ ...t, x: lx, y: ly }));
   };
 
-  // SVG 밖으로 나가면 숨김
   const handleSvgLeave = () =>
     setTooltip({ visible: false, content: "", x: 0, y: 0 });
-  // ---------- Tooltip: 여기까지 ----------
 
   return (
-    // CSS에서 pot-container가 pointer-events:none; 이라면
-    // 인라인 스타일로만 이벤트 가능하게 풀어줌(툴팁 전용 목적)
     <div
       className="pot-container"
       ref={potRef}
       style={{ pointerEvents: "auto" }}
     >
       {tooltip.visible && (
-        // 커서 중앙 위에 예쁘게 뜨도록 transform은 CSS에 이미 정의되어 있다고 가정
         <div className="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
           {tooltip.content}
         </div>
       )}
+
       {/* 캐릭터 */}
       <div className="characters">
         <img
@@ -398,8 +416,8 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
               ref={potBodyRef}
               d={potBodyD}
               fill="white"
-              fillOpacity={0.001} // 눈에는 안 보이되 isPointInFill 가능
-              pointerEvents="none" // 마우스 이벤트는 기존처럼 SVG에 맡김
+              fillOpacity={0.001}
+              pointerEvents="none"
             />
           </g>
 
@@ -429,7 +447,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
             })}
           </g>
 
-          {/* 물줄기 애니메이션 (그대로 유지) */}
+          {/* 물줄기 */}
           <g id="waters">
             {leakingCategories.map((cat) => {
               const anchor =
@@ -487,7 +505,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
   );
 };
 
-// --- Custom Slider ---
+/* ------------------------------ Custom Slider ------------------------------ */
 const CustomSlider: React.FC<{
   cat: Category;
   isLeaking: boolean;
@@ -495,12 +513,9 @@ const CustomSlider: React.FC<{
   formatter: Intl.NumberFormat;
 }> = ({ cat, isLeaking, handleThresholdChange, formatter }) => {
   const max = Math.max(600000, cat.spending * 1.5);
-
-  // 퍼센트들
   const spendingPct = (cat.spending / max) * 100;
   const thresholdPct = (cat.threshold / max) * 100;
 
-  // 엽전 썸은 우리가 직접 배치 → thresholdPct 기준
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleThresholdChange(cat.id, parseInt(e.target.value, 10));
   };
@@ -512,7 +527,6 @@ const CustomSlider: React.FC<{
           {cat.name}
         </label>
 
-        {/* 사용자 친화적인 금액 설명 */}
         <div className="slider-legend" aria-live="polite">
           <span className="legend-label">지출</span>
           <strong className={`legend-value ${isLeaking ? "leaking" : ""}`}>
@@ -530,21 +544,16 @@ const CustomSlider: React.FC<{
         className="slider-container"
         style={
           {
-            // CSS 변수로 퍼센트 넘겨서 썸 위치/바 채우기 제어
             "--spending-pct": `${spendingPct}%`,
             "--threshold-pct": `${thresholdPct}%`,
           } as React.CSSProperties
         }
       >
         <div className="slider-track" />
-
-        {/* 지출이 한도 이하인 구간 (정상) */}
         <div
           className="slider-fill-normal"
           style={{ width: `${Math.min(spendingPct, thresholdPct)}%` }}
         />
-
-        {/* 지출이 한도 초과인 구간 (누수) */}
         {isLeaking && (
           <div
             className="slider-fill-leak"
@@ -554,8 +563,6 @@ const CustomSlider: React.FC<{
             }}
           />
         )}
-
-        {/* 실제 range 입력 (접근성+이벤트만 담당, 썸은 숨김) */}
         <input
           type="range"
           min={0}
@@ -566,8 +573,6 @@ const CustomSlider: React.FC<{
           aria-label={`${cat.name} 한도`}
           className={`custom-slider ${isLeaking ? "is-leaking" : ""}`}
         />
-
-        {/* 우리가 그리는 엽전 썸: 중심이 퍼센트의 ‘정중앙’에 맞도록 translate(-50%) */}
         <div
           className="coin-thumb"
           aria-hidden="true"
@@ -579,50 +584,41 @@ const CustomSlider: React.FC<{
   );
 };
 
-// 데이터 어댑터 함수
-const adaptBudgetDataToCategory = (data: MonthlyBudgetResponse): Category => ({
+/* ------------------------------ 어댑터 ------------------------------ */
+const adaptBudgetDataToCategory = (
+  data: MonthlyBudgetResponse
+): Category => ({
   id: data.id,
   name: data.category,
   spending: data.spending,
   threshold: data.budget,
 });
 
-// 연간 누수 데이터를 월 번호 배열로 변환
-const adaptYearlyLeakDataToMonths = (data: YearlyBudgetLeakResponse[]): number[] => {
-  return data
-    .filter(item => item.leaked)
-    .map(item => {
-      const parts = item.budgetDate.split('-');
-      return parseInt(parts[1], 10); 
-
-    })
-    .filter(month => month >= 1 && month <= 12);
-};
-
-// 년도/월 계산 로직
-const calculateYearMonth = (monthParam: string | undefined): { year: number; month: number } => {
+/* ------------------------------ 년/월 계산 ------------------------------ */
+const calculateYearMonth = (
+  monthParam: string | undefined
+): { year: number; month: number } => {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // 0-based to 1-based
+  const currentMonth = currentDate.getMonth() + 1;
 
   let targetMonth = currentMonth;
   if (monthParam) {
     const monthNum = parseInt(monthParam, 10);
-    if (monthNum >= 1 && monthNum <= 12) {
-      targetMonth = monthNum;
-    }
+    if (monthNum >= 1 && monthNum <= 12) targetMonth = monthNum;
   }
-
-  // 현재 월보다 큰 값이면 이전 년도
   const targetYear = targetMonth > currentMonth ? currentYear - 1 : currentYear;
-
   return { year: targetYear, month: targetMonth };
 };
 
-// --- LeakPotPage ---
+/* ------------------------------ LeakPotPage ------------------------------ */
 const LeakPotPage = () => {
+  const now = new Date();
+const nowMonth = now.getMonth() + 1;
+const nowYear  = now.getFullYear();
   const { month } = useParams();
   const navigate = useNavigate();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [leakingCategories, setLeakingCategories] = useState<LeakingCategory[]>(
     []
@@ -631,21 +627,31 @@ const LeakPotPage = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const formatter = new Intl.NumberFormat("ko-KR");
 
-  // 년도/월 계산
+  // 계산된 기준(요청 월의 데이터 연도/월)
   const { year, month: targetMonth } = calculateYearMonth(month);
+  const currentMonth = targetMonth;
 
-  // API 데이터 가져오기
-  const { data: budgetData, isLoading: isBudgetLoading, error } = useMonthlyBudgetsQuery(year, targetMonth);
-  const { data: yearlyLeakData, isLoading: isYearlyLeakLoading, error: yearlyLeakError } = useYearlyBudgetLeaksQuery();
+  // API
+  const {
+    data: budgetData,
+    isLoading: isBudgetLoading,
+    error,
+  } = useMonthlyBudgetsQuery(year, targetMonth);
+
+  const {
+    data: yearlyLeakData,
+    isLoading: isYearlyLeakLoading,
+    error: yearlyLeakError,
+  } = useYearlyBudgetLeaksQuery();
+
   const updateBudgetMutation = useUpdateBudgetMutation();
 
-  // debounce 타이머
+  // 디바운스 타이머
   const debounceTimer = useRef<number | null>(null);
 
-  // 첫 진입 시 에셋 프리로드
+  // 에셋 프리로드
   useEffect(() => {
     let cancelled = false;
-
     Promise.all(
       leakPotAssets.map(
         (src) =>
@@ -654,7 +660,7 @@ const LeakPotPage = () => {
               fetch(src)
                 .then((res) => (res.ok ? res.json() : null))
                 .then(() => resolve())
-                .catch(() => resolve()); // 실패해도 resolve
+                .catch(() => resolve());
             } else {
               const img = new Image();
               img.src = src;
@@ -664,40 +670,35 @@ const LeakPotPage = () => {
           })
       )
     )
-      .catch(() => {}) // Promise.all 자체 reject 방지
+      .catch(() => {})
       .finally(() => {
         if (!cancelled) setPageLoading(false);
       });
-
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // cleanup: 컴포넌트 언마운트 시 타이머 정리
+  // 타이머 정리
   useEffect(() => {
     return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, []);
 
-  const currentMonth = targetMonth;
-
-  // API 데이터를 categories로 변환
+  // budget → categories
   useEffect(() => {
     if (budgetData?.length) {
-      const adaptedCategories = budgetData.map(adaptBudgetDataToCategory);
-      setCategories(adaptedCategories);
+      const adapted = budgetData.map(adaptBudgetDataToCategory);
+      setCategories(adapted);
     } else if (!isBudgetLoading && !budgetData) {
-      // API 데이터가 없으면 기본 데이터 사용
       setCategories(
         INITIAL_CATEGORIES.map((c) => ({ ...c, threshold: c.spending }))
       );
     }
   }, [budgetData, isBudgetLoading]);
 
+  // 누수 계산
   useEffect(() => {
     const currentLeaking = categories
       .map((cat, index) => ({ ...cat, originalIndex: index }))
@@ -710,56 +711,37 @@ const LeakPotPage = () => {
     setTotalLeak(currentTotalLeak);
   }, [categories]);
 
+  // 현재 달 누수(낙관적)
+  const currentMonthLeaked = categories.some(
+    (cat) => cat.spending > cat.threshold
+  );
+
+  // 연-월 누수 인덱스
+  const leakIndex = useMemo(
+    () => buildLeakIndex(yearlyLeakData || []),
+    [yearlyLeakData]
+  );
+
   const handleThresholdChange = useCallback(
     (id: number, newThreshold: number) => {
-      // 즉시 UI 업데이트 (사용자 경험)
+      // UI 즉시 업데이트
       setCategories((prev) =>
         prev.map((cat) =>
           cat.id === id ? { ...cat, threshold: newThreshold } : cat
         )
       );
 
-      // 기존 타이머 클리어
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-
-      // 0.5초 후 API 호출
+      // debounce
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
       debounceTimer.current = setTimeout(() => {
         updateBudgetMutation.mutate({
           budgetId: id,
           budget: newThreshold,
         });
-      }, 500);
+      }, 500) as unknown as number;
     },
     [updateBudgetMutation]
   );
-
-  // 현재 월의 실시간 누수 상태 계산 (낙관적 업데이트용)
-  const currentMonthLeaked = categories.some(cat => cat.spending > cat.threshold);
-
-  // 연간 누수 데이터를 기반으로 leakedMonths 계산 (낙관적 업데이트 적용)
-  const leakedMonths: number[] = (() => {
-    let months: number[] = [];
-
-    // API 데이터가 있으면 기본으로 사용
-    if (yearlyLeakData?.length) {
-      months = adaptYearlyLeakDataToMonths(yearlyLeakData);
-    }
-
-    // 현재 월의 실시간 누수 상태를 낙관적으로 반영
-    if (currentMonthLeaked) {
-      // 현재 월이 누수 상태면 추가 (중복 제거)
-      if (!months.includes(currentMonth)) {
-        months.push(currentMonth);
-      }
-    } else {
-      // 현재 월이 정상 상태면 제거
-      months = months.filter(month => month !== currentMonth);
-    }
-
-    return months;
-  })();
 
   const rootVars: React.CSSProperties = {
     "--bg": `url(${bgImage})`,
@@ -767,13 +749,8 @@ const LeakPotPage = () => {
     "--pointer": `url(${customPointer})`,
   } as React.CSSProperties;
 
-  if (error) {
-    console.error('Budget data fetch error:', error);
-  }
-
-  if (yearlyLeakError) {
-    console.error('Yearly leak data fetch error:', yearlyLeakError);
-  }
+  if (error) console.error("Budget data fetch error:", error);
+  if (yearlyLeakError) console.error("Yearly leak data fetch error:", yearlyLeakError);
 
   return (
     <div className="app-container" style={rootVars}>
@@ -782,11 +759,16 @@ const LeakPotPage = () => {
       ) : (
         <>
           <Header />
+
           <MonthNavigation
-            currentMonth={currentMonth}
+            selectedMonth={currentMonth}                 // 기존 currentMonth 사용
+            nowMonth={nowMonth}                          // 오늘 기준 달
+            nowYear={nowYear}
+            leakIndex={leakIndex}
+            optimisticCurrentMonthLeaked={currentMonthLeaked}
             onMonthChange={(m) => navigate(`/pot/${m}`)}
-            leakedMonths={leakedMonths}
           />
+
           <div className="main-container">
             <div className="pot-container" style={{ pointerEvents: "auto" }}>
               <PotVisualization
@@ -795,10 +777,10 @@ const LeakPotPage = () => {
                 formatter={formatter}
               />
             </div>
+
             <div className="control-panel">
-              <h2 className="panel-title">
-                {currentMonth}월 지출을 다스리시오
-              </h2>
+              <h2 className="panel-title">{currentMonth}월 지출을 다스리시오</h2>
+
               <div className="sliders-container">
                 {categories.map((cat) => (
                   <CustomSlider
@@ -810,6 +792,7 @@ const LeakPotPage = () => {
                   />
                 ))}
               </div>
+
               <div className="summary">
                 {totalLeak > 0 ? (
                   <p className="summary-leak">
