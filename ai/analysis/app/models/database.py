@@ -8,8 +8,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from datetime import datetime
 import os
 
-# Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://fintech:fintech123@mysql:3306/fintech_ai")
+# Database URL from environment (required)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required. Please set it in .env file")
+
 # For MySQL with aiomysql
 ASYNC_DATABASE_URL = DATABASE_URL.replace("mysql+pymysql://", "mysql+aiomysql://")
 

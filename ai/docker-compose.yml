@@ -50,9 +50,9 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-fintech}:${MYSQL_PASSWORD:-fintech123}@mysql:3306/${MYSQL_DATABASE:-fintech_ai}?charset=utf8mb4
-      - REDIS_HOST=${REDIS_HOST:-j13a409.p.ssafy.io}
-      - REDIS_PORT=${REDIS_PORT:-8379}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     volumes:
       - ./analysis:/app
       - ./dummy.csv:/app/dummy.csv:ro
@@ -72,9 +72,9 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - REDIS_HOST=${REDIS_HOST:-j13a409.p.ssafy.io}
-      - REDIS_PORT=${REDIS_PORT:-8379}
-      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DB=${REDIS_DB}
     volumes:
       - ./csv-manager:/app
     networks:
@@ -103,10 +103,10 @@ services:
     image: mysql:8.0
     container_name: mysql-db
     environment:
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-fintech_ai}
-      - MYSQL_USER=${MYSQL_USER:-fintech}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-fintech123}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root123}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
@@ -116,7 +116,7 @@ services:
       - ai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5

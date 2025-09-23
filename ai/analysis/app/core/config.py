@@ -11,9 +11,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8002
     
-    # Database
+    # Database - MySQL
     DATABASE_URL: str = Field(
-        default="postgresql://fintech_user:fintech_password@postgres:5432/fintech_db",
+        default=None,  # Required from .env file
         env="DATABASE_URL"
     )
     
@@ -24,13 +24,10 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
     
     # MinIO/S3 Settings (for fetching CSV files)
-    MINIO_ENDPOINT: str = Field(
-        default="https://j13a409.p.ssafy.io:8909",
-        env="MINIO_ENDPOINT"
-    )
-    MINIO_ACCESS_KEY: str = Field(default="minioadmin", env="MINIO_ACCESS_KEY")
-    MINIO_SECRET_KEY: str = Field(default="minioadmin", env="MINIO_SECRET_KEY")
-    MINIO_BUCKET: str = Field(default="csv", env="MINIO_BUCKET")
+    MINIO_ENDPOINT: str = Field(default=None, env="MINIO_ENDPOINT")
+    MINIO_ACCESS_KEY: str = Field(default=None, env="MINIO_ACCESS_KEY")
+    MINIO_SECRET_KEY: str = Field(default=None, env="MINIO_SECRET_KEY")
+    MINIO_BUCKET: str = Field(default=None, env="MINIO_BUCKET")
     MINIO_SECURE: bool = Field(default=True, env="MINIO_SECURE")
     VERIFY_SSL: bool = Field(default=False, env="VERIFY_SSL")
     

@@ -74,7 +74,7 @@ class ProphetService:
             return None
             
         # Initialize Prophet with custom parameters based on category
-        if category in ['식비', 'Food & Dining', '카페', 'Cafe']:
+        if category in ['식비', 'Food & Dining', '카페', 'Cafe', "마트 / 편의점"]:
             # Food categories have strong weekly patterns
             model = Prophet(
                 daily_seasonality=False,
