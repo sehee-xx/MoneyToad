@@ -31,7 +31,7 @@ export interface MonthlyBudgetResponse {
 
 export interface YearlyBudgetLeakResponse {
   budgetDate: string;
-  isLeaked: boolean;
+  leaked: boolean;
 }
 
 export interface UpdateBudgetRequest {

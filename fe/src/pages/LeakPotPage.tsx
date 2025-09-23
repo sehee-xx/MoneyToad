@@ -4,8 +4,8 @@ import Lottie from "lottie-react";
 import Header from "../components/Header";
 import "./LeakPotPage.css";
 import LoadingOverlay from "../components/LoadingOverlay";
-import { useMonthlyBudgetsQuery } from "../api/queries/budgetQuery";
-import type { MonthlyBudgetResponse } from "../types";
+import { useMonthlyBudgetsQuery, useYearlyBudgetLeaksQuery } from "../api/queries/budgetQuery";
+import type { MonthlyBudgetResponse, YearlyBudgetLeakResponse } from "../types";
 
 // --- 이미지 & 애니메이션 ---
 const cryingKongjwi = "/leakPot/cryingKongjwi.png";
@@ -586,6 +586,18 @@ const adaptBudgetDataToCategory = (data: MonthlyBudgetResponse): Category => ({
   threshold: data.budget,
 });
 
+// 연간 누수 데이터를 월 번호 배열로 변환
+const adaptYearlyLeakDataToMonths = (data: YearlyBudgetLeakResponse[]): number[] => {
+  return data
+    .filter(item => item.leaked)
+    .map(item => {
+      const parts = item.budgetDate.split('-');
+      return parseInt(parts[1], 10); 
+
+    })
+    .filter(month => month >= 1 && month <= 12);
+};
+
 // 년도/월 계산 로직
 const calculateYearMonth = (monthParam: string | undefined): { year: number; month: number } => {
   const currentDate = new Date();
@@ -623,6 +635,7 @@ const LeakPotPage = () => {
 
   // API 데이터 가져오기
   const { data: budgetData, isLoading: isBudgetLoading, error } = useMonthlyBudgetsQuery(year, targetMonth);
+  const { data: yearlyLeakData, isLoading: isYearlyLeakLoading, error: yearlyLeakError } = useYearlyBudgetLeaksQuery();
 
   // 첫 진입 시 에셋 프리로드
   useEffect(() => {
@@ -695,7 +708,15 @@ const LeakPotPage = () => {
   );
 
   const hasLeakThisMonth = leakingCategories.length > 0;
-  const leakedMonths: number[] = hasLeakThisMonth ? [currentMonth] : [];
+
+  // 연간 누수 데이터를 기반으로 leakedMonths 계산
+  const leakedMonths: number[] = (() => {
+    if (yearlyLeakData?.length) {
+      return adaptYearlyLeakDataToMonths(yearlyLeakData);
+    }
+    // API 데이터가 없으면 현재 월의 누수 상태를 fallback으로 사용
+    return hasLeakThisMonth ? [currentMonth] : [];
+  })();
 
   const rootVars: React.CSSProperties = {
     "--bg": `url(${bgImage})`,
@@ -707,9 +728,13 @@ const LeakPotPage = () => {
     console.error('Budget data fetch error:', error);
   }
 
+  if (yearlyLeakError) {
+    console.error('Yearly leak data fetch error:', yearlyLeakError);
+  }
+
   return (
     <div className="app-container" style={rootVars}>
-      {pageLoading || isBudgetLoading ? (
+      {pageLoading || isBudgetLoading || isYearlyLeakLoading ? (
         <LoadingOverlay />
       ) : (
         <>
