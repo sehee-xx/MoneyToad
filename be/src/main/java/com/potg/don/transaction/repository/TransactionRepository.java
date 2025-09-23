@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.potg.don.transaction.entity.Transaction;
 import com.potg.don.transaction.projection.CategoryTotalProjection;
+import com.potg.don.transaction.projection.MonthlyCategoryTotalRow;
 import com.potg.don.transaction.projection.MonthlyTotalProjection;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -69,6 +70,25 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 		@Param("userId") Long userId,
 		@Param("start") LocalDateTime start,
 		@Param("end") LocalDateTime end
+	);
+
+	@Query(value = """
+        SELECT
+          YEAR(t.transaction_date_time)  AS y,
+          MONTH(t.transaction_date_time) AS m,
+          t.category                     AS category,
+          SUM(t.amount)                  AS total
+        FROM transactions t
+        WHERE t.card_id = :cardId
+          AND t.transaction_date_time >= :start   -- inclusive
+          AND t.transaction_date_time <  :end     -- exclusive
+        GROUP BY y, m, t.category
+        ORDER BY y ASC, m ASC
+        """, nativeQuery = true)
+	List<MonthlyCategoryTotalRow> aggregateCategoryTotalsByMonthForCard(
+		@Param("cardId") Long cardId,
+		@Param("start") LocalDateTime start,
+		@Param("end")   LocalDateTime end
 	);
 
 	/**

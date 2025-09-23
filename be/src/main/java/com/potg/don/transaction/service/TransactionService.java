@@ -6,24 +6,30 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.potg.don.card.entity.Card;
+import com.potg.don.card.repository.CardRepository;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
 import com.potg.don.transaction.dto.response.MonthlyCategorySpendingResponse;
 import com.potg.don.transaction.dto.response.MonthlySpendingResponse;
 import com.potg.don.transaction.dto.response.TransactionResponse;
 import com.potg.don.transaction.entity.Transaction;
 import com.potg.don.transaction.projection.CategoryTotalProjection;
+import com.potg.don.transaction.projection.MonthlyCategoryTotalRow;
 import com.potg.don.transaction.projection.MonthlyTotalProjection;
 import com.potg.don.transaction.repository.TransactionRepository;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -35,6 +41,7 @@ public class TransactionService {
 	private static final DateTimeFormatter YM_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 
 	private final TransactionRepository transactionRepository;
+	private final CardRepository cardRepository;
 
 	/**
 	 * GET /transactions
@@ -91,7 +98,7 @@ public class TransactionService {
 	 * Controller 메소드명에 맞춰 intentionally 'Spendig' 철자 유지
 	 * 반환: List<MonthlyCategorySpendingResponse>
 	 */
-	public List<MonthlyCategorySpendingResponse> getMonthlyCategorySpendig(Long userId, Integer year, Integer month) {
+	public List<MonthlyCategorySpendingResponse> getMonthlyCategorySpending(Long userId, Integer year, Integer month) {
 		YearMonth ym = YearMonth.of(year, month);
 		LocalDateTime start = ym.atDay(1).atStartOfDay();
 		LocalDateTime end = ym.plusMonths(1).atDay(1).atStartOfDay();
@@ -129,5 +136,24 @@ public class TransactionService {
 			.merchantName(t.getMerchantName())
 			.category(t.getCategory())
 			.build();
+	}
+
+	public Map<YearMonth, Map<String, Integer>> getSpentMapByMonth(Long userId, YearMonth startYm, YearMonth endYm) {
+		LocalDateTime start = startYm.atDay(1).atStartOfDay();
+		LocalDateTime end   = endYm.plusMonths(1).atDay(1).atStartOfDay(); // [start, end)
+		Card card = cardRepository.findByUserId(userId).orElseThrow(EntityNotFoundException::new);
+
+		List<MonthlyCategoryTotalRow> rows =
+			transactionRepository.aggregateCategoryTotalsByMonthForCard(card.getId(), start, end);
+
+		Map<YearMonth, Map<String, Integer>> spentByMonth = new HashMap<>();
+		for (MonthlyCategoryTotalRow r : rows) {
+			YearMonth ym = YearMonth.of(r.getY(), r.getM());
+			Map<String, Integer> byCat = spentByMonth.computeIfAbsent(ym, k -> new HashMap<>());
+			String cat = (r.getCategory() == null ? "미분류" : r.getCategory());
+			int total = Math.toIntExact(Objects.requireNonNullElse(r.getTotal(), 0L));
+			byCat.merge(cat, total, Integer::sum);
+		}
+		return spentByMonth;
 	}
 }

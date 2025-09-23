@@ -1,0 +1,24 @@
+package com.potg.don.budget.dto.response;
+
+import com.potg.don.budget.entity.Budget;
+
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+public class BudgetResponse {
+	private Long id;
+	private Integer budget;
+	private Integer spending;
+	private String category;
+
+	public static BudgetResponse from(Budget budget, Integer spending) {
+		return BudgetResponse.builder()
+			.id(budget.getId())
+			.budget(budget.getAmount())
+			.spending(spending)
+			.category(budget.getCategory())
+			.build();
+	}
+}
