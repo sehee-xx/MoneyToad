@@ -59,8 +59,7 @@ services:
     networks:
       - ai-network
     restart: unless-stopped
-    depends_on:
-      - mysql
+    # depends_on removed - using external Azure MySQL
 
   # CSV Manager Service - CSV 파일 관리
   csv-manager:
@@ -80,35 +79,12 @@ services:
     networks:
       - ai-network
     restart: unless-stopped
-    depends_on:
-      - mysql
+    # depends_on removed - using external Azure MySQL
 
-  # MySQL Database for storing analysis results
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-db
-    environment:
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - ai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # MySQL Database container removed - using Azure MySQL instead
 
 networks:
   ai-network:
     driver: bridge
 
-volumes:
-  mysql_data:
+# volumes removed - no longer using local MySQL

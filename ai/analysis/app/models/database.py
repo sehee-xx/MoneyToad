@@ -16,8 +16,20 @@ if not DATABASE_URL:
 # For MySQL with aiomysql
 ASYNC_DATABASE_URL = DATABASE_URL.replace("mysql+pymysql://", "mysql+aiomysql://")
 
-# Create async engine
-engine = create_async_engine(ASYNC_DATABASE_URL, echo=True)
+# SSL configuration for Azure MySQL
+import ssl
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+# Create async engine with SSL config for aiomysql
+engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    echo=True,
+    connect_args={
+        "ssl": ssl_context
+    }
+)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
