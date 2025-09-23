@@ -21,3 +21,10 @@ export interface CategoryTransaction {
 export interface UpdateCategoryRequest {
   category: string;
 }
+
+export interface MonthlyBudgetResponse {
+  budgetId: number;
+  budget: number;
+  spending: number;
+  category: string;
+}
