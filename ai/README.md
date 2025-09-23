@@ -42,7 +42,7 @@
         └─────────────┘ └─────────────┘
                │
         ┌──────▼──────┐
-        │    MySQL    │
+        │ Azure MySQL │
         │  (Database) │
         └─────────────┘
 ```
@@ -519,10 +519,13 @@ docker-compose restart redis
 docker exec redis-cache redis-cli ping
 ```
 
-### MySQL 연결 문제
+### Azure MySQL 연결 문제
 ```bash
-docker-compose restart mysql
-docker exec mysql-db mysql -u root -proot123 -e "SELECT 1"
+# Analysis 서비스 재시작
+docker-compose restart analysis
+
+# SSL 연결 확인
+docker-compose logs analysis --tail 50
 ```
 
 ### MinIO 업로드 문제
@@ -583,7 +586,7 @@ make up
 
 ### Infrastructure
 - **Docker & Docker Compose**: 컨테이너화
-- **MySQL 8.0**: 메인 데이터베이스
+- **Azure MySQL**: 클라우드 기반 메인 데이터베이스 (SSL 연결)
 - **Redis 7.0**: 캐시 & 상태 관리
 - **MinIO**: S3 호환 파일 스토리지
 

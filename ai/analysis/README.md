@@ -22,7 +22,7 @@ Analysis Service는 Facebook Prophet을 활용하여 사용자의 금융 거래 
 - **순차 실행**: 현재월 우선 처리 후 베이스라인 계산
 
 ### 데이터 관리
-- **MySQL 저장**: 예측 결과 영구 보관
+- **Azure MySQL 저장**: 예측 결과 영구 보관 (SSL 보안 연결)
 - **Redis 캐싱**: 상태 및 메타데이터 고속 처리
 - **S3 연동**: CSV 파일 직접 다운로드
 - **비동기 처리**: BackgroundTasks 활용
@@ -119,7 +119,7 @@ analysis/
 │   │   └── endpoints/
 │   │       └── data.py          # API 엔드포인트
 │   ├── db/
-│   │   ├── database.py         # MySQL 연결
+│   │   ├── database.py         # Azure MySQL 연결 (SSL)
 │   │   └── models.py           # SQLAlchemy 모델
 │   ├── services/
 │   │   ├── prophet_service.py  # Prophet 예측 엔진
@@ -147,10 +147,10 @@ analysis/
 └────┬───────┬────┘
      │       │
      ▼       ▼
-┌────────┐ ┌────────┐
-│ MySQL  │ │ Redis  │
-│   DB   │ │ Cache  │
-└────────┘ └────────┘
+┌────────────┐ ┌────────┐
+│Azure MySQL │ │ Redis  │
+│     DB     │ │ Cache  │
+└────────────┘ └────────┘
 ```
 
 ### 처리 프로세스
@@ -272,12 +272,13 @@ CREATE TABLE leak_analysis (
 
 ### 환경 변수 (.env)
 ```bash
-# MySQL
-MYSQL_HOST=mysql
+# Azure MySQL (SSL 연결 필수)
+MYSQL_HOST=ssafy-mysql-db.mysql.database.azure.com
 MYSQL_PORT=3306
-MYSQL_DATABASE=fintech_ai
-MYSQL_USER=fintech
-MYSQL_PASSWORD=fintech123
+MYSQL_DATABASE=S13P21A409
+MYSQL_USER=S13P21A409
+MYSQL_PASSWORD=your-password
+DATABASE_URL=mysql+pymysql://user:password@host:3306/database?charset=utf8mb4
 
 # Redis
 REDIS_HOST=redis
@@ -396,7 +397,7 @@ GET /health
 - ✅ 11개월 베이스라인으로 확장
 - ✅ 현재월 우선 처리 구현
 - ✅ 다음월 예측 제거
-- ✅ MySQL 마이그레이션 (PostgreSQL → MySQL)
+- ✅ Azure MySQL 마이그레이션 (로컬 → 클라우드)
 - ✅ 순차 실행 최적화
 
 ### v1.0.0
@@ -419,13 +420,16 @@ POST /api/ai/data?file_id=abc-123
 - 원인: 데이터 부족 (< 2일)
 - 해결: 해당 카테고리 0원으로 처리
 
-### MySQL 연결 실패
+### Azure MySQL 연결 실패
 ```bash
-# MySQL 재시작
-docker-compose restart mysql
+# Analysis 서비스 재시작
+docker-compose restart analysis
 
-# 연결 테스트
-docker exec mysql mysql -u fintech -p
+# SSL 연결 로그 확인
+docker-compose logs analysis --tail 50
+
+# SSL 설정 확인 필수
+# database.py에 SSL context 설정이 있어야 함
 ```
 
 ## 🤝 Integration
@@ -436,7 +440,7 @@ docker exec mysql mysql -u fintech -p
 - **CSV Manager**: 파일 다운로드
 - **Classifier**: 분류된 데이터 수신
 - **Redis**: 상태 공유
-- **MySQL**: 결과 저장
+- **Azure MySQL**: 클라우드 기반 결과 저장 (SSL 보안 연결)
 
 ## 🔗 관련 문서
 
