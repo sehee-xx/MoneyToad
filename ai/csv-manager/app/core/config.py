@@ -90,15 +90,15 @@ class Settings(BaseSettings):
     
     # Redis Settings
     REDIS_HOST: str = Field(
-        default="localhost",
+        default=None,  # Required from .env
         env="REDIS_HOST"
     )
     REDIS_PORT: int = Field(
-        default=6379,
+        default=None,  # Required from .env
         env="REDIS_PORT"
     )
     REDIS_DB: int = Field(
-        default=0,
+        default=None,  # Required from .env
         env="REDIS_DB"
     )
     REDIS_PASSWORD: Optional[str] = Field(

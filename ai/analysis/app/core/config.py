@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     )
     
     # Redis Settings
-    REDIS_HOST: str = Field(default="localhost", env="REDIS_HOST")
-    REDIS_PORT: int = Field(default=6379, env="REDIS_PORT")
-    REDIS_DB: int = Field(default=0, env="REDIS_DB")
+    REDIS_HOST: str = Field(default=None, env="REDIS_HOST")
+    REDIS_PORT: int = Field(default=None, env="REDIS_PORT")
+    REDIS_DB: int = Field(default=None, env="REDIS_DB")
     REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
     
     # MinIO/S3 Settings (for fetching CSV files)
