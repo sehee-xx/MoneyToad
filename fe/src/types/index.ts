@@ -21,3 +21,25 @@ export interface CategoryTransaction {
 export interface UpdateCategoryRequest {
   category: string;
 }
+
+export interface MonthlyBudgetResponse {
+  id: number;
+  budget: number;
+  spending: number;
+  category: string;
+}
+
+export interface YearlyBudgetLeakResponse {
+  budgetDate: string;
+  leaked: boolean;
+}
+
+export interface UpdateBudgetRequest {
+  budgetId: number;
+  budget: number;
+}
+
+export interface UpdateBudgetResponse {
+  budgetId: number;
+  budget: number;
+}
