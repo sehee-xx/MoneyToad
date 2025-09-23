@@ -53,3 +53,13 @@ export const deleteCard = async () => {
 
   return response;
 };
+
+export const updateCard = async (data: RegisterCardRequest) => {
+  const response = await request<CardApiResponse>({
+    method: REQUEST_METHOD.PATCH,
+    url: `${import.meta.env.VITE_BACK_URL}/api/cards`,
+    data,
+  });
+
+  return adaptCardResponse(response);
+};
