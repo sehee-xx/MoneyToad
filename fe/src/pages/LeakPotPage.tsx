@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import "./LeakPotPage.css";
 import LoadingOverlay from "../components/LoadingOverlay";
 import { useMonthlyBudgetsQuery, useYearlyBudgetLeaksQuery } from "../api/queries/budgetQuery";
+import { useUpdateBudgetMutation } from "../api/mutation/budgetMutation";
 import type { MonthlyBudgetResponse, YearlyBudgetLeakResponse } from "../types";
 
 // --- 이미지 & 애니메이션 ---
@@ -636,6 +637,10 @@ const LeakPotPage = () => {
   // API 데이터 가져오기
   const { data: budgetData, isLoading: isBudgetLoading, error } = useMonthlyBudgetsQuery(year, targetMonth);
   const { data: yearlyLeakData, isLoading: isYearlyLeakLoading, error: yearlyLeakError } = useYearlyBudgetLeaksQuery();
+  const updateBudgetMutation = useUpdateBudgetMutation();
+
+  // debounce 타이머
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // 첫 진입 시 에셋 프리로드
   useEffect(() => {
@@ -669,6 +674,15 @@ const LeakPotPage = () => {
     };
   }, []);
 
+  // cleanup: 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
+
   const currentMonth = targetMonth;
 
   // API 데이터를 categories로 변환
@@ -698,13 +712,27 @@ const LeakPotPage = () => {
 
   const handleThresholdChange = useCallback(
     (id: number, newThreshold: number) => {
+      // 즉시 UI 업데이트 (사용자 경험)
       setCategories((prev) =>
         prev.map((cat) =>
           cat.id === id ? { ...cat, threshold: newThreshold } : cat
         )
       );
+
+      // 기존 타이머 클리어
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+
+      // 0.5초 후 API 호출
+      debounceTimer.current = setTimeout(() => {
+        updateBudgetMutation.mutate({
+          budgetId: id,
+          budget: newThreshold,
+        });
+      }, 500);
     },
-    []
+    [updateBudgetMutation]
   );
 
   const hasLeakThisMonth = leakingCategories.length > 0;
