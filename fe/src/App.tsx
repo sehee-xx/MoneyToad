@@ -3,13 +3,14 @@ import { useLocation, Routes, Route } from "react-router-dom";
 import ScrollLandingPage, { scrollLandingAssets } from "./pages/ScrollLandingPage";
 import LeakPotPage, { leakPotAssets } from "./pages/LeakPotPage";
 import UserInfoInputPage, { userInfoAssets } from "./pages/UserInfoInputPage";
-import ChartPage from "./pages/ChartPage";
+import ChartPage, { chartAssets } from "./pages/ChartPage";
 import AuthCallback from "./pages/AuthCallback";
 import Mypage, { mypageAssets } from "./pages/Mypage";
 import NotFound, { notFoundAssets } from "./pages/NotFound";
 import RouteGuard from "./components/RouteGuard";
 import LoadingOverlay from "./components/LoadingOverlay";
 import ToadAdvice, { toadAdviceAssets } from "./pages/ToadAdvice";
+
 
 const allAssets = [
   ...scrollLandingAssets,
@@ -18,6 +19,7 @@ const allAssets = [
   ...mypageAssets,
   ...notFoundAssets,
   ...toadAdviceAssets,
+  ...chartAssets,
 ];
 
 export default function App() {
