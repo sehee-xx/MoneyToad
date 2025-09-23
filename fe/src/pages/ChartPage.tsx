@@ -16,6 +16,15 @@ import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
 
+export const chartAssets = [
+  "/charts/background.png",
+  "/charts/sitting_girl.png",
+  "/charts/toad.png",
+  "/charts/water.png",
+  "/charts/flower.png",
+  "/charts/leaf.png",
+];
+
 /* ------------------------------ 상수/타입 ------------------------------ */
 
 const CATEGORIES = [
