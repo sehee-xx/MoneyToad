@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { registerCard, deleteCard, type RegisterCardRequest } from '../services/cards';
+import { registerCard, deleteCard, type RegisterCardRequest, updateCard } from '../services/cards';
 import { cardQueryKeys } from '../queryKeys';
 
 export const useRegisterCardMutation = () => {
@@ -22,6 +22,17 @@ export const useDeleteCardMutation = () => {
     onSuccess: () => {
       // 즉시 캐시를 null로 설정하여 빠른 UI 반영
       queryClient.setQueryData(cardQueryKeys.info(), null);
+    },
+  });
+};
+
+export const useUpdateCardMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: RegisterCardRequest) => updateCard(data),
+    onSuccess: (newCardData) => {
+      queryClient.setQueryData(cardQueryKeys.info(), newCardData);
     },
   });
 };

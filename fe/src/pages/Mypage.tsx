@@ -4,7 +4,7 @@ import "./Mypage.css";
 import { useUserInfoQuery } from "../api/queries/userQuery";
 import { useUpdateUserBasicInfoMutation } from "../api/mutation/userMutation";
 import { useCardInfoQuery } from "../api/queries/cardQuery";
-import { useRegisterCardMutation, useDeleteCardMutation } from "../api/mutation/cardMutation";
+import { useRegisterCardMutation, useUpdateCardMutation } from "../api/mutation/cardMutation";
 import type { UserInfo as ApiUserInfo } from "../types/user";
 import type { Gender } from "../types";
 import type { CardInfo } from "../api/services/cards";
@@ -13,14 +13,14 @@ type Phase = "CLOSED" | "OPEN" | "SITTING" | "PAPER";
 type LocalUserInfo = {
   gender: Gender;
   age: number | null;
-  account?: string;
-  cvc?: string;
+  account?: string; // 저장/표시는 하이픈 포함 “0000-0000-0000-0000”
+  cvc?: string;     // 저장/표시는 숫자 3자리
 };
 
 const IMG_CLOSE  = "/mypage/close.png";
 const IMG_OPEN   = "/mypage/open.png";
 const IMG_SIT    = "/mypage/sitting.png";
-const IMG_PAPER  = "/mypage/paper.png";   
+const IMG_PAPER  = "/mypage/paper.png";
 
 export const mypageAssets = [
   "/mypage/close.png",
@@ -29,11 +29,12 @@ export const mypageAssets = [
   "/mypage/paper.png",
 ];
 
+// ---- utils (간단 버전) ----
 const digitsOnly = (v: string, max?: number) =>
   v.replace(/\D/g, "").slice(0, typeof max === "number" ? max : undefined);
 
-const formatAccount = (raw: string) => {
-  const d = digitsOnly(raw, 16);
+const formatAccountByDigits = (digits: string) => {
+  const d = digitsOnly(digits, 16);
   const parts = d.match(/.{1,4}/g) || [];
   return parts.join("-").slice(0, 19);
 };
@@ -44,22 +45,18 @@ const maskAccount = (acct?: string) => {
   return `****-****-****-${last4}`;
 };
 
-
 const loadUser = (apiUserData?: ApiUserInfo, cardData?: CardInfo): LocalUserInfo => {
-  // API 데이터가 있으면 사용, 없으면 기본값
   if (apiUserData) {
     const { gender, age } = apiUserData;
     return {
       gender: gender || "",
       age: age || null,
-      account: cardData?.account,
+      account: cardData?.account, // 서버가 전체 번호를 내려준다는 전제. 마스킹이면 재입력하게 됨.
       cvc: cardData?.cvc,
     };
   }
-
-  // API 데이터가 없으면 기본값 반환
   return { gender: "", age: null };
-}
+};
 
 export default function MyPage() {
   const [phase, setPhase] = useState<Phase>("CLOSED");
@@ -68,25 +65,19 @@ export default function MyPage() {
   const { data: cardData } = useCardInfoQuery();
   const updateUserBasicInfoMutation = useUpdateUserBasicInfoMutation();
   const registerCardMutation = useRegisterCardMutation();
-  const deleteCardMutation = useDeleteCardMutation();
+  const updateCardMutation = useUpdateCardMutation();
 
   const [user, setUser] = useState<LocalUserInfo>(() => loadUser(userData, cardData));
 
-  // userData 또는 cardData 변경 시 user 상태 동기화
-  useEffect(() => {
-    setUser(loadUser(userData, cardData));
-  }, [userData, cardData]);
+  // 보기/편집 모드 제어
+  const [isCardEditing, setIsCardEditing] = useState(false);
 
-  const [gEditing, setGEditing] = useState<Gender>(user.gender);
-  const [ageEditing, setAgeEditing] = useState<string>(
-    user.age === null ? "" : String(user.age)
-  );
+  // 편집 중 인풋(마스킹 없이 보여줄 실제 값)
+  // account는 digits만 보관하고 화면에선 하이픈 넣어 표시
+  const [accountDigits, setAccountDigits] = useState("");
+  const [cvcDigits, setCvcDigits] = useState("");
 
-  // 카드 등록 폼 (카드가 없을 때만 사용)
-  const [acctNew, setAcctNew] = useState("");
-  const [cvcNew, setCvcNew] = useState("");
-
-  // PAPER를 열 때마다 최신 사용자 정보로 폼 동기화
+  // PAPER 열릴 때 폼 초기화
   const prevPhase = useRef<Phase>(phase);
   useEffect(() => {
     if (phase === "PAPER" && prevPhase.current !== "PAPER") {
@@ -94,24 +85,29 @@ export default function MyPage() {
       setUser(fresh);
       setGEditing(fresh.gender);
       setAgeEditing(fresh.age === null ? "" : String(fresh.age));
-      setAcctNew("");
-      setCvcNew("");
+      // 편집값 초기화
+      setIsCardEditing(false);
+      setAccountDigits("");
+      setCvcDigits("");
     }
     prevPhase.current = phase;
   }, [phase, userData, cardData]);
 
-  // 유효성
-  const accountValid = useMemo(
-    () => /^\d{4}-\d{4}-\d{4}-\d{4}$/.test(acctNew),
-    [acctNew]
+  // 기본 정보 편집
+  const [gEditing, setGEditing] = useState<Gender>(user.gender);
+  const [ageEditing, setAgeEditing] = useState<string>(
+    user.age === null ? "" : String(user.age)
   );
-  const cvcValid = useMemo(() => /^\d{3}$/.test(cvcNew), [cvcNew]);
+
+  // 유효성
+  const accountValid = useMemo(() => accountDigits.length === 16, [accountDigits]);
+  const cvcValid = useMemo(() => cvcDigits.length === 3, [cvcDigits]);
   const ageValid = useMemo(
     () => /^\d+$/.test(ageEditing) && Number(ageEditing) > 0,
     [ageEditing]
   );
 
-  // 변경 여부에 따라 저장 버튼 노출/활성화
+  // 변경 여부
   const basicDirty = useMemo(() => {
     const ageNum = ageEditing ? Number(ageEditing) : null;
     return gEditing !== user.gender || (user.age ?? null) !== ageNum;
@@ -119,62 +115,77 @@ export default function MyPage() {
 
   const handleSaveBasic = () => {
     if (!ageValid || !basicDirty) return;
-
     updateUserBasicInfoMutation.mutate({
       gender: gEditing,
-      age: Number(ageEditing)
+      age: Number(ageEditing),
     });
   };
 
-  const handleDeleteCard = () => {
-    if (!user.account) return;
-    if (!window.confirm("등록된 카드를 삭제할까요?")) return;
-    
-    // 낙관적 업데이트: 즉시 로컬 상태 업데이트
-    setUser((u) => ({ ...u, account: undefined, cvc: undefined }));
-    setAcctNew("");
-    setCvcNew("");
-    
-    // API 호출
-    deleteCardMutation.mutate(undefined, {
-      onError: (error) => {
-        // 실패시 롤백
-        console.error('카드 삭제 실패:', error);
-        setUser(loadUser(userData, cardData)); // 원래 상태로 복구
-      }
-    });
+  // 카드 편집 시작
+  const handleEditCard = () => {
+    setIsCardEditing(true);
+    // 서버에서 받은 번호가 있다면 그걸로 프리필 (마스킹이 아닌 전체가 왔다는 전제)
+    const initialDigits = user.account ? digitsOnly(user.account, 16) : "";
+    setAccountDigits(initialDigits);
+    setCvcDigits(user.cvc ? digitsOnly(user.cvc, 3) : "");
   };
 
-  const handleRegisterCard = () => {
+  const handleCancelCardEdit = () => {
+    setIsCardEditing(false);
+    setAccountDigits("");
+    setCvcDigits("");
+  };
+
+  // 카드 입력 onChange (간단/견고)
+  const onChangeAccount = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAccountDigits(digitsOnly(e.target.value, 16));
+  };
+  const onChangeCvc = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCvcDigits(digitsOnly(e.target.value, 3));
+  };
+
+  // 표시용 포맷
+  const accountInputValue = useMemo(
+    () => formatAccountByDigits(accountDigits),
+    [accountDigits]
+  );
+
+  // 저장 (변경 / 등록 공용)
+  const submitCard = (mode: "update" | "register") => {
     if (!accountValid || !cvcValid) return;
-    
-    // 현재 입력값 저장 (상태 초기화 전에)
-    const currentAccount = acctNew;
-    const currentCvc = cvcNew;
-    
-    // 낙관적 업데이트: 즉시 로컬 상태 업데이트
-    setUser((u) => ({ ...u, account: currentAccount, cvc: currentCvc }));
-    setAcctNew("");
-    setCvcNew("");
-    
-    // API 호출 (저장된 값 사용)
-    registerCardMutation.mutate({
-      cardNo: currentAccount,
-      cvc: currentCvc,
-    }, {
-      onError: (error) => {
-        // 실패시 롤백
-        console.error('카드 등록 실패:', error);
-        setUser(loadUser(userData, cardData)); // 원래 상태로 복구
-        setAcctNew(currentAccount); // 입력값 복구
-        setCvcNew(currentCvc);
+
+    const cardNo = formatAccountByDigits(accountDigits); // 하이픈 포함
+    const cvc = cvcDigits;
+
+    // 낙관적 업데이트
+    setUser((u) => ({ ...u, account: cardNo, cvc }));
+    setIsCardEditing(false);
+    setAccountDigits("");
+    setCvcDigits("");
+
+    const mutateFn =
+      mode === "update" ? updateCardMutation.mutate : registerCardMutation.mutate;
+
+    mutateFn(
+      { cardNo, cvc },
+      {
+        onError: (error) => {
+          console.error(mode === "update" ? "카드 수정 실패:" : "카드 등록 실패:", error);
+          // 롤백
+          setUser(loadUser(userData, cardData));
+          // 편집모드로 복귀 + 입력값 복구
+          setIsCardEditing(true);
+          setAccountDigits(digitsOnly(cardNo, 16));
+          setCvcDigits(cvc);
+        },
       }
-    });
+    );
   };
 
-  const closeToHome = () => {
-    setPhase("CLOSED");
-  };
+  const handleUpdateCard = () => submitCard("update");
+  const handleRegisterCard = () => submitCard("register");
+
+  const closeToHome = () => setPhase("CLOSED");
 
   return (
     <div className="mp-wrap">
@@ -270,58 +281,64 @@ export default function MyPage() {
                   {/* 카드 정보 */}
                   <section className="paper-block">
                     <h3>카드</h3>
-                    {user.account ? (
-                      <>
-                        <div className="card-view">
-                          <div>
-                            <div className="kv">
-                              <span className="k">카드번호</span>
-                              <span className="v mono">{maskAccount(user.account)}</span>
-                            </div>
-                            <div className="kv">
-                              <span className="k">CVC</span>
-                              <span className="v mono">***</span>
-                            </div>
+
+                    {/* 보기 모드: 마스킹 표시 */}
+                    {user.account && !isCardEditing ? (
+                      <div className="card-view">
+                        <div>
+                          <div className="kv">
+                            <span className="k">카드번호</span>
+                            <span className="v mono">{maskAccount(user.account)}</span>
                           </div>
-                          <button className="btn danger" onClick={handleDeleteCard}>
-                            카드 삭제
-                          </button>
+                          <div className="kv">
+                            <span className="k">CVC</span>
+                            <span className="v mono">***</span>
+                          </div>
                         </div>
-                        <small className="help">카드 정보는 수정이 아니라 삭제 후 재등록할 수 있어요.</small>
-                      </>
+                        <button className="btn primary" onClick={handleEditCard}>
+                          카드 변경
+                        </button>
+                      </div>
                     ) : (
+                      // 편집/등록 모드: 마스킹 없이 그대로 보여주기(카드번호는 자동 하이픈)
                       <>
                         <div className="grid two">
                           <label className="field">
                             <span>카드번호</span>
                             <input
-                              className={`input ${acctNew && !accountValid ? "err" : ""}`}
+                              className={`input ${accountDigits && !accountValid ? "err" : ""}`}
                               placeholder="0000-0000-0000-0000"
                               inputMode="numeric"
                               maxLength={19}
-                              value={acctNew}
-                              onChange={(e) => setAcctNew(formatAccount(e.target.value))}
+                              value={accountInputValue}
+                              onChange={onChangeAccount}
                             />
                           </label>
                           <label className="field">
                             <span>CVC</span>
                             <input
-                              className={`input ${cvcNew && !cvcValid ? "err" : ""}`}
+                              className={`input ${cvcDigits && !cvcValid ? "err" : ""}`}
                               placeholder="000"
                               inputMode="numeric"
                               maxLength={3}
-                              value={cvcNew}
-                              onChange={(e) => setCvcNew(digitsOnly(e.target.value, 3))}
+                              value={cvcDigits}
+                              onChange={onChangeCvc}
                             />
                           </label>
                         </div>
+
                         <div className="row-end appear">
+                          {user.account && (
+                            <button className="btn ghost" onClick={handleCancelCardEdit}>
+                              취소
+                            </button>
+                          )}
                           <button
                             className="btn primary"
-                            onClick={handleRegisterCard}
+                            onClick={user.account ? handleUpdateCard : handleRegisterCard}
                             disabled={!accountValid || !cvcValid}
                           >
-                            {"카드 등록"}
+                            {user.account ? "카드 변경" : "카드 등록"}
                           </button>
                         </div>
                       </>
