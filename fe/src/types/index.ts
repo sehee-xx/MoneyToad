@@ -33,3 +33,13 @@ export interface YearlyBudgetLeakResponse {
   budgetDate: string;
   isLeaked: boolean;
 }
+
+export interface UpdateBudgetRequest {
+  budgetId: number;
+  budget: number;
+}
+
+export interface UpdateBudgetResponse {
+  budgetId: number;
+  budget: number;
+}
