@@ -28,3 +28,8 @@ export interface MonthlyBudgetResponse {
   spending: number;
   category: string;
 }
+
+export interface YearlyBudgetLeakResponse {
+  budgetDate: string;
+  isLeaked: boolean;
+}

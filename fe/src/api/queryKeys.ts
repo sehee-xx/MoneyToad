@@ -18,4 +18,5 @@ export const transactionQueryKeys = {
 export const monthlyBudgetQueryKeys = {
   all: ['monthlyBudgets'] as const,
   monthly: (year: number, month: number) => [...monthlyBudgetQueryKeys.all, 'monthly', year, month] as const,
+  yearly: () => [...monthlyBudgetQueryKeys.all, 'yearly'] as const,
 } as const;
