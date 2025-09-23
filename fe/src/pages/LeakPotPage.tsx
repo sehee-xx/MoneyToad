@@ -4,6 +4,8 @@ import Lottie from "lottie-react";
 import Header from "../components/Header";
 import "./LeakPotPage.css";
 import LoadingOverlay from "../components/LoadingOverlay";
+import { useMonthlyBudgetsQuery } from "../api/queries/budgetQuery";
+import type { MonthlyBudgetResponse } from "../types";
 
 // --- 이미지 & 애니메이션 ---
 const cryingKongjwi = "/leakPot/cryingKongjwi.png";
@@ -37,7 +39,7 @@ export const leakPotAssets = [
 
 // --- 타입 정의 ---
 interface Category {
-  id: string;
+  id: number;
   name: string;
   spending: number;
   threshold: number;
@@ -64,18 +66,18 @@ interface AbsPosition {
 
 // --- 데이터 ---
 const INITIAL_CATEGORIES: Category[] = [
-  { id: "food", name: "식비", spending: 300000, threshold: 300000 },
-  { id: "shopping", name: "쇼핑", spending: 220000, threshold: 220000 },
-  { id: "transport", name: "교통", spending: 150000, threshold: 150000 },
-  { id: "hobby", name: "여가", spending: 100000, threshold: 100000 },
-  { id: "housing", name: "주거", spending: 550000, threshold: 550000 },
-  { id: "education", name: "교육", spending: 280000, threshold: 280000 },
-  { id: "communication", name: "통신", spending: 90000, threshold: 90000 },
-  { id: "pets", name: "반려동물", spending: 100000, threshold: 100000 },
-  { id: "health", name: "의료/건강", spending: 80000, threshold: 80000 },
-  { id: "events", name: "경조사비", spending: 120000, threshold: 120000 },
-  { id: "savings", name: "저축/투자", spending: 200000, threshold: 200000 },
-  { id: "etc", name: "기타", spending: 50000, threshold: 50000 },
+  { id: 1, name: "식비", spending: 300000, threshold: 300000 },
+  { id: 2, name: "쇼핑", spending: 220000, threshold: 220000 },
+  { id: 3, name: "교통", spending: 150000, threshold: 150000 },
+  { id: 4, name: "여가", spending: 100000, threshold: 100000 },
+  { id: 5, name: "주거", spending: 550000, threshold: 550000 },
+  { id: 6, name: "교육", spending: 280000, threshold: 280000 },
+  { id: 7, name: "통신", spending: 90000, threshold: 90000 },
+  { id: 8, name: "반려동물", spending: 100000, threshold: 100000 },
+  { id: 9, name: "의료/건강", spending: 80000, threshold: 80000 },
+  { id: 10, name: "경조사비", spending: 120000, threshold: 120000 },
+  { id: 11, name: "저축/투자", spending: 200000, threshold: 200000 },
+  { id: 12, name: "기타", spending: 50000, threshold: 50000 },
 ];
 
 // 월 데이터
@@ -488,7 +490,7 @@ const PotVisualization: React.FC<PotVisualizationProps> = ({
 const CustomSlider: React.FC<{
   cat: Category;
   isLeaking: boolean;
-  handleThresholdChange: (id: string, value: number) => void;
+  handleThresholdChange: (id: number, value: number) => void;
   formatter: Intl.NumberFormat;
 }> = ({ cat, isLeaking, handleThresholdChange, formatter }) => {
   const max = Math.max(600000, cat.spending * 1.5);
@@ -576,17 +578,51 @@ const CustomSlider: React.FC<{
   );
 };
 
+// 데이터 어댑터 함수
+const adaptBudgetDataToCategory = (data: MonthlyBudgetResponse): Category => ({
+  id: data.id,
+  name: data.category,
+  spending: data.spending,
+  threshold: data.budget,
+});
+
+// 년도/월 계산 로직
+const calculateYearMonth = (monthParam: string | undefined): { year: number; month: number } => {
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // 0-based to 1-based
+
+  let targetMonth = currentMonth;
+  if (monthParam) {
+    const monthNum = parseInt(monthParam, 10);
+    if (monthNum >= 1 && monthNum <= 12) {
+      targetMonth = monthNum;
+    }
+  }
+
+  // 현재 월보다 큰 값이면 이전 년도
+  const targetYear = targetMonth > currentMonth ? currentYear - 1 : currentYear;
+
+  return { year: targetYear, month: targetMonth };
+};
+
 // --- LeakPotPage ---
 const LeakPotPage = () => {
   const { month } = useParams();
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [leakingCategories, setLeakingCategories] = useState<LeakingCategory[]>(
     []
   );
   const [totalLeak, setTotalLeak] = useState<number>(0);
   const [pageLoading, setPageLoading] = useState(true);
   const formatter = new Intl.NumberFormat("ko-KR");
+
+  // 년도/월 계산
+  const { year, month: targetMonth } = calculateYearMonth(month);
+
+  // API 데이터 가져오기
+  const { data: budgetData, isLoading: isBudgetLoading, error } = useMonthlyBudgetsQuery(year, targetMonth);
 
   // 첫 진입 시 에셋 프리로드
   useEffect(() => {
@@ -620,20 +656,20 @@ const LeakPotPage = () => {
     };
   }, []);
 
-  const getCurrentMonth = (): number => {
-    if (month) {
-      const monthNum = parseInt(month);
-      if (monthNum >= 1 && monthNum <= 12) return monthNum;
-    }
-    return new Date().getMonth() + 1;
-  };
-  const currentMonth = getCurrentMonth();
+  const currentMonth = targetMonth;
 
+  // API 데이터를 categories로 변환
   useEffect(() => {
-    setCategories(
-      INITIAL_CATEGORIES.map((c) => ({ ...c, threshold: c.spending }))
-    );
-  }, [currentMonth]);
+    if (budgetData?.length) {
+      const adaptedCategories = budgetData.map(adaptBudgetDataToCategory);
+      setCategories(adaptedCategories);
+    } else if (!isBudgetLoading && !budgetData) {
+      // API 데이터가 없으면 기본 데이터 사용
+      setCategories(
+        INITIAL_CATEGORIES.map((c) => ({ ...c, threshold: c.spending }))
+      );
+    }
+  }, [budgetData, isBudgetLoading]);
 
   useEffect(() => {
     const currentLeaking = categories
@@ -648,7 +684,7 @@ const LeakPotPage = () => {
   }, [categories]);
 
   const handleThresholdChange = useCallback(
-    (id: string, newThreshold: number) => {
+    (id: number, newThreshold: number) => {
       setCategories((prev) =>
         prev.map((cat) =>
           cat.id === id ? { ...cat, threshold: newThreshold } : cat
@@ -667,9 +703,13 @@ const LeakPotPage = () => {
     "--pointer": `url(${customPointer})`,
   } as React.CSSProperties;
 
+  if (error) {
+    console.error('Budget data fetch error:', error);
+  }
+
   return (
     <div className="app-container" style={rootVars}>
-      {pageLoading ? (
+      {pageLoading || isBudgetLoading ? (
         <LoadingOverlay />
       ) : (
         <>
