@@ -737,13 +737,30 @@ const LeakPotPage = () => {
 
   const hasLeakThisMonth = leakingCategories.length > 0;
 
-  // 연간 누수 데이터를 기반으로 leakedMonths 계산
+  // 현재 월의 실시간 누수 상태 계산 (낙관적 업데이트용)
+  const currentMonthLeaked = categories.some(cat => cat.spending > cat.threshold);
+
+  // 연간 누수 데이터를 기반으로 leakedMonths 계산 (낙관적 업데이트 적용)
   const leakedMonths: number[] = (() => {
+    let months: number[] = [];
+
+    // API 데이터가 있으면 기본으로 사용
     if (yearlyLeakData?.length) {
-      return adaptYearlyLeakDataToMonths(yearlyLeakData);
+      months = adaptYearlyLeakDataToMonths(yearlyLeakData);
     }
-    // API 데이터가 없으면 현재 월의 누수 상태를 fallback으로 사용
-    return hasLeakThisMonth ? [currentMonth] : [];
+
+    // 현재 월의 실시간 누수 상태를 낙관적으로 반영
+    if (currentMonthLeaked) {
+      // 현재 월이 누수 상태면 추가 (중복 제거)
+      if (!months.includes(currentMonth)) {
+        months.push(currentMonth);
+      }
+    } else {
+      // 현재 월이 정상 상태면 제거
+      months = months.filter(month => month !== currentMonth);
+    }
+
+    return months;
   })();
 
   const rootVars: React.CSSProperties = {
