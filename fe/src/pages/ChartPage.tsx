@@ -1,5 +1,4 @@
-import React from "react";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -151,35 +150,27 @@ export default function ChartPage() {
     );
   };
 
-const MyConsumptionDot = (props: any): React.ReactElement<SVGElement> => {
-  const { cx, cy, index } = props;
-  if (cx === undefined || cy === undefined) return <g />;
+  const MyConsumptionDot = (props: any): React.ReactElement<SVGElement> => {
+    const { cx, cy, index } = props;
+    if (cx === undefined || cy === undefined) return <g />;
 
-  const isMax = index === maxPointIndex;
-  const href = isMax ? "/charts/flower.png" : "/charts/leaf.png";
-  const size = 50;
+    const isMax = index === maxPointIndex;
+    const href = isMax ? "/charts/flower.png" : "/charts/leaf.png";
+    const size = 50;
 
-  return (
-    <svg
-      x={cx - size / 2}
-      y={cy - size / 2}
-      width={size}
-      height={size}
-      style={{ overflow: "visible", cursor: "pointer" }}
-      onClick={() => onPointClick(props)}
-    >
-      <image href={href} width={size} height={size} />
-    </svg>
-  );
-};
-
-
-
-
-
-
-
-
+    return (
+      <svg
+        x={cx - size / 2}
+        y={cy - size / 2}
+        width={size}
+        height={size}
+        style={{ overflow: "visible", cursor: "pointer" }}
+        onClick={() => onPointClick(props)}
+      >
+        <image href={href} width={size} height={size} />
+      </svg>
+    );
+  };
 
   const PeerDot = (props: any): React.ReactElement<SVGElement> => {
     const { cx, cy } = props;
@@ -199,7 +190,9 @@ const MyConsumptionDot = (props: any): React.ReactElement<SVGElement> => {
     );
   };
 
+  // 전역 스크롤 스타일 조작은 제거 혹은 주석처리
   useEffect(() => {
+    /*
     const html = document.documentElement;
     const prevBodyOverflow = document.body.style.overflowY;
     const prevHtmlOverflow = html.style.overflowY;
@@ -222,6 +215,7 @@ const MyConsumptionDot = (props: any): React.ReactElement<SVGElement> => {
       html.classList.remove("allow-scroll");
       document.body.classList.remove("allow-scroll");
     };
+    */
   }, []);
 
   return (
