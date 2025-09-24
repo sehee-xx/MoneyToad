@@ -15,7 +15,7 @@ import {
 import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
-import { useYearTransactionQuery } from "../api/queries/transactionQuery";
+import { useYearTransactionQuery, usePeerYearTransactionQuery } from "../api/queries/transactionQuery";
 
 export const chartAssets = [
   "/charts/background.png",
@@ -146,6 +146,7 @@ export default function ChartPage() {
 
   /* API 데이터 가져오기 */
   const { data: yearTransactionData } = useYearTransactionQuery();
+  const { data: peerYearTransactionData } = usePeerYearTransactionQuery();
 
   /* 더미 트랜잭션 */
   const [txnsByMonth, setTxnsByMonth] = useState<Txn[][]>(
@@ -171,9 +172,10 @@ export default function ChartPage() {
     }));
 
     yearTransactionData.forEach(transaction => {
-      const date = new Date(transaction.date);
-      const transactionYear = date.getFullYear();
-      const transactionMonth = date.getMonth(); // 0-11
+      // "YYYY-MM" 형태의 날짜를 직접 파싱
+      const [year, month] = transaction.date.split('-').map(Number);
+      const transactionYear = year;
+      const transactionMonth = month - 1; // 0-based 월 인덱스
 
       // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
       const isLastYear = transactionYear < currentYear ||
@@ -188,17 +190,54 @@ export default function ChartPage() {
 
   /* 월별 합계 - API 데이터 우선 사용 */
   const myMonthly = useMemo(() => {
-    if (yearTransactionData && apiMonthlyData.some(monthData => monthData.amount > 0)) {
+    if (yearTransactionData && yearTransactionData.length > 0) {
       return apiMonthlyData.map(monthData => monthData.amount);
     }
     // API 데이터가 없으면 기존 더미 데이터 사용
     return txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0));
   }, [yearTransactionData, apiMonthlyData, txnsByMonth]);
-  const peerMonthly = useMemo(
-    () =>
-      myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100))),
-    [myMonthly]
-  );
+  /* 또래 API 데이터를 월별 데이터로 변환 */
+  const apiPeerMonthlyData = useMemo(() => {
+    if (!peerYearTransactionData) return Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+
+    const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
+
+    peerYearTransactionData.forEach(transaction => {
+      // "YYYY-MM" 형태의 날짜를 직접 파싱
+      const [year, month] = transaction.date.split('-').map(Number);
+      const transactionYear = year;
+      const transactionMonth = month - 1; // 0-based 월 인덱스
+
+      // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
+      const isLastYear = transactionYear < currentYear ||
+        (transactionYear === currentYear && transactionMonth > currentMonth);
+
+      monthlyData[transactionMonth].amount += transaction.totalAmount;
+      monthlyData[transactionMonth].isLastYear = isLastYear;
+    });
+
+    return monthlyData;
+  }, [peerYearTransactionData]);
+
+  const peerMonthly = useMemo(() => {
+    if (peerYearTransactionData && peerYearTransactionData.length > 0) {
+      return apiPeerMonthlyData.map(monthData => monthData.amount);
+    }
+    // API 데이터가 없으면 기존 더미 계산 로직 사용
+    return myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100)));
+  }, [peerYearTransactionData, apiPeerMonthlyData, myMonthly]);
 
   /* 최대 지점(연꽃) */
   const maxPointIndex = useMemo(() => {
