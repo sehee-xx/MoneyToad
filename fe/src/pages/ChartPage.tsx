@@ -145,6 +145,15 @@ export default function ChartPage() {
 
   const screen1Ref = useRef<HTMLElement | null>(null);
 
+  /* 현재 날짜 정보 공통 함수 */
+  const getCurrentDateInfo = () => {
+    const currentDate = new Date();
+    return {
+      currentYear: currentDate.getFullYear(),
+      currentMonth: currentDate.getMonth()
+    };
+  };
+
   /* API 데이터 가져오기 */
   const { data: yearTransactionData } = useYearTransactionQuery();
   const { data: peerYearTransactionData } = usePeerYearTransactionQuery();
@@ -162,9 +171,7 @@ export default function ChartPage() {
       month: index
     }));
 
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
+    const { currentYear, currentMonth } = getCurrentDateInfo();
 
     const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
       amount: 0,
@@ -205,9 +212,7 @@ export default function ChartPage() {
       month: index
     }));
 
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
+    const { currentYear, currentMonth } = getCurrentDateInfo();
 
     const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
       amount: 0,
@@ -267,9 +272,7 @@ export default function ChartPage() {
   /* 연월 계산 */
   const selectedYear = useMemo(() => {
     if (selectedMonth === null) return null;
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth(); // 0-based
+    const { currentYear, currentMonth } = getCurrentDateInfo();
 
     // selectedMonth가 현재 달보다 큰 경우(미래 달) 작년으로 간주
     return selectedMonth > currentMonth ? currentYear - 1 : currentYear;
