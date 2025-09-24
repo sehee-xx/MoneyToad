@@ -1,12 +1,12 @@
 package com.potg.don.global.entity;
 
-import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
-import lombok.Getter;
-
 import org.hibernate.annotations.CreationTimestamp;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
 
 @MappedSuperclass
 @Getter

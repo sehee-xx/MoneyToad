@@ -29,27 +29,28 @@ public class DummyService {
 	private final CardRepository cardRepo;
 
 	// ✅ 규칙: 카테고리별 월별 [최소~최대] 건수 + 금액범위(풀/규칙 중 교집합 사용)
-	private record CatRule(int minTx, int maxTx, int minAmt, int maxAmt) {}
-
-	private static final Map<String, CatRule> RULES;
-	static {
-		Map<String, CatRule> m = new LinkedHashMap<>();
-		m.put("식비",          new CatRule(2, 6,   5_000, 30_000));
-		m.put("카페",          new CatRule(1, 5,   2_000,  9_000));
-		m.put("마트 / 편의점",   new CatRule(2, 6,   2_000, 60_000));
-		m.put("문화생활",      new CatRule(1, 3,   7_000, 70_000));
-		m.put("교통 / 차량",   new CatRule(1, 4,   1_250, 50_000));
-		m.put("패션 / 미용",   new CatRule(0, 3,   8_000,150_000));
-		m.put("생활용품",      new CatRule(1, 3,   3_000, 80_000));
-		m.put("주거 / 통신",   new CatRule(1, 2,  10_000,200_000));
-		m.put("건강 / 병원",   new CatRule(1, 2,  10_000,200_000));
-		m.put("교육",          new CatRule(1, 2,  10_000,300_000));
-		m.put("경조사 / 회비", new CatRule(1, 2,  10_000,200_000));
-		m.put("보험 / 세금",   new CatRule(1, 2,  10_000,300_000));
-		m.put("기타",          new CatRule(1, 3,   1_000,100_000));
-		RULES = java.util.Collections.unmodifiableMap(m);
+	private record CatRule(int minTx, int maxTx, int minAmt, int maxAmt) {
 	}
 
+	private static final Map<String, CatRule> RULES;
+
+	static {
+		Map<String, CatRule> m = new LinkedHashMap<>();
+		m.put("식비", new CatRule(2, 6, 5_000, 30_000));
+		m.put("카페", new CatRule(1, 5, 2_000, 9_000));
+		m.put("마트 / 편의점", new CatRule(2, 6, 2_000, 60_000));
+		m.put("문화생활", new CatRule(1, 3, 7_000, 70_000));
+		m.put("교통 / 차량", new CatRule(1, 4, 1_250, 50_000));
+		m.put("패션 / 미용", new CatRule(0, 3, 8_000, 150_000));
+		m.put("생활용품", new CatRule(1, 3, 3_000, 80_000));
+		m.put("주거 / 통신", new CatRule(1, 2, 10_000, 200_000));
+		m.put("건강 / 병원", new CatRule(1, 2, 10_000, 200_000));
+		m.put("교육", new CatRule(1, 2, 10_000, 300_000));
+		m.put("경조사 / 회비", new CatRule(1, 2, 10_000, 200_000));
+		m.put("보험 / 세금", new CatRule(1, 2, 10_000, 300_000));
+		m.put("기타", new CatRule(1, 3, 1_000, 100_000));
+		RULES = java.util.Collections.unmodifiableMap(m);
+	}
 
 	// ✅ 월 전체 최소 건수(설정)
 	private static final int MONTHLY_MIN_TX = 25; // 필요 시 조정
@@ -99,7 +100,8 @@ public class DummyService {
 					.filter(en -> en.getValue() < RULES.get(en.getKey()).maxTx())
 					.map(Map.Entry::getKey)
 					.toList();
-				if (candidates.isEmpty()) break;
+				if (candidates.isEmpty())
+					break;
 				String pick = candidates.get(rng.nextInt(candidates.size()));
 				plannedCount.put(pick, plannedCount.get(pick) + 1);
 				total++;

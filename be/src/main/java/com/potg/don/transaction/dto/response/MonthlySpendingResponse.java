@@ -1,7 +1,5 @@
 package com.potg.don.transaction.dto.response;
 
-import java.time.LocalDate;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

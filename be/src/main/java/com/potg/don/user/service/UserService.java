@@ -1,14 +1,14 @@
 package com.potg.don.user.service;
 
-import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.potg.don.user.dto.request.UpdateProfileRequest;
 import com.potg.don.user.entity.User;
 import com.potg.don.user.repository.UserRepository;
+
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor

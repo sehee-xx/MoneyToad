@@ -28,7 +28,7 @@ public class Dummy {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@																																																																																																																																																																																																																	Column(length = 50, nullable = false)
+	@Column(length = 50, nullable = false)
 	private String category;
 
 	@Column(name = "merchant_name", length = 100, nullable = false)

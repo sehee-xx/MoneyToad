@@ -2,8 +2,6 @@ package com.potg.don.budget.controller;
 
 import java.time.YearMonth;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +37,8 @@ public class BudgetController {
 	private final TransactionService transactionService;
 
 	@GetMapping("")
-	public ResponseEntity<List<IsLeakedResponse>> getRecent12MonthsLeaks(@AuthenticationPrincipal CustomUserDetails user) {
+	public ResponseEntity<List<IsLeakedResponse>> getRecent12MonthsLeaks(
+		@AuthenticationPrincipal CustomUserDetails user) {
 		Long userId = user.getUserId();
 		YearMonth endYm = YearMonth.now();
 		YearMonth startYm = endYm.minusMonths(11);
@@ -62,8 +61,11 @@ public class BudgetController {
 			boolean leaked = false;
 			for (String cat : cats) {
 				int budget = bm.getOrDefault(cat, 0);
-				int spent  = sm.getOrDefault(cat, 0);
-				if (spent > budget) { leaked = true; break; }
+				int spent = sm.getOrDefault(cat, 0);
+				if (spent > budget) {
+					leaked = true;
+					break;
+				}
 			}
 			result.add(IsLeakedResponse.from(cursor, leaked));
 			cursor = cursor.plusMonths(1);
@@ -72,8 +74,9 @@ public class BudgetController {
 	}
 
 	@PatchMapping("")
-	public ResponseEntity<BudgetUpdateResponse> updateBudget(@AuthenticationPrincipal CustomUserDetails user, @RequestBody
-	BudgetUpdateRequest updateBudgetRequest) {
+	public ResponseEntity<BudgetUpdateResponse> updateBudget(@AuthenticationPrincipal CustomUserDetails user,
+		@RequestBody
+		BudgetUpdateRequest updateBudgetRequest) {
 		Budget budget = budgetService.updateBudget(user.getUserId(), updateBudgetRequest);
 		return ResponseEntity.ok(BudgetUpdateResponse.from(budget));
 	}
@@ -91,14 +94,15 @@ public class BudgetController {
 
 	// 0) 숨길 카테고리 집합
 	private static final Set<String> HIDDEN_CATEGORIES = Set.of("보험 / 세금");
+
 	private static boolean visible(String category) {
 		return !HIDDEN_CATEGORIES.contains(category);
 	}
 
 	// 고정 순서 정의에서 '보험 / 세금' 제거 (이미 제거되어 있음)
 	private static final List<String> CATEGORY_ORDER = List.of(
-		"식비","카페","마트 / 편의점","문화생활","교통 / 차량","패션 / 미용",
-		"생활용품","주거 / 통신","건강 / 병원","교육","경조사 / 회비","기타"
+		"식비", "카페", "마트 / 편의점", "문화생활", "교통 / 차량", "패션 / 미용",
+		"생활용품", "주거 / 통신", "건강 / 병원", "교육", "경조사 / 회비", "기타"
 	);
 
 	private static List<BudgetResponse> toBudgetResponses(
