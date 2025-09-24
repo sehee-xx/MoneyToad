@@ -89,29 +89,38 @@ public class BudgetController {
 		return ResponseEntity.ok(toBudgetResponses(budgets, transactionResponses));
 	}
 
+	// 0) 숨길 카테고리 집합
+	private static final Set<String> HIDDEN_CATEGORIES = Set.of("보험 / 세금");
+	private static boolean visible(String category) {
+		return !HIDDEN_CATEGORIES.contains(category);
+	}
+
 	private static List<BudgetResponse> toBudgetResponses(
 		List<Budget> budgets,
 		List<TransactionResponse> transactionResponses
 	) {
+		// 1) '보험 / 세금' 제외하고 지출 합계 계산
 		Map<String, Integer> spentByCategory = transactionResponses.stream()
+			.filter(tr -> visible(tr.getCategory()))
 			.collect(Collectors.groupingBy(TransactionResponse::getCategory,
 				Collectors.summingInt(TransactionResponse::getAmount)));
 
-		// 고정 순서로 정렬 후 매핑
+		// 2) '보험 / 세금' 제외 + 고정 순서 정렬 + 매핑
 		return budgets.stream()
+			.filter(b -> visible(b.getCategory()))
 			.sorted(Comparator.comparingInt(b ->
 				CATEGORY_RANK.getOrDefault(b.getCategory(), Integer.MAX_VALUE)))
 			.map(b -> BudgetResponse.from(b, spentByCategory.getOrDefault(b.getCategory(), 0)))
 			.collect(Collectors.toList());
 	}
 
-	// 고정 순서 정의 (원하는 순서로)
+	// 고정 순서 정의에서 '보험 / 세금' 제거
 	private static final List<String> CATEGORY_ORDER = List.of(
 		"식비","카페","마트 / 편의점","문화생활","교통 / 차량","패션 / 미용",
-		"생활용품","주거 / 통신","건강 / 병원","교육","경조사 / 회비","보험 / 세금","기타"
+		"생활용품","주거 / 통신","건강 / 병원","교육","경조사 / 회비","기타"
 	);
 
-	// 순위 맵(카테고리 -> 인덱스)
+	// 순위 맵(카테고리 -> 인덱스) 그대로 유지
 	private static final Map<String, Integer> CATEGORY_RANK = new HashMap<>();
 	static {
 		for (int i = 0; i < CATEGORY_ORDER.size(); i++) {
