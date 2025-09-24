@@ -16,6 +16,7 @@ import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
 import { useYearTransactionQuery, usePeerYearTransactionQuery, useMonthlyTransactionsQuery } from "../api/queries/transactionQuery";
+import { useUpdateTransactionCategoryMutation } from "../api/mutation/transactionMutation";
 import type { MonthlyTransaction } from "../types";
 
 export const chartAssets = [
@@ -289,6 +290,9 @@ export default function ChartPage() {
     selectedMonthNum || 0
   );
 
+  /* 카테고리 업데이트 Mutation */
+  const updateCategoryMutation = useUpdateTransactionCategoryMutation();
+
   /* MonthlyTransaction을 Txn으로 변환 */
   const convertToTxn = (monthlyTxn: MonthlyTransaction): Txn => ({
     id: monthlyTxn.id.toString(),
@@ -320,6 +324,13 @@ export default function ChartPage() {
 
   /* 카테고리 수정 */
   const updateTxnCategory = (month: number, id: string, cat: Category) => {
+    // API 호출
+    updateCategoryMutation.mutate({
+      transactionId: parseInt(id), // string을 number로 변환
+      data: { category: cat }
+    });
+
+    // 로컬 상태 즉시 업데이트 (optimistic update)
     setTxnsByMonth((prev) => {
       const next = prev.map((arr) => arr.slice());
       const idx = next[month].findIndex((t) => t.id === id);
