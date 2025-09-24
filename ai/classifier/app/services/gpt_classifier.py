@@ -42,7 +42,7 @@ class GPTClassifierService:
     
     async def classify_single(
         self,
-        merchant: str,
+        merchant_name: str,
         amount: float,
         timestamp: Optional[datetime] = None,
         description: Optional[str] = None
@@ -53,7 +53,7 @@ class GPTClassifierService:
         try:
             # Prepare prompt for GPT
             prompt = self._create_classification_prompt(
-                merchant=merchant,
+                merchant_name=merchant_name,
                 amount=amount,
                 timestamp=timestamp,
                 description=description
@@ -70,11 +70,11 @@ class GPTClassifierService:
         except Exception as e:
             logger.error(f"GPT classification failed: {str(e)}")
             # Fallback to rule-based classification
-            return self._fallback_classification(merchant, amount)
+            return self._fallback_classification(merchant_name, amount)
     
     def _create_classification_prompt(
         self,
-        merchant: str,
+        merchant_name: str,
         amount: float,
         timestamp: Optional[datetime] = None,
         description: Optional[str] = None
@@ -88,7 +88,7 @@ class GPTClassifierService:
         {categories_str}
         
         Transaction details:
-        - Merchant: {merchant}
+        - Merchant: {merchant_name}
         - Amount: ${amount:.2f}
         - Date: {timestamp.strftime('%Y-%m-%d %H:%M:%S') if timestamp else 'N/A'}
         - Description: {description or 'N/A'}
@@ -163,11 +163,11 @@ class GPTClassifierService:
     
     def _fallback_classification(
         self,
-        merchant: str,
+        merchant_name: str,
         amount: float
     ) -> Dict[str, Any]:
         """Fallback classification when GPT is unavailable"""
-        merchant_lower = merchant.lower()
+        merchant_lower = merchant_name.lower()
         
         # Simple keyword-based rules
         rules = {
@@ -226,7 +226,7 @@ class GPTClassifierService:
                 # Process each item in batch
                 batch_results = await asyncio.gather(*[
                     self.classify_single(
-                        merchant=item.get("merchant", ""),
+                        merchant_name=item.get("merchant_name", ""),
                         amount=float(item.get("amount", 0)),
                         timestamp=item.get("timestamp"),
                         description=item.get("description")
@@ -270,7 +270,7 @@ class GPTClassifierService:
         categories_str = ", ".join(self.categories)
         
         transactions_str = "\n".join([
-            f"{i+1}. Merchant: {t.get('merchant', 'N/A')}, Amount: ${t.get('amount', 0):.2f}"
+            f"{i+1}. Merchant: {t.get('merchant_name', 'N/A')}, Amount: ${t.get('amount', 0):.2f}"
             for i, t in enumerate(transactions)
         ])
         

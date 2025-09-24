@@ -70,8 +70,8 @@ async def run_prophet_analysis(
 
         # Calculate doojo statistics (min/max per category)
         import pandas as pd
-        # Use 'ts' column instead of 'date' as per Prophet service expectations
-        csv_data['year_month'] = pd.to_datetime(csv_data['ts']).dt.to_period('M')
+        # Use 'transaction_date_time' column instead of 'date' as per Prophet service expectations
+        csv_data['year_month'] = pd.to_datetime(csv_data['transaction_date_time']).dt.to_period('M')
         monthly_spending = csv_data.groupby(['category', 'year_month'])['amount'].sum().reset_index()
         category_stats = monthly_spending.groupby('category')['amount'].agg(['min', 'max']).to_dict('index')
 

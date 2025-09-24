@@ -25,7 +25,7 @@ class ProphetService:
         Prepare data for Prophet model for a specific category
         
         Args:
-            df: DataFrame with columns including 'ts', 'amount', and 'category'
+            df: DataFrame with columns including 'transaction_date_time', 'amount', and 'category'
             category: Category to filter for
             
         Returns:
@@ -35,7 +35,7 @@ class ProphetService:
         category_df = df[df['category'] == category].copy()
         
         # Convert timestamp to datetime
-        category_df['ds'] = pd.to_datetime(category_df['ts'])
+        category_df['ds'] = pd.to_datetime(category_df['transaction_date_time'])
         
         # Aggregate daily spending for this category
         daily_spending = category_df.groupby(category_df['ds'].dt.date)['amount'].sum().reset_index()
@@ -315,8 +315,8 @@ class ProphetService:
         baseline_results = {}
         
         # Convert timestamp to datetime if needed
-        if 'ts' in csv_data.columns:
-            csv_data['date'] = pd.to_datetime(csv_data['ts'])
+        if 'transaction_date_time' in csv_data.columns:
+            csv_data['date'] = pd.to_datetime(csv_data['transaction_date_time'])
         elif 'date' not in csv_data.columns:
             logger.error("No date column found in data")
             return {'error': 'No date column'}

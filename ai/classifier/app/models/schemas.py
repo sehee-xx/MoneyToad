@@ -27,14 +27,14 @@ class ExpenseCategory(str, Enum):
 
 
 class SingleClassificationRequest(BaseModel):
-    merchant: str
+    merchant_name: str
     amount: float
     timestamp: Optional[datetime] = None
     description: Optional[str] = None
 
 
 class SingleClassificationResponse(BaseModel):
-    merchant: str
+    merchant_name: str
     amount: float
     category: str
     subcategory: Optional[str] = None
@@ -79,7 +79,7 @@ class ClassificationStatus(BaseModel):
 
 class ClassificationResult(BaseModel):
     transaction_id: Optional[str] = None
-    merchant: str
+    merchant_name: str
     amount: float
     original_category: Optional[str] = None
     predicted_category: str

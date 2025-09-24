@@ -117,7 +117,7 @@ curl -X POST "http://localhost:8000/api/ai/csv/upload" \
 ### 3. 거래 분류 (Gateway 경유)
 ```bash
 # 단일 거래
-curl "http://localhost:8000/api/ai/classify?merchant=스타벅스&amount=4800"
+curl "http://localhost:8000/api/ai/classify?merchant_name=스타벅스&amount=4800"
 
 # 배치 분류
 curl -X POST "http://localhost:8000/api/ai/classify/process?file_id=abc-123" \

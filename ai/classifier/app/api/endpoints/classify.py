@@ -15,18 +15,18 @@ router = APIRouter()
 
 @router.get("")
 async def classify_single(
-    merchant: str = Query(..., description="Merchant name"),
+    merchant_name: str = Query(..., description="Merchant name"),
     amount: float = Query(..., description="Transaction amount"),
-    ts: datetime = Query(..., description="Transaction timestamp in ISO 8601 format"),
+    transaction_date_time: datetime = Query(..., description="Transaction timestamp in ISO 8601 format"),
     classifier_service: ClassifierService = Depends(lambda: ClassifierService())
 ):
     """
     카테고리 분류 (단건)
     
-    Classify a single transaction based on merchant, amount, and timestamp.
-    
+    Classify a single transaction based on merchant_name, amount, and timestamp.
+
     Example:
-    GET /api/ai/classify?merchant=스타벅스&amount=4800&ts=2025-09-05T10:12:00Z
+    GET /api/ai/classify?merchant_name=스타벅스&amount=4800&transaction_date_time=2025-09-05T10:12:00Z
     
     Returns:
         Category classification result for the transaction

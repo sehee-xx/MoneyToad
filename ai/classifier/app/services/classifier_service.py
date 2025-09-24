@@ -45,7 +45,7 @@ class ClassifierService:
     
     async def classify_single(
         self,
-        merchant: str,
+        merchant_name: str,
         amount: float,
         timestamp: Optional[datetime] = None,
         description: Optional[str] = None
@@ -58,7 +58,7 @@ class ClassifierService:
         # TODO: Implement actual classification logic
         # For now, use simple keyword matching
         
-        merchant_lower = merchant.lower()
+        merchant_lower = merchant_name.lower()
         
         # Simple rule-based classification (placeholder)
         if any(keyword in merchant_lower for keyword in ["스타벅스", "starbucks", "coffee", "cafe"]):

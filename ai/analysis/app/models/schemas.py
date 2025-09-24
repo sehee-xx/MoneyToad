@@ -26,7 +26,7 @@ class MonthlyTrend(BaseModel):
 
 
 class MerchantAnalysis(BaseModel):
-    merchant: str
+    merchant_name: str
     total_spent: float
     frequency: int
     average_transaction: float
@@ -38,7 +38,7 @@ class FinancialSummary(BaseModel):
     net_savings: float
     average_daily_spending: float
     largest_expense: Dict[str, Any]
-    most_frequent_merchant: str
+    most_frequent_merchant_name: str
 
 
 class AnalysisResult(BaseModel):

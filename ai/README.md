@@ -110,7 +110,7 @@ PUT /api/ai/csv/change?file_id={file_id}
 ### 2. 거래 분류
 ```bash
 # 단일 거래 분류
-GET /api/ai/classify?merchant=스타벅스&amount=4800
+GET /api/ai/classify?merchant_name=스타벅스&amount=4800
 
 # 배치 분류 시작
 POST /api/ai/classify/process?file_id={file_id}
