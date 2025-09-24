@@ -496,7 +496,7 @@ export default function ToadAdvice() {
 
             {/* 두꺼비 캐릭터 */}
             <img
-              src="/public/toadAdvice/angryToad.png"
+              src="/toadAdvice/angryToad.png"
               className="toad-emoji bob"
               onClick={() => {
                 setShowQuote(!showQuote);
