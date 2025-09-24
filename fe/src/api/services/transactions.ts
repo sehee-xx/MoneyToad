@@ -10,6 +10,15 @@ export const getYearTransaction = async () => {
   return response;
 };
 
+export const getPeerYearTransaction = async () => {
+  const response = await request<TransactionYear[]>({
+    method: REQUEST_METHOD.GET,
+    url: `${import.meta.env.VITE_BACK_URL}/api/transactions/peer`,
+  });
+
+  return response;
+};
+
 export const getMonthlyTransactions = async (year: number, month: number) => {
   const response = await request<MonthlyTransaction[]>({
     method: REQUEST_METHOD.GET,

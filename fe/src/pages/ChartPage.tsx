@@ -15,6 +15,9 @@ import {
 import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
+import { useYearTransactionQuery, usePeerYearTransactionQuery, useMonthlyTransactionsQuery } from "../api/queries/transactionQuery";
+import { useUpdateTransactionCategoryMutation } from "../api/mutation/transactionMutation";
+import type { MonthlyTransaction } from "../types";
 
 export const chartAssets = [
   "/charts/background.png",
@@ -51,6 +54,12 @@ type Txn = {
   merchant: string;
   amount: number;
   category: Category;
+};
+
+type MonthData = {
+  amount: number;
+  isLastYear: boolean;
+  month: number; // 실제 월 (0-11)
 };
 
 const JP_COLORS = [
@@ -137,21 +146,105 @@ export default function ChartPage() {
 
   const screen1Ref = useRef<HTMLElement | null>(null);
 
+  /* 현재 날짜 정보 공통 함수 */
+  const getCurrentDateInfo = () => {
+    const currentDate = new Date();
+    return {
+      currentYear: currentDate.getFullYear(),
+      currentMonth: currentDate.getMonth()
+    };
+  };
+
+  /* API 데이터 가져오기 */
+  const { data: yearTransactionData } = useYearTransactionQuery();
+  const { data: peerYearTransactionData } = usePeerYearTransactionQuery();
+
   /* 더미 트랜잭션 */
   const [txnsByMonth, setTxnsByMonth] = useState<Txn[][]>(
     Array.from({ length: 12 }, (_, i) => seedMonth(i))
   );
 
-  /* 월별 합계 */
-  const myMonthly = useMemo(
-    () => txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0)),
-    [txnsByMonth]
-  );
-  const peerMonthly = useMemo(
-    () =>
-      myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100))),
-    [myMonthly]
-  );
+  /* API 데이터를 월별 데이터로 변환 */
+  const apiMonthlyData = useMemo(() => {
+    if (!yearTransactionData) return Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
+
+    const { currentYear, currentMonth } = getCurrentDateInfo();
+
+    const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
+
+    yearTransactionData.forEach(transaction => {
+      // "YYYY-MM" 형태의 날짜를 직접 파싱
+      const [year, month] = transaction.date.split('-').map(Number);
+      const transactionYear = year;
+      const transactionMonth = month - 1; // 0-based 월 인덱스
+
+      // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
+      const isLastYear = transactionYear < currentYear ||
+        (transactionYear === currentYear && transactionMonth > currentMonth);
+
+      monthlyData[transactionMonth].amount += transaction.totalAmount;
+      monthlyData[transactionMonth].isLastYear = isLastYear;
+    });
+
+    return monthlyData;
+  }, [yearTransactionData]);
+
+  /* 월별 합계 - API 데이터 우선 사용 */
+  const myMonthly = useMemo(() => {
+    if (yearTransactionData && yearTransactionData.length > 0) {
+      return apiMonthlyData.map(monthData => monthData.amount);
+    }
+    // API 데이터가 없으면 기존 더미 데이터 사용
+    return txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0));
+  }, [yearTransactionData, apiMonthlyData, txnsByMonth]);
+  /* 또래 API 데이터를 월별 데이터로 변환 */
+  const apiPeerMonthlyData = useMemo(() => {
+    if (!peerYearTransactionData) return Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
+
+    const { currentYear, currentMonth } = getCurrentDateInfo();
+
+    const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
+
+    peerYearTransactionData.forEach(transaction => {
+      // "YYYY-MM" 형태의 날짜를 직접 파싱
+      const [year, month] = transaction.date.split('-').map(Number);
+      const transactionYear = year;
+      const transactionMonth = month - 1; // 0-based 월 인덱스
+
+      // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
+      const isLastYear = transactionYear < currentYear ||
+        (transactionYear === currentYear && transactionMonth > currentMonth);
+
+      monthlyData[transactionMonth].amount += transaction.totalAmount;
+      monthlyData[transactionMonth].isLastYear = isLastYear;
+    });
+
+    return monthlyData;
+  }, [peerYearTransactionData]);
+
+  const peerMonthly = useMemo(() => {
+    if (peerYearTransactionData && peerYearTransactionData.length > 0) {
+      return apiPeerMonthlyData.map(monthData => monthData.amount);
+    }
+    // API 데이터가 없으면 기존 더미 계산 로직 사용
+    return myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100)));
+  }, [peerYearTransactionData, apiPeerMonthlyData, myMonthly]);
 
   /* 최대 지점(연꽃) */
   const maxPointIndex = useMemo(() => {
@@ -177,6 +270,38 @@ export default function ChartPage() {
     "전체"
   );
 
+  /* 연월 계산 */
+  const selectedYear = useMemo(() => {
+    if (selectedMonth === null) return null;
+    const { currentYear, currentMonth } = getCurrentDateInfo();
+
+    // selectedMonth가 현재 달보다 큰 경우(미래 달) 작년으로 간주
+    return selectedMonth > currentMonth ? currentYear - 1 : currentYear;
+  }, [selectedMonth]);
+
+  const selectedMonthNum = useMemo(() => {
+    if (selectedMonth === null) return null;
+    return selectedMonth + 1; // 1-based month
+  }, [selectedMonth]);
+
+  /* 월별 거래 내역 API */
+  const { data: monthlyTransactionsData } = useMonthlyTransactionsQuery(
+    selectedYear || 0,
+    selectedMonthNum || 0
+  );
+
+  /* 카테고리 업데이트 Mutation */
+  const updateCategoryMutation = useUpdateTransactionCategoryMutation();
+
+  /* MonthlyTransaction을 Txn으로 변환 */
+  const convertToTxn = (monthlyTxn: MonthlyTransaction): Txn => ({
+    id: monthlyTxn.id.toString(),
+    date: monthlyTxn.transactionDateTime.split('T')[0], // YYYY-MM-DD 형태로 변환
+    merchant: monthlyTxn.merchantName,
+    amount: monthlyTxn.amount,
+    category: monthlyTxn.category as Category
+  });
+
   /* 안전 클릭 핸들러: index → payload.idx */
   const onPointClickSafe = (props: any) => {
     const idx =
@@ -199,6 +324,13 @@ export default function ChartPage() {
 
   /* 카테고리 수정 */
   const updateTxnCategory = (month: number, id: string, cat: Category) => {
+    // API 호출
+    updateCategoryMutation.mutate({
+      transactionId: parseInt(id), // string을 number로 변환
+      data: { category: cat }
+    });
+
+    // 로컬 상태 즉시 업데이트 (optimistic update)
     setTxnsByMonth((prev) => {
       const next = prev.map((arr) => arr.slice());
       const idx = next[month].findIndex((t) => t.id === id);
@@ -207,8 +339,19 @@ export default function ChartPage() {
     });
   };
 
-  /* 상세/필터링/합계 */
-  const detailTxns = selectedMonth === null ? [] : txnsByMonth[selectedMonth];
+  /* 상세/필터링/합계 - API 데이터 우선 사용 */
+  const detailTxns = useMemo(() => {
+    if (selectedMonth === null) return [];
+
+    if (monthlyTransactionsData && monthlyTransactionsData.length > 0) {
+      // API 데이터를 Txn 형태로 변환
+      return monthlyTransactionsData.map(convertToTxn);
+    }
+
+    // API 데이터가 없으면 기존 더미 데이터 사용
+    return txnsByMonth[selectedMonth];
+  }, [selectedMonth, monthlyTransactionsData, txnsByMonth]);
+
   const filteredTxns =
     selectedMonth === null
       ? []
@@ -487,7 +630,7 @@ export default function ChartPage() {
                       <tr key={tx.id}>
                         <td>{tx.date}</td>
                         <td className="left">{tx.merchant}</td>
-                        <td>{KRW(tx.amount)}원</td>
+                        <td>{KRW(tx.amount)} 냥</td>
                         <td>
                           <JPSelect
                             value={tx.category}
