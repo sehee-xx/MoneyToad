@@ -3,8 +3,10 @@ CSV management router with MinIO/S3 storage
 """
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime, timezone
+import pandas as pd
+import io
 
 from fastapi import APIRouter, File, Form, UploadFile, Query, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import Response
@@ -13,8 +15,8 @@ from app.deps.auth import Role, require_admin, require_user
 from typing import Literal
 from fastapi import Query as QueryParam
 from app.models.schemas import (
-    FileInfo, StatusResponse, ErrorResponse, 
-    UploadResponse, Status
+    FileInfo, StatusResponse, ErrorResponse,
+    UploadResponse, Status, ValidationResult, FileInfoWithValidation
 )
 from app.repos.csv_repo import get_csv_repo, S3CsvRepo
 from app.core.config import settings
@@ -36,10 +38,10 @@ router = APIRouter(
 def validate_csv_file(file: UploadFile) -> None:
     """
     Validate that the uploaded file is a CSV.
-    
+
     Args:
         file: Uploaded file to validate
-    
+
     Raises:
         HTTPException: If file is not a valid CSV
     """
@@ -49,7 +51,7 @@ def validate_csv_file(file: UploadFile) -> None:
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="File must have .csv extension"
         )
-    
+
     # Check content type
     valid_content_types = [
         'text/csv',
@@ -57,10 +59,223 @@ def validate_csv_file(file: UploadFile) -> None:
         'application/vnd.ms-excel',
         'text/plain'  # Sometimes CSV files are uploaded as plain text
     ]
-    
+
     if file.content_type and file.content_type.lower() not in valid_content_types:
         logger.warning(f"Unusual content type for CSV: {file.content_type}")
         # Allow it but log warning - some browsers send wrong content type
+
+
+def validate_csv_for_prophet(file_content: bytes) -> Dict[str, Any]:
+    """
+    Validate CSV content for Prophet analysis requirements.
+
+    Args:
+        file_content: Raw CSV file content as bytes
+
+    Returns:
+        Dict with validation results and metadata
+
+    Raises:
+        HTTPException: If CSV doesn't meet Prophet requirements
+    """
+    try:
+        # Read CSV content
+        df = pd.read_csv(io.BytesIO(file_content))
+
+        # Check if DataFrame is empty
+        if df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CSV file is empty"
+            )
+
+        # Check required columns
+        required_columns = ['transaction_date_time', 'category', 'merchant_name', 'amount']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+
+        if missing_columns:
+            available_columns = list(df.columns)
+            error_msg = f"Missing required columns: {', '.join(missing_columns)}."
+            error_msg += f" Found columns: {', '.join(available_columns)}."
+            error_msg += f" Required columns: {', '.join(required_columns)}."
+
+            # Suggest potential matches
+            suggestions = []
+            for missing in missing_columns:
+                for available in available_columns:
+                    if missing.lower() in available.lower() or available.lower() in missing.lower():
+                        suggestions.append(f"'{available}' might be '{missing}'")
+
+            if suggestions:
+                error_msg += f" Possible matches: {'; '.join(suggestions[:3])}."
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+
+        # Validate data types and content
+        validation_errors = []
+
+        # Check amount column
+        try:
+            df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
+            null_amounts = df['amount'].isnull().sum()
+            if null_amounts > 0:
+                validation_errors.append(f"{null_amounts} rows have invalid amount values")
+        except Exception as e:
+            validation_errors.append(f"Amount column validation failed: {str(e)}")
+
+        # Check date column
+        try:
+            df['transaction_date_time'] = pd.to_datetime(df['transaction_date_time'], errors='coerce')
+            null_dates = df['transaction_date_time'].isnull().sum()
+            if null_dates > 0:
+                validation_errors.append(f"{null_dates} rows have invalid date values")
+        except Exception as e:
+            validation_errors.append(f"Date column validation failed: {str(e)}")
+
+        # Remove rows with null values for calculation
+        clean_df = df.dropna(subset=['transaction_date_time', 'amount', 'category'])
+
+        if clean_df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid rows remaining after data cleaning"
+            )
+
+        # Check Prophet minimum data requirements
+        total_days = (clean_df['transaction_date_time'].max() - clean_df['transaction_date_time'].min()).days + 1
+        total_rows = len(clean_df)
+        unique_categories = clean_df['category'].nunique()
+
+        # Prophet analysis requirements
+        prophet_warnings = []
+        prophet_errors = []
+
+        # Check total data requirement (30 days minimum for baseline analysis)
+        if total_days < 30:
+            prophet_warnings.append(f"Only {total_days} days of data available. Baseline analysis requires at least 30 days for optimal results.")
+
+        # Check total rows
+        if total_rows < 30:
+            prophet_warnings.append(f"Only {total_rows} transaction rows. More data recommended for better predictions.")
+
+        # Check category-wise data
+        category_analysis = clean_df.groupby('category').agg({
+            'transaction_date_time': ['count', 'nunique'],
+            'amount': 'sum'
+        }).round(2)
+
+        categories_with_insufficient_data = []
+        for category in clean_df['category'].unique():
+            cat_data = clean_df[clean_df['category'] == category]
+            cat_days = cat_data['transaction_date_time'].nunique()
+            cat_rows = len(cat_data)
+
+            if cat_days < 7:
+                categories_with_insufficient_data.append(f"'{category}' ({cat_days} days, {cat_rows} transactions)")
+
+        if categories_with_insufficient_data:
+            prophet_warnings.append(f"Categories with insufficient data (< 7 days): {', '.join(categories_with_insufficient_data)}")
+
+        # Create validation summary
+        validation_summary = {
+            "status": "valid",
+            "total_rows": len(df),
+            "valid_rows": len(clean_df),
+            "date_range_days": total_days,
+            "unique_categories": unique_categories,
+            "categories": list(clean_df['category'].unique()),
+            "date_range": {
+                "start": clean_df['transaction_date_time'].min().isoformat(),
+                "end": clean_df['transaction_date_time'].max().isoformat()
+            },
+            "total_amount": float(clean_df['amount'].sum()),
+            "validation_errors": validation_errors,
+            "prophet_warnings": prophet_warnings,
+            "prophet_errors": prophet_errors,
+            "prophet_ready": len(prophet_errors) == 0 and total_days >= 2 and len(clean_df) >= 2,
+            "baseline_ready": len(prophet_errors) == 0 and total_days >= 30 and len(clean_df) >= 30
+        }
+
+        # If there are critical errors, raise exception with detailed information
+        if validation_errors or prophet_errors:
+            error_summary = []
+
+            # Add basic file info
+            error_summary.append(f"File: {df.shape[0]} total rows, {len(clean_df)} valid rows")
+
+            # Add validation errors
+            if validation_errors:
+                error_summary.append(f"Data Issues: {'; '.join(validation_errors)}")
+
+            # Add Prophet-specific errors
+            if prophet_errors:
+                error_summary.append(f"Prophet Requirements: {'; '.join(prophet_errors)}")
+
+            # Add helpful context
+            if total_days < 30:
+                error_summary.append(f"Date Range: {total_days} days (need ≥30 for baseline analysis)")
+
+            if total_rows < 30:
+                error_summary.append(f"Transaction Count: {total_rows} rows (recommend ≥30 for reliable predictions)")
+
+            # Show categories with insufficient data
+            insufficient_categories = []
+            for category in clean_df['category'].unique():
+                cat_data = clean_df[clean_df['category'] == category]
+                cat_days = cat_data['transaction_date_time'].nunique()
+                if cat_days < 7:
+                    insufficient_categories.append(f"'{category}' ({cat_days} days)")
+
+            if insufficient_categories:
+                error_summary.append(f"Categories with <7 days data: {', '.join(insufficient_categories[:5])}{'...' if len(insufficient_categories) > 5 else ''}")
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"CSV validation failed. {' | '.join(error_summary)}"
+            )
+
+        return validation_summary
+
+    except pd.errors.EmptyDataError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSV file is empty or contains no readable data. Please check your file format."
+        )
+    except pd.errors.ParserError as e:
+        error_msg = str(e).lower()
+        if "tokenizing" in error_msg or "delimiter" in error_msg:
+            detail = "CSV format error: File appears to have inconsistent columns or incorrect delimiters. Please ensure all rows have the same number of columns separated by commas."
+        elif "unicode" in error_msg or "encoding" in error_msg:
+            detail = "CSV encoding error: File contains invalid characters. Please save your file as UTF-8 encoded CSV."
+        else:
+            detail = f"CSV parsing error: {str(e)}. Please check your file format and ensure it's a valid CSV."
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail
+        )
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File could not be read. Please check the file exists and is accessible."
+        )
+    except MemoryError:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="CSV file is too large to process. Please reduce file size or split into smaller files."
+        )
+    except Exception as e:
+        logger.error(f"CSV validation error: {str(e)}")
+        error_type = type(e).__name__
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected validation error ({error_type}): {str(e)}. Please contact support if this issue persists."
+        )
 
 
 async def auto_clear_status(
@@ -83,10 +298,10 @@ async def auto_clear_status(
 
 @router.post(
     "/upload",
-    response_model=FileInfo,
+    response_model=FileInfoWithValidation,
     status_code=status.HTTP_202_ACCEPTED,  # Changed to 202 for async processing
     summary="Upload CSV file",
-    description="Upload a new CSV file to storage (Admin only) - Async processing"
+    description="Upload a new CSV file to storage with Prophet analysis validation (Admin only) - Async processing"
 )
 async def upload_csv(
     background_tasks: BackgroundTasks,
@@ -117,20 +332,23 @@ async def upload_csv(
         415: If not a CSV file
         500: For storage errors
     """
-    # Validate CSV file
+    # Validate CSV file format
     validate_csv_file(file)
-    
+
     try:
+        # Read file content into memory for validation and processing
+        file_content = await file.read()
+
+        # Validate CSV content for Prophet analysis
+        validation_result = validate_csv_for_prophet(file_content)
+
         # Prepare upload (creates metadata and returns immediately)
         # No longer checking for duplicate filenames - each upload gets unique file_id
         file_info = await csv_repo.prepare_upload(
             file_name=file.filename
         )
-        
-        # Read file content into memory for background processing
-        file_content = await file.read()
-        
-        # Schedule background upload
+
+        # Schedule background upload with validation metadata
         background_tasks.add_task(
             csv_repo.upload_file_background,
             file_name=file.filename,
@@ -138,11 +356,27 @@ async def upload_csv(
             file_id=file_info.file_id,
             s3_key=file_info.s3_key
         )
-        
+
         logger.info(f"Admin '{role}' initiated upload for CSV file '{file.filename}' with ID '{file_info.file_id}'")
+        logger.info(f"CSV validation for '{file.filename}': {validation_result['valid_rows']}/{validation_result['total_rows']} valid rows, "
+                   f"Prophet ready: {validation_result['prophet_ready']}, Baseline ready: {validation_result['baseline_ready']}")
+
+        # Create response with validation results
+        return FileInfoWithValidation(
+            csv_file=file_info.csv_file,
+            file_id=file_info.file_id,
+            checksum=file_info.checksum,
+            size_bytes=file_info.size_bytes,
+            uploaded_at=file_info.uploaded_at,
+            replaced_at=file_info.replaced_at,
+            s3_key=file_info.s3_key,
+            s3_url=file_info.s3_url,
+            validation=ValidationResult(**validation_result)
+        )
         
-        return file_info
-        
+    except HTTPException:
+        # Re-raise HTTPExceptions from validation (with detailed error messages)
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

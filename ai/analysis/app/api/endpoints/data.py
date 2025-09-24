@@ -154,7 +154,30 @@ async def run_prophet_analysis(
                                 leak_amount=0,  # Will calculate total leak later
                                 analysis_data={'categories': category_predictions}
                             )
-                            db.add(leak)
+                            try:
+                                db.add(leak)
+                                db.flush()  # Try to insert immediately to detect duplicate key
+                            except Exception as e:
+                                db.rollback()
+                                # If duplicate key error, fetch and update existing record
+                                leak = db.query(models.LeakAnalysis).filter(
+                                    models.LeakAnalysis.file_id == file_id,
+                                    models.LeakAnalysis.year == year,
+                                    models.LeakAnalysis.month == month
+                                ).first()
+                                if leak:
+                                    leak.actual_amount = current_month.get('actual')
+                                    leak.predicted_amount = current_month_result.get('total_current_predicted')
+                                    leak.leak_amount = 0
+                                    leak.analysis_data = {'categories': category_predictions}
+                                else:
+                                    raise e
+                        else:
+                            # Update existing leak analysis
+                            leak.actual_amount = current_month.get('actual')
+                            leak.predicted_amount = current_month_result.get('total_current_predicted')
+                            leak.leak_amount = 0
+                            leak.analysis_data = {'categories': category_predictions}
 
                     # Save doojo analysis for this category
                     cat_stats = category_stats.get(category, {'min': 0, 'max': 0})
