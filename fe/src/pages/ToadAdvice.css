@@ -153,6 +153,8 @@
   color: #C55125;
   font-size: 22px;
 }
+.paperOpen__detail { white-space: pre-line; }
+.paperOpen__detail .num { color:#C75228; font-weight:900; }
 .paperOpen__close {
   position: absolute;
   top: 24%;
