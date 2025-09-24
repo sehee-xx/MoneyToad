@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.potg.don.auth.entity.CustomUserDetails;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
 import com.potg.don.transaction.dto.response.MonthlyCategorySpendingResponse;
+import com.potg.don.transaction.dto.response.MonthlyPeerSpendingResponse;
 import com.potg.don.transaction.dto.response.MonthlySpendingResponse;
 import com.potg.don.transaction.dto.response.TransactionResponse;
+import com.potg.don.transaction.service.PeerTransactionStatsService;
 import com.potg.don.transaction.service.TransactionService;
 
 import jakarta.validation.Valid;
@@ -26,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/transactions")
 public class TransactionController {
 	private final TransactionService transactionService;
+	private final PeerTransactionStatsService statsService;
 
 	@GetMapping("")
 	public ResponseEntity<List<MonthlySpendingResponse>> getYearlySpending(
@@ -56,5 +59,10 @@ public class TransactionController {
 		@RequestBody @Valid UpdateCategoryRequest request) {
 		return ResponseEntity.ok(
 			transactionService.updateTransactionCategory(user.getUserId(), transactionId, request));
+	}
+
+	@GetMapping("/peer")
+	ResponseEntity<List<MonthlyPeerSpendingResponse>> getPeerTransactionStats(@AuthenticationPrincipal CustomUserDetails user) {
+		return ResponseEntity.ok(statsService.getPeerMonthlySpendingForUser(user.getUserId()));
 	}
 }
