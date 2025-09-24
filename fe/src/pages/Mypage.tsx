@@ -257,10 +257,10 @@ export default function MyPage() {
                         <input
                           className={`input ${ageEditing && !ageValid ? "err" : ""}`}
                           inputMode="numeric"
-                          maxLength={3}
+                          maxLength={2}
                           placeholder="예) 20"
                           value={ageEditing}
-                          onChange={(e) => setAgeEditing(digitsOnly(e.target.value, 3))}
+                          onChange={(e) => setAgeEditing(digitsOnly(e.target.value, 2))}
                         />
                       </label>
                     </div>

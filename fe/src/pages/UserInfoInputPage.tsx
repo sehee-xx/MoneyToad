@@ -214,9 +214,9 @@ export default function UserInfoInputPage() {
                   placeholder="예) 20"
                   inputMode="numeric"
                   pattern="\d*"
-                  maxLength={3}
+                  maxLength={2}
                   value={age}
-                  onChange={(e) => setAge(digitsOnly(e.target.value, 3))}
+                  onChange={(e) => setAge(digitsOnly(e.target.value, 2))}
                   onBlur={() => setTouched(true)}
                   aria-invalid={touched && !ageValid}
                 />
