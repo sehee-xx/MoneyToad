@@ -97,4 +97,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 	Optional<Transaction> findByIdAndCard_User_Id(Long id, Long userId);
 
 	List<Transaction> findAllByCard_IdOrderByTransactionDateTimeAsc(Long cardId);
+
+	void deleteByCardId(Long cardId);
 }
