@@ -15,7 +15,8 @@ import {
 import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
-import { useYearTransactionQuery, usePeerYearTransactionQuery } from "../api/queries/transactionQuery";
+import { useYearTransactionQuery, usePeerYearTransactionQuery, useMonthlyTransactionsQuery } from "../api/queries/transactionQuery";
+import type { MonthlyTransaction } from "../types";
 
 export const chartAssets = [
   "/charts/background.png",
@@ -263,6 +264,37 @@ export default function ChartPage() {
     "전체"
   );
 
+  /* 연월 계산 */
+  const selectedYear = useMemo(() => {
+    if (selectedMonth === null) return null;
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0-based
+
+    // selectedMonth가 현재 달보다 큰 경우(미래 달) 작년으로 간주
+    return selectedMonth > currentMonth ? currentYear - 1 : currentYear;
+  }, [selectedMonth]);
+
+  const selectedMonthNum = useMemo(() => {
+    if (selectedMonth === null) return null;
+    return selectedMonth + 1; // 1-based month
+  }, [selectedMonth]);
+
+  /* 월별 거래 내역 API */
+  const { data: monthlyTransactionsData } = useMonthlyTransactionsQuery(
+    selectedYear || 0,
+    selectedMonthNum || 0
+  );
+
+  /* MonthlyTransaction을 Txn으로 변환 */
+  const convertToTxn = (monthlyTxn: MonthlyTransaction): Txn => ({
+    id: monthlyTxn.id.toString(),
+    date: monthlyTxn.transactionDateTime.split('T')[0], // YYYY-MM-DD 형태로 변환
+    merchant: monthlyTxn.merchantName,
+    amount: monthlyTxn.amount,
+    category: monthlyTxn.category as Category
+  });
+
   /* 안전 클릭 핸들러: index → payload.idx */
   const onPointClickSafe = (props: any) => {
     const idx =
@@ -293,8 +325,19 @@ export default function ChartPage() {
     });
   };
 
-  /* 상세/필터링/합계 */
-  const detailTxns = selectedMonth === null ? [] : txnsByMonth[selectedMonth];
+  /* 상세/필터링/합계 - API 데이터 우선 사용 */
+  const detailTxns = useMemo(() => {
+    if (selectedMonth === null) return [];
+
+    if (monthlyTransactionsData && monthlyTransactionsData.length > 0) {
+      // API 데이터를 Txn 형태로 변환
+      return monthlyTransactionsData.map(convertToTxn);
+    }
+
+    // API 데이터가 없으면 기존 더미 데이터 사용
+    return txnsByMonth[selectedMonth];
+  }, [selectedMonth, monthlyTransactionsData, txnsByMonth]);
+
   const filteredTxns =
     selectedMonth === null
       ? []
@@ -573,7 +616,7 @@ export default function ChartPage() {
                       <tr key={tx.id}>
                         <td>{tx.date}</td>
                         <td className="left">{tx.merchant}</td>
-                        <td>{KRW(tx.amount)}원</td>
+                        <td>{KRW(tx.amount)} 냥</td>
                         <td>
                           <JPSelect
                             value={tx.category}
