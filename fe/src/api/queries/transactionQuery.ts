@@ -1,11 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { getYearTransaction, getMonthlyTransactions, getCategoryTransactions } from '../services/transactions';
+import { getYearTransaction, getPeerYearTransaction, getMonthlyTransactions, getCategoryTransactions } from '../services/transactions';
 import { transactionQueryKeys } from '../queryKeys';
 
 export const useYearTransactionQuery = () => {
   return useQuery({
     queryKey: transactionQueryKeys.year(),
     queryFn: getYearTransaction,
+  });
+};
+
+export const usePeerYearTransactionQuery = () => {
+  return useQuery({
+    queryKey: transactionQueryKeys.peerYear(),
+    queryFn: getPeerYearTransaction,
   });
 };
 
