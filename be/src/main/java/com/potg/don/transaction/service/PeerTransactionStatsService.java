@@ -70,10 +70,13 @@ public class PeerTransactionStatsService {
 
 	// ✅ "남성"/"여성"으로 매핑 (영/한/약어 모두 허용). 규격 밖 입력은 기본 "남성".
 	private String normalizeGenderToDb(String gender) {
-		if (gender == null) return "남성";
+		if (gender == null)
+			return "남성";
 		String g = gender.trim().toLowerCase(Locale.ROOT);
-		if (g.startsWith("남") || g.startsWith("m") || g.equals("male")) return "남성";
-		if (g.startsWith("여") || g.startsWith("f") || g.equals("female")) return "여성";
+		if (g.startsWith("남") || g.startsWith("m") || g.equals("male"))
+			return "남성";
+		if (g.startsWith("여") || g.startsWith("f") || g.equals("female"))
+			return "여성";
 		return "남성"; // 필요 시 "여성" 또는 예외로 변경 가능
 	}
 

@@ -1,6 +1,5 @@
 package com.potg.don.transaction.dto.response;
 
-import lombok.Data;
 import lombok.Getter;
 
 @Getter

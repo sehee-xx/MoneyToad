@@ -1,11 +1,11 @@
 package com.potg.don.auth.entity;
 
-import lombok.Getter;
+import java.util.Collection;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
+import lombok.Getter;
 
 @Getter
 public class CustomUserDetails implements UserDetails {

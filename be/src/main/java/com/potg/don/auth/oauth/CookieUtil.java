@@ -1,8 +1,8 @@
 package com.potg.don.auth.oauth;
 
-import jakarta.servlet.http.Cookie;
-
 import org.springframework.stereotype.Component;
+
+import jakarta.servlet.http.Cookie;
 
 @Component
 public class CookieUtil {

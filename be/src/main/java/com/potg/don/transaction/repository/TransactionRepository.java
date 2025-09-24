@@ -73,22 +73,22 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 	);
 
 	@Query(value = """
-        SELECT
-          YEAR(t.transaction_date_time)  AS y,
-          MONTH(t.transaction_date_time) AS m,
-          t.category                     AS category,
-          SUM(t.amount)                  AS total
-        FROM transactions t
-        WHERE t.card_id = :cardId
-          AND t.transaction_date_time >= :start   -- inclusive
-          AND t.transaction_date_time <  :end     -- exclusive
-        GROUP BY y, m, t.category
-        ORDER BY y ASC, m ASC
-        """, nativeQuery = true)
+		SELECT
+		  YEAR(t.transaction_date_time)  AS y,
+		  MONTH(t.transaction_date_time) AS m,
+		  t.category                     AS category,
+		  SUM(t.amount)                  AS total
+		FROM transactions t
+		WHERE t.card_id = :cardId
+		  AND t.transaction_date_time >= :start   -- inclusive
+		  AND t.transaction_date_time <  :end     -- exclusive
+		GROUP BY y, m, t.category
+		ORDER BY y ASC, m ASC
+		""", nativeQuery = true)
 	List<MonthlyCategoryTotalRow> aggregateCategoryTotalsByMonthForCard(
 		@Param("cardId") Long cardId,
 		@Param("start") LocalDateTime start,
-		@Param("end")   LocalDateTime end
+		@Param("end") LocalDateTime end
 	);
 
 	/**

@@ -62,7 +62,8 @@ public class TransactionController {
 	}
 
 	@GetMapping("/peer")
-	ResponseEntity<List<MonthlyPeerSpendingResponse>> getPeerTransactionStats(@AuthenticationPrincipal CustomUserDetails user) {
+	ResponseEntity<List<MonthlyPeerSpendingResponse>> getPeerTransactionStats(
+		@AuthenticationPrincipal CustomUserDetails user) {
 		return ResponseEntity.ok(statsService.getPeerMonthlySpendingForUser(user.getUserId()));
 	}
 }

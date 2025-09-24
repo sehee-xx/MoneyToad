@@ -140,7 +140,7 @@ public class TransactionService {
 
 	public Map<YearMonth, Map<String, Integer>> getSpentMapByMonth(Long userId, YearMonth startYm, YearMonth endYm) {
 		LocalDateTime start = startYm.atDay(1).atStartOfDay();
-		LocalDateTime end   = endYm.plusMonths(1).atDay(1).atStartOfDay(); // [start, end)
+		LocalDateTime end = endYm.plusMonths(1).atDay(1).atStartOfDay(); // [start, end)
 		Card card = cardRepository.findByUserId(userId).orElseThrow(EntityNotFoundException::new);
 
 		List<MonthlyCategoryTotalRow> rows =

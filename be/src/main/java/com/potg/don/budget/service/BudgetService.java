@@ -31,7 +31,7 @@ public class BudgetService {
 
 	public Map<YearMonth, Map<String, Integer>> getBudgetMapByMonth(Long userId, YearMonth startYm, YearMonth endYm) {
 		LocalDate start = startYm.atDay(1);
-		LocalDate end   = endYm.atDay(1);
+		LocalDate end = endYm.atDay(1);
 
 		List<Budget> budgets = budgetRepository
 			.findAllByUserIdAndBudgetDateBetweenOrderByBudgetDateAsc(userId, start, end);
