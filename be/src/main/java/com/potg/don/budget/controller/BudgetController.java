@@ -95,36 +95,46 @@ public class BudgetController {
 		return !HIDDEN_CATEGORIES.contains(category);
 	}
 
-	private static List<BudgetResponse> toBudgetResponses(
-		List<Budget> budgets,
-		List<TransactionResponse> transactionResponses
-	) {
-		// 1) '보험 / 세금' 제외하고 지출 합계 계산
-		Map<String, Integer> spentByCategory = transactionResponses.stream()
-			.filter(tr -> visible(tr.getCategory()))
-			.collect(Collectors.groupingBy(TransactionResponse::getCategory,
-				Collectors.summingInt(TransactionResponse::getAmount)));
-
-		// 2) '보험 / 세금' 제외 + 고정 순서 정렬 + 매핑
-		return budgets.stream()
-			.filter(b -> visible(b.getCategory()))
-			.sorted(Comparator.comparingInt(b ->
-				CATEGORY_RANK.getOrDefault(b.getCategory(), Integer.MAX_VALUE)))
-			.map(b -> BudgetResponse.from(b, spentByCategory.getOrDefault(b.getCategory(), 0)))
-			.collect(Collectors.toList());
-	}
-
-	// 고정 순서 정의에서 '보험 / 세금' 제거
+	// 고정 순서 정의에서 '보험 / 세금' 제거 (이미 제거되어 있음)
 	private static final List<String> CATEGORY_ORDER = List.of(
 		"식비","카페","마트 / 편의점","문화생활","교통 / 차량","패션 / 미용",
 		"생활용품","주거 / 통신","건강 / 병원","교육","경조사 / 회비","기타"
 	);
 
-	// 순위 맵(카테고리 -> 인덱스) 그대로 유지
-	private static final Map<String, Integer> CATEGORY_RANK = new HashMap<>();
-	static {
-		for (int i = 0; i < CATEGORY_ORDER.size(); i++) {
-			CATEGORY_RANK.put(CATEGORY_ORDER.get(i), i);
-		}
+	private static List<BudgetResponse> toBudgetResponses(
+		List<Budget> budgets,
+		List<TransactionResponse> transactionResponses
+	) {
+		// 1) 지출 합계 (숨김 제외)
+		Map<String, Integer> spentByCategory = transactionResponses.stream()
+			.filter(tr -> visible(tr.getCategory()))
+			.collect(Collectors.groupingBy(TransactionResponse::getCategory,
+				Collectors.summingInt(TransactionResponse::getAmount)));
+
+		// 2) 예산 맵 (숨김 제외)
+		Map<String, Budget> budgetByCategory = budgets.stream()
+			.filter(b -> visible(b.getCategory()))
+			.collect(Collectors.toMap(
+				Budget::getCategory,
+				b -> b,
+				(a, b) -> a
+			));
+
+		// 3) "항상 12개 카테고리"를 고정 순서대로 생성
+		return CATEGORY_ORDER.stream()
+			.map(cat -> {
+				int spent = spentByCategory.getOrDefault(cat, 0);
+				Budget budget = budgetByCategory.get(cat);
+
+				if (budget != null) {
+					// 기존 예산이 있으면 그대로 사용
+					return BudgetResponse.from(budget, spent);
+				} else {
+					// 예산이 없으면 0 예산으로 생성 (두 가지 방법 중 택1)
+					// [방법 A] BudgetResponse에 팩토리 메서드 추가 가능할 때
+					return BudgetResponse.of(cat, 0, spent);
+				}
+			})
+			.collect(Collectors.toList());
 	}
 }

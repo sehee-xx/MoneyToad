@@ -21,4 +21,12 @@ public class BudgetResponse {
 			.category(budget.getCategory())
 			.build();
 	}
+
+	public static BudgetResponse of(String category, Integer budget, Integer spending) {
+		return BudgetResponse.builder()
+			.category(category)
+			.budget(budget)
+			.spending(spending)
+			.build();
+	}
 }
