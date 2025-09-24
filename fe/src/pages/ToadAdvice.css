@@ -1,200 +1,658 @@
-:root {
-  --ink: #000;
-  --shadow: rgba(0, 0, 0, 0.16);
-
-  /* 조절 포인트 */
-  --header-h: 64px;   /* Header 높이 */
-  --toad-w: 420px;    /* 오른쪽 두꺼비 자리 폭 */
-  --gap: 24px;
-}
-
-/* 전체 레이아웃: 화면 고정 + 세로 스크롤 제거 */
-.toadAdvice__wrap {
-  position: relative;
+/* 메인 컨테이너 */
+.toad-advice-container {
   height: 100vh;
-  color: var(--ink);
-  overflow: hidden;
-}
-
-/* 배경은 맨 뒤 */
-.toadAdvice__bg {
-  position: absolute;
-  inset: 0;
-  background: url("/toadAdvice/background.png") center/cover no-repeat;
-  filter: sepia(0.2) contrast(0.95) brightness(0.98);
-  z-index: -1;
-  pointer-events: none;
-}
-
-/* 컨텐츠: 위는 헤더 여백, 오른쪽은 두꺼비 자리 확보 */
-.toadAdvice__content {
+  width: 100vw;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: url('/toadAdvice/background.png') center/cover no-repeat;
   position: relative;
-  z-index: 1;
-  height: calc(100vh - var(--header-h));
-  padding: var(--gap) calc(var(--toad-w) + var(--gap)) var(--gap) var(--gap);
-  box-sizing: border-box;
-  max-width: 1800px;
+}
+
+/* 스크롤 가능한 컨텐츠 */
+.scrollable-content {
+  min-height: 100vh;
+  /* padding-bottom: 200px; */
+}
+
+/* 타이틀과 헤더 */
+.main-title {
+  font-size: 36px;
+  font-weight: 900;
+  color: white;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.main-subtitle {
+  color: #fff;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* 데모 토글 버튼 */
+.demo-toggle {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.toggle-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.toggle-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 메인 컨텐츠 */
+.main-content {
+  position: relative;
+  z-index: 10;
+  padding: 0 24px 24px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-/* 조언이 없을 때는 오른쪽 여백 제거(중앙 정렬을 위해) */
-.toadAdvice__content:has(.toadAdvice__emptyCenter) {
-  padding: var(--gap);
-}
-
-/* 우하단 큰 두꺼비 */
-.toadAdvice__toadFixed {
-  position: fixed;
-  right: 16px;
-  bottom: 0;
-  z-index: 1;
-  height: 420px;
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
-  user-select: none;
-  pointer-events: none;
-}
-
-/* 두루마리 그리드: 2행 × 6열 고정 (최대 12개) */
-.paperGrid {
-  height: 100%;
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--gap);
-  align-content: center;   /* 세로 중앙 */
-  justify-content: start;  /* 왼쪽 정렬 */
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  overflow: hidden;
-}
-
-/* 카드 버튼 */
-.paperItem { }
-.paperClose {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.paperClose__img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 10px var(--shadow));
-}
-
-/* 빨간 영역 텍스트 (이미지 내 패널에 맞춰 인셋 조정) */
-.paperClose__title {
-  position: absolute;
-  inset: 36% 12% 38% 12%; /* top right bottom left */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000;               /* 요구 색상 */
-  font-weight: 800;
+/* 통계 요약 */
+.stats-summary {
+  margin-bottom: 32px;
   text-align: center;
-  font-size: 18px;
-  line-height: 1.25;
-  word-break: keep-all;
-  white-space: normal;       /* 줄바꿈 허용 */
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
-  pointer-events: none;
 }
 
-/* —— 펼친 두루마리 모달 —— */
-.paperOpen__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: grid;
-  place-items: center;
-}
-.paperOpen__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  border: 0;
-}
-.paperOpen__stage {
+.stats-card {
+  background: url('/toadAdvice/total.png') center/contain no-repeat;
+  min-height: 160px;
   position: relative;
-  z-index: 1;
-  width: min(1180px, 94vw);
-  aspect-ratio: 16 / 9;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-}
-.paperOpen__img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.28));
-}
-/* 두루마리 안쪽 텍스트 박스 */
-.paperOpen__text {
-  position: absolute;
-  inset: 32% 20% 12% 30%; /* 이미지에 맞춰 조정한 내부 여백 */
-  overflow: auto;
-  color: #000;
-  font-size: 20px;
-  line-height: 1.7;
-  white-space: pre-line;    /* \n 줄바꿈 반영 */
-}
-.paperOpen__title {
-  margin: 0 0 10px;
-  font-weight: 900;
-  color: #C55125;
-  font-size: 22px;
-}
-.paperOpen__close {
-  position: absolute;
-  top: 24%;
-  right: 26%;
-  border: 0;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: none;
-  box-shadow: none;
-  cursor: pointer;
-  font-weight: 800;
+  align-items: center;
+  padding: 60px 40px;
 }
 
-/* —— 조언 0개: 중앙 해피두꺼비 + 흰 문구 —— */
-.toadAdvice__emptyCenter {
-  position: absolute;  /* 부모(.toadAdvice__content) 기준 */
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: 0;
-  z-index: 2;
-}
-.toadAdvice__emptyToad {
-  height: 560px;       /* 반응형 불필요 조건: 고정 크기 */
-  width: auto;
-  filter: drop-shadow(0 12px 20px rgba(0,0,0,.25));
-  user-select: none;
-  pointer-events: none;
-}
-.toadAdvice__emptyText {
+.stats-title {
   position: absolute;
-  bottom: 10%;
+  top: 20%;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 3;          /* 이미지 위에 확실히 */
-  color: #fff;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 700;
+  color: #5B3D21;
+  margin: 0;
+}
+
+.stats-grid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.stat-item {
   text-align: center;
-  font-size: 28px;
-  line-height: 1.3;
-  text-shadow: 0 2px 6px rgba(0,0,0,.45), 0 0 1px rgba(0,0,0,.4);
-  padding: 8px 14px;
+  padding: 12px;
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.stat-red .stat-number {
+  color: #902F1D;
+}
+
+.stat-orange .stat-number {
+  color: #706D18;
+}
+
+.stat-blue .stat-number {
+  color: #8B4A6B;
+}
+
+.stat-label {
+  font-size: 14px;
+}
+
+.stat-red .stat-label {
+  color: #902F1D;
+}
+
+.stat-orange .stat-label {
+  color: #706D18;
+}
+
+.stat-blue .stat-label {
+  color: #8B4A6B;
+}
+
+/* 조언 카드 그리드 */
+.advice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+/* 조언 카드 */
+.advice-card {
+  position: relative;
+  background: url('/toadAdvice/card.png') center/cover no-repeat;
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: all 0.5s;
+  transform: scale(1);
+}
+
+.advice-card:hover {
+  transform: scale(1.05) rotate(1deg);
+}
+
+/* 심각도 뱃지 */
+.severity-badge {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 32px;
+  height: 32px;
+  background: #902F1D;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* 카드 내용 */
+.card-content {
+  padding: 24px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.category-img {
+  width: 48px;
+  height: 48px;
+}
+
+.category-img-modal {
+  width: 80px;
+  height: 80px;
+}
+
+.amount-info {
+  text-align: right;
+}
+
+.over-amount {
+  font-size: 18px;
+  font-weight: 900;
+  color: #902F1D;
+}
+
+.over-percent {
+  font-size: 14px;
+  color: #902F1D;
+}
+
+.category-title {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+/* 호버 미리보기 */
+.hover-preview {
+  font-size: 14px;
+  color: #000;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 진행률 바 */
+.progress-container {
+  margin-top: 16px;
+}
+
+.progress-bar {
+  background: #e5e7eb;
+  border-radius: 8px;
+  height: 8px;
+}
+
+.progress-fill {
+  background: #902F1D;
+  height: 8px;
+  border-radius: 8px;
+  transition: width 1s ease-out;
+}
+
+/* 조언 없을 때 - 축하 섹션 */
+.no-advice-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.celebration-content {
+  text-align: center;
+}
+
+.celebration-emoji {
+  font-size: 144px;
+  margin-bottom: 32px;
+  filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
+}
+
+.celebration-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 24px;
+  padding: 48px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 600px;
+}
+
+.celebration-title {
+  font-size: 48px;
+  font-weight: 900;
+  color: #059669;
+  margin-bottom: 24px;
+}
+
+.celebration-message {
+  font-size: 32px;
+  color: #1f2937;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.celebration-desc {
+  font-size: 18px;
+  color: #4b5563;
+}
+
+/* 성취 뱃지 */
+.achievement-badges {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.badge-gold {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-green {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* 두꺼비 캐릭터 */
+.toad-character {
+  position: fixed;
+  bottom: 0;
+  right: 24px;
+  z-index: 20;
+}
+
+.character-container {
+  position: relative;
+}
+
+/* 말풍선 */
+.speech-bubble {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 16px;
+}
+
+.bubble-content {
+  background: white;
   border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  min-width: 200px;
+  position: relative;
+}
+
+.bubble-text {
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+  margin: 0;
+}
+
+.bubble-arrow {
+  position: absolute;
+  bottom: -8px;
+  right: 32px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid white;
+}
+
+/* 두꺼비 이모지 */
+.toad-emoji {
+  width: 240px;
+  cursor: pointer;
+  transition: transform 0.3s;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
+}
+
+.toad-emoji:hover {
+  transform: scale(1.1);
+}
+
+/* 모달 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  position: relative;
+  background: url('/toadAdvice/card.png') center/cover no-repeat;
+  backdrop-filter: blur(8px);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 600px;
+  width: 100%;
+  padding: 32px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background:#902F1D;
+  color: white;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  transition: background-color 0.3s;
+}
+
+.modal-close:hover {
+  background: #902F1D;
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.modal-emoji {
+  font-size: 96px;
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  font-size: 32px;
+  font-weight: 900;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.modal-amount {
+  font-size: 48px;
+  font-weight: 900;
+  color: #902F1D;
+}
+
+.modal-body {
+  background: #fff7ed;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.modal-detail {
+  font-size: 18px;
+  color: #1f2937;
+  line-height: 1.6;
+  white-space: pre-line;
+  margin: 0;
+}
+
+.modal-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.advice-note {
+  font-size: 18px;
+  color: #000;
+  margin-bottom: 16px;
+}
+
+/* 숫자 하이라이트 */
+.highlight-number {
+  color: #902F1D;
+  font-weight: 900;
+}
+
+/* 과소비 없음일 때 전체 스크롤 완전 차단 */
+.no-scroll {
+  height: 100dvh;
+  overflow: hidden;
+}
+.no-scroll .scrollable-content { min-height: auto; }
+
+/* 헤더 높이만큼 제외 */
+:root { --header-h: 96px; } /* 실제 헤더 높이에 맞게 조정 */
+
+.no-scroll .main-content { padding: 0 16px 0; }      /* 아래 패딩 제거 */
+.no-scroll .main-title { margin: 8px 0 4px; }        /* 여백 최소화 */
+.no-scroll .main-subtitle { margin: 0 0 8px; }
+
+.no-scroll .no-advice-section {
+  height: calc(100dvh - var(--header-h));
+  display: grid;
+  grid-template-rows: 1fr auto; /* 위: 히어로, 아래: 배지(있다면) */
+  align-items: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  overflow: hidden;
+}
+
+.no-scroll .no-advice-happy-toad {
+  width: clamp(200px, 34vw, 420px);
+}
+
+.celebration-card {
+  width: min(920px, 92vw);
+  border-radius: 18px;
+  padding: 20px 18px;
+  background: url('/toadAdvice/card.png') center/cover no-repeat, rgba(255,255,255,0.82);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+
+.achievement-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 과소비 없음일 때 스크롤 막기 */
+.no-scroll {
+  height: 100dvh;            /* 모바일 안전한 뷰포트 단위 */
+  overflow: hidden;
+}
+.no-scroll .scrollable-content {
+  min-height: auto;          /* 기존 min-height로 인해 불필요한 스크롤 방지 */
+}
+
+/* 헤더 높이 변수 (필요 시 조정) */
+:root { --header-h: 96px; }
+
+/* 한 화면에 맞추기: 헤더를 뺀 높이로 중앙 정렬 */
+.no-advice-section {
+  height: calc(100dvh - var(--header-h));
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 8px 16px 16px;
+  overflow: hidden; /* 혹시 모를 미세 오버플로 제거 */
+}
+
+.no-advice-hero {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.no-advice-happy-toad {
+  width: clamp(180px, 40vw, 420px);
+  height: auto;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,.18));
+}
+
+.no-advice-title {
+  font-size: clamp(18px, 2.2vw, 28px);
+  font-weight: 800;
+  color: #FFD400;
+  margin: 0;
+}
+
+/* 과소비 없음 화면에서 여백으로 스크롤 생기는 것 방지용 */
+.main-content { padding-bottom: 12px; }
+
+/* 애니메이션 키프레임 */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+  }
+  to { 
+    opacity: 1; 
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { 
+    transform: translateY(0); 
+  }
+  40% { 
+    transform: translateY(-10px); 
+  }
+  60% { 
+    transform: translateY(-5px); 
+  }
+}
+
+@keyframes bob {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-10px); 
+  }
+}
+
+/* 애니메이션 클래스 */
+.slide-in-up {
+  animation: slideInUp 0.8s ease-out forwards;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.bounce-slow {
+  animation: bounce 3s infinite;
+}
+
+.bob {
+  animation: bob 2s ease-in-out infinite;
 }
