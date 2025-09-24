@@ -435,14 +435,15 @@ export default function ChartPage() {
     const { cx, cy, index } = props;
     if (cx == null || cy == null) return <g />;
 
-    const isMax = index === maxPointIndex;
-    const href = isMax ? "/charts/flower.png" : "/charts/leaf.png";
+    const isCurrentMonth = index === getCurrentDateInfo().currentMonth;
+    const href = isCurrentMonth ? "/charts/flower.png" : "/charts/leaf.png";
     const size = 40;
     const x = cx - size / 2;
     const y = cy - size / 2;
 
     return (
       <g
+        key={`dot-${index}`}
         transform={`translate(${x}, ${y})`}
         style={{ cursor: "pointer" }}
         onClick={(e) => {
@@ -460,6 +461,7 @@ export default function ChartPage() {
     if (cx == null || cy == null) return <g />;
     return (
       <g
+        key={`dot-peer-${props.index}`}
         onClick={(e) => {
           e.stopPropagation();
           onPointClickSafe(props);
