@@ -15,6 +15,7 @@ import {
 import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
+import { useYearTransactionQuery } from "../api/queries/transactionQuery";
 
 export const chartAssets = [
   "/charts/background.png",
@@ -137,16 +138,37 @@ export default function ChartPage() {
 
   const screen1Ref = useRef<HTMLElement | null>(null);
 
+  /* API 데이터 가져오기 */
+  const { data: yearTransactionData } = useYearTransactionQuery();
+
   /* 더미 트랜잭션 */
   const [txnsByMonth, setTxnsByMonth] = useState<Txn[][]>(
     Array.from({ length: 12 }, (_, i) => seedMonth(i))
   );
 
-  /* 월별 합계 */
-  const myMonthly = useMemo(
-    () => txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0)),
-    [txnsByMonth]
-  );
+  /* API 데이터를 월별 데이터로 변환 */
+  const apiMonthlyData = useMemo(() => {
+    if (!yearTransactionData) return Array(12).fill(0);
+
+    const monthlyAmounts = Array(12).fill(0);
+
+    yearTransactionData.forEach(transaction => {
+      const date = new Date(transaction.date);
+      const month = date.getMonth(); // 0-11
+      monthlyAmounts[month] += transaction.totalAmount;
+    });
+
+    return monthlyAmounts;
+  }, [yearTransactionData]);
+
+  /* 월별 합계 - API 데이터 우선 사용 */
+  const myMonthly = useMemo(() => {
+    if (yearTransactionData && apiMonthlyData.some(amount => amount > 0)) {
+      return apiMonthlyData;
+    }
+    // API 데이터가 없으면 기존 더미 데이터 사용
+    return txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0));
+  }, [yearTransactionData, apiMonthlyData, txnsByMonth]);
   const peerMonthly = useMemo(
     () =>
       myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100))),
