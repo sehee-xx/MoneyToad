@@ -15,10 +15,7 @@ import {
   useYearlyBudgetLeaksQuery,
 } from "../api/queries/budgetQuery";
 import { useUpdateBudgetMutation } from "../api/mutation/budgetMutation";
-import type {
-  MonthlyBudgetResponse,
-  YearlyBudgetLeakResponse,
-} from "../types";
+import type { MonthlyBudgetResponse, YearlyBudgetLeakResponse } from "../types";
 
 /* ------------------------------ 이미지 & 애니메이션 ------------------------------ */
 const cryingKongjwi = "/leakPot/cryingKongjwi.png";
@@ -32,8 +29,8 @@ const potImage = "/leakPot/pot.png";
 const broken = "/leakPot/broken.png";
 const monthGood = "/leakPot/good.png";
 const monthBad = "/leakPot/bad.png";
-const badGray = "/leakPot/bad_gray.png";   // ← 경로 수정
-const goodGray = "/leakPot/good_gray.png"; // ← 경로 수정
+const badGray = "/leakPot/bad_gray.png";
+const goodGray = "/leakPot/good_gray.png";
 const tooltipToad = "/leakPot/tooltip.png";
 
 export const leakPotAssets = [
@@ -48,8 +45,8 @@ export const leakPotAssets = [
   broken,
   monthGood,
   monthBad,
-  badGray,  
-  goodGray,  
+  badGray,
+  goodGray,
   "/leakPot/water.json",
   tooltipToad,
 ];
@@ -146,13 +143,20 @@ const buildLeakIndex = (rows: YearlyBudgetLeakResponse[] = []) => {
 
 /* ------------------------------ Month Navigation ------------------------------ */
 const MonthNavigation: React.FC<{
-  selectedMonth: number;                 // 현재 화면에서 선택된 달
-  nowMonth: number;                      // 오늘 기준 달
-  nowYear: number;                       // 오늘 기준 연도
-  leakIndex: Map<string, boolean>;       // `${year}-${month}` -> leaked
+  selectedMonth: number; // 현재 화면에서 선택된 달
+  nowMonth: number; // 오늘 기준 달
+  nowYear: number; // 오늘 기준 연도
+  leakIndex: Map<string, boolean>; // `${year}-${month}` -> leaked
   onMonthChange: (month: number) => void;
   optimisticCurrentMonthLeaked?: boolean;
-}> = ({ selectedMonth, nowMonth, nowYear, leakIndex, onMonthChange, optimisticCurrentMonthLeaked }) => {
+}> = ({
+  selectedMonth,
+  nowMonth,
+  nowYear,
+  leakIndex,
+  onMonthChange,
+  optimisticCurrentMonthLeaked,
+}) => {
   return (
     <div className="month-navigation">
       <div className="month-grid">
@@ -165,24 +169,42 @@ const MonthNavigation: React.FC<{
           let leaked = !!leakIndex.get(`${yearForBtn}-${m.value}`);
 
           // 낙관 반영은 "올해의 현재 달"만
-          if (yearForBtn === nowYear && m.value === nowMonth && typeof optimisticCurrentMonthLeaked === "boolean") {
+          if (
+            yearForBtn === nowYear &&
+            m.value === nowMonth &&
+            typeof optimisticCurrentMonthLeaked === "boolean"
+          ) {
             leaked = optimisticCurrentMonthLeaked;
           }
 
           // 아이콘: 작년은 회색, 올해는 컬러(선택 여부와 무관)
           const imgSrc = isLastYear
-            ? (leaked ? badGray : goodGray)
-            : (leaked ? monthBad : monthGood);
+            ? leaked
+              ? badGray
+              : goodGray
+            : leaked
+            ? monthBad
+            : monthGood;
 
           return (
             <button
               key={m.value}
               onClick={() => onMonthChange(m.value)}
               onMouseDown={(e) => e.preventDefault()}
-              className={`month-button ${m.value === selectedMonth ? "active" : ""}`}
+              className={`month-button ${
+                m.value === selectedMonth ? "active" : ""
+              }`}
             >
-              <img src={imgSrc} alt={leaked ? "누수" : "정상"} className="month-img" draggable={false} />
-              <span className={`month-badge ${leaked ? "leaked" : "good"}`}>{m.label}</span>
+              <img
+                src={imgSrc}
+                alt={leaked ? "누수" : "정상"}
+                className="month-img"
+                draggable={false}
+              />
+              <span className={`month-badge ${leaked ? "leaked" : "good"}`}>
+                {isLastYear ? "작년 " : ""}
+                {m.label}
+              </span>
             </button>
           );
         })}
@@ -585,9 +607,7 @@ const CustomSlider: React.FC<{
 };
 
 /* ------------------------------ 어댑터 ------------------------------ */
-const adaptBudgetDataToCategory = (
-  data: MonthlyBudgetResponse
-): Category => ({
+const adaptBudgetDataToCategory = (data: MonthlyBudgetResponse): Category => ({
   id: data.id,
   name: data.category,
   spending: data.spending,
@@ -614,8 +634,8 @@ const calculateYearMonth = (
 /* ------------------------------ LeakPotPage ------------------------------ */
 const LeakPotPage = () => {
   const now = new Date();
-const nowMonth = now.getMonth() + 1;
-const nowYear  = now.getFullYear();
+  const nowMonth = now.getMonth() + 1;
+  const nowYear = now.getFullYear();
   const { month } = useParams();
   const navigate = useNavigate();
 
@@ -630,6 +650,7 @@ const nowYear  = now.getFullYear();
   // 계산된 기준(요청 월의 데이터 연도/월)
   const { year, month: targetMonth } = calculateYearMonth(month);
   const currentMonth = targetMonth;
+  const isSelectedLastYear = year < nowYear;
 
   // API
   const {
@@ -750,7 +771,8 @@ const nowYear  = now.getFullYear();
   } as React.CSSProperties;
 
   if (error) console.error("Budget data fetch error:", error);
-  if (yearlyLeakError) console.error("Yearly leak data fetch error:", yearlyLeakError);
+  if (yearlyLeakError)
+    console.error("Yearly leak data fetch error:", yearlyLeakError);
 
   return (
     <div className="app-container" style={rootVars}>
@@ -761,8 +783,8 @@ const nowYear  = now.getFullYear();
           <Header />
 
           <MonthNavigation
-            selectedMonth={currentMonth}                 // 기존 currentMonth 사용
-            nowMonth={nowMonth}                          // 오늘 기준 달
+            selectedMonth={currentMonth} // 기존 currentMonth 사용
+            nowMonth={nowMonth} // 오늘 기준 달
             nowYear={nowYear}
             leakIndex={leakIndex}
             optimisticCurrentMonthLeaked={currentMonthLeaked}
@@ -779,7 +801,10 @@ const nowYear  = now.getFullYear();
             </div>
 
             <div className="control-panel">
-              <h2 className="panel-title">{currentMonth}월 지출을 다스리시오</h2>
+              <h2 className="panel-title">
+                {isSelectedLastYear ? `작년 ${currentMonth}월 지출이오` : `${currentMonth}월 지출을 다스리시오`}
+                
+              </h2>
 
               <div className="sliders-container">
                 {categories.map((cat) => (
