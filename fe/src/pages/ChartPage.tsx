@@ -246,12 +246,6 @@ export default function ChartPage() {
     return myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100)));
   }, [peerYearTransactionData, apiPeerMonthlyData, myMonthly]);
 
-  /* 최대 지점(연꽃) */
-  const maxPointIndex = useMemo(() => {
-    const maxVal = Math.max(...myMonthly);
-    return myMonthly.findIndex((v) => v === maxVal);
-  }, [myMonthly]);
-
   /* 라인차트 데이터 */
   const lineData = useMemo(
     () =>
