@@ -54,6 +54,12 @@ type Txn = {
   category: Category;
 };
 
+type MonthData = {
+  amount: number;
+  isLastYear: boolean;
+  month: number; // 실제 월 (0-11)
+};
+
 const JP_COLORS = [
   "#8B4A6B", // 자주색 (茄紫)
   "#D4AF37", // 황금색 (金色)
@@ -148,23 +154,42 @@ export default function ChartPage() {
 
   /* API 데이터를 월별 데이터로 변환 */
   const apiMonthlyData = useMemo(() => {
-    if (!yearTransactionData) return Array(12).fill(0);
+    if (!yearTransactionData) return Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
 
-    const monthlyAmounts = Array(12).fill(0);
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+
+    const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
+      amount: 0,
+      isLastYear: false,
+      month: index
+    }));
 
     yearTransactionData.forEach(transaction => {
       const date = new Date(transaction.date);
-      const month = date.getMonth(); // 0-11
-      monthlyAmounts[month] += transaction.totalAmount;
+      const transactionYear = date.getFullYear();
+      const transactionMonth = date.getMonth(); // 0-11
+
+      // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
+      const isLastYear = transactionYear < currentYear ||
+        (transactionYear === currentYear && transactionMonth > currentMonth);
+
+      monthlyData[transactionMonth].amount += transaction.totalAmount;
+      monthlyData[transactionMonth].isLastYear = isLastYear;
     });
 
-    return monthlyAmounts;
+    return monthlyData;
   }, [yearTransactionData]);
 
   /* 월별 합계 - API 데이터 우선 사용 */
   const myMonthly = useMemo(() => {
-    if (yearTransactionData && apiMonthlyData.some(amount => amount > 0)) {
-      return apiMonthlyData;
+    if (yearTransactionData && apiMonthlyData.some(monthData => monthData.amount > 0)) {
+      return apiMonthlyData.map(monthData => monthData.amount);
     }
     // API 데이터가 없으면 기존 더미 데이터 사용
     return txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0));
