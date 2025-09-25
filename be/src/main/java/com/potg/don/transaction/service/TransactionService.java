@@ -114,31 +114,6 @@ public class TransactionService {
 		return category != null && !EXCLUDED_FOR_LEAK.contains(category);
 	}
 
-	public Map<YearMonth, Map<String, Integer>> getSpentMapByMonth(
-		Long userId, YearMonth startYm, YearMonth endYm) {
-
-		LocalDateTime start = startYm.atDay(1).atStartOfDay();
-		LocalDateTime end = endYm.plusMonths(1).atDay(1).atStartOfDay(); // [start, end)
-		Card card = cardRepository.findByUserId(userId).orElseThrow(EntityNotFoundException::new);
-
-		List<MonthlyCategoryTotalRow> rows =
-			transactionRepository.aggregateCategoryTotalsByMonthForCard(card.getId(), start, end);
-
-		Map<YearMonth, Map<String, Integer>> spentByMonth = new HashMap<>();
-		for (MonthlyCategoryTotalRow r : rows) {
-			// null 카테고리는 "미분류"로 포함, 제외 대상만 스킵
-			String rawCat = r.getCategory();
-			String cat = (rawCat == null ? "미분류" : rawCat);
-			if (rawCat != null && !includeForLeak(rawCat)) continue;
-
-			YearMonth ym = YearMonth.of(r.getY(), r.getM());
-			Map<String, Integer> byCat = spentByMonth.computeIfAbsent(ym, k -> new HashMap<>());
-			int total = Math.toIntExact(Objects.requireNonNullElse(r.getTotal(), 0L));
-			byCat.merge(cat, total, Integer::sum);
-		}
-		return spentByMonth;
-	}
-
 	/**
 	 * 최근 12개월 범위의 월별-카테고리별 지출 합계 맵
 	 * - 키: YearMonth

@@ -22,9 +22,6 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class BudgetService {
-
-	private static final Set<String> EXCLUDED_FOR_LEAK = Set.of("보험 / 세금");
-
 	private final BudgetRepository budgetRepository;
 	private final UserRepository userRepository;
 
@@ -41,33 +38,6 @@ public class BudgetService {
 			.orElseThrow(() -> new EntityNotFoundException("누수를 찾을 수 없습니다"));
 		budget.updateBudget(budgetUpdateRequest.getBudget());
 		return budgetRepository.save(budget);
-	}
-
-	private static boolean includeForLeak(String category) {
-		return category != null && !EXCLUDED_FOR_LEAK.contains(category);
-	}
-
-	public Map<YearMonth, Map<String, Integer>> getBudgetMapByMonth(
-		Long userId, YearMonth startYm, YearMonth endYm) {
-
-		LocalDate start = startYm.atDay(1);
-		LocalDate end = endYm.atEndOfMonth();
-
-		List<Budget> budgets = budgetRepository
-			.findAllByUserIdAndBudgetDateBetweenOrderByBudgetDateAsc(userId, start, end);
-
-		Map<YearMonth, Map<String, Integer>> budgetByMonth = new HashMap<>();
-		for (Budget b : budgets) {
-			String cat = b.getCategory();
-			// 예산 쪽은 null 카테고리가 사실상 없겠지만 방어적으로 처리
-			if (cat != null && !includeForLeak(cat)) continue;
-
-			YearMonth ym = YearMonth.from(b.getBudgetDate());
-			Map<String, Integer> byCat = budgetByMonth.computeIfAbsent(ym, k -> new HashMap<>());
-			int amt = (b.getAmount() == null ? 0 : b.getAmount());
-			byCat.merge(cat == null ? "미분류" : cat, amt, Integer::sum); // 중복시 합산
-		}
-		return budgetByMonth;
 	}
 
 	public Map<YearMonth, Map<String, Integer>> getBudgetMapByMonthExcludingOthers(
