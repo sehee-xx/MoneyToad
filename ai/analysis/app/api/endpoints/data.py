@@ -4,7 +4,7 @@ Data analysis endpoints for financial data processing
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Query, HTTPException, status, BackgroundTasks, Depends
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import uuid
 import logging
@@ -535,10 +535,33 @@ async def get_baseline_predictions(
         models.BaselinePrediction.month.desc()
     ).all()
 
+    # Check data availability and provide detailed feedback
+    current_date = datetime.now()
+    expected_months = []
+    for i in range(11, 0, -1):  # Past 11 months
+        calc_date = current_date - timedelta(days=30 * i)
+        expected_months.append(f"{calc_date.year}-{calc_date.month:02d}")
+
     if not baselines:
+        # Get file metadata to check data range
+        file_metadata = redis_client.get_file_metadata(file_id)
+
+        error_detail = {
+            "error": "No baseline predictions available",
+            "reason": "Insufficient historical data for baseline analysis",
+            "requirements": {
+                "minimum_days": 30,
+                "minimum_transactions": 30,
+                "description": "Baseline analysis requires at least 30 days of historical data"
+            },
+            "expected_months": expected_months,
+            "available_months": [],
+            "suggestion": "Please upload a CSV file with at least 2-3 months of transaction history"
+        }
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No baseline predictions found. Please run analysis first."
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error_detail
         )
     
     # Group by month
@@ -564,8 +587,11 @@ async def get_baseline_predictions(
     
     # Sort months chronologically
     sorted_months = sorted(monthly_baselines.keys(), reverse=True)
-    
-    return {
+
+    # Check if we have all expected months
+    missing_months = [month for month in expected_months if month not in monthly_baselines]
+
+    response = {
         "file_id": file_id,
         "baseline_months": [
             {
@@ -583,6 +609,16 @@ async def get_baseline_predictions(
         "months_count": len(sorted_months),
         "category_filter": category
     }
+
+    # Add warnings if some months are missing
+    if missing_months:
+        response["warnings"] = {
+            "missing_months": missing_months,
+            "message": f"Baseline predictions not available for {len(missing_months)} months due to insufficient historical data",
+            "available_coverage": f"{len(sorted_months)} out of 11 months"
+        }
+
+    return response
 
 
 # /report endpoint removed - use GET /api/ai/data/leak and GET /api/ai/data/baseline instead
