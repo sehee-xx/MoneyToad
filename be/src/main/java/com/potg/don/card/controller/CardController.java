@@ -44,10 +44,10 @@ public class CardController {
 		@RequestBody CardRequest cardRequest) {
 		Card card = cardService.registerCard(user.getUserId(), cardRequest);
 		dummyService.populateFromPool(card.getId());
-		CsvUploadResponse csvUploadResponse = csvService.uploadCsvAndSaveFileId(card.getId(), user.getUserId());
+		CsvUploadResponse csvUploadResponse = csvService.uploadCsvAndSaveFileId(user.getUserId(), card.getId());
 		String fileId = csvUploadResponse.getFileId();
 		AnalysisTriggerResponse analysisTriggerResponse = csvService.triggerAnalysis(user.getUserId());
-		csvService.saveBudgetsFromTriggerResponse(card.getId(), analysisTriggerResponse);
+		csvService.saveBudgetsFromTriggerResponse(user.getUserId(), analysisTriggerResponse);
 		analysisJobService.enqueue(user.getUserId(), fileId);
 		return ResponseEntity.status(HttpStatus.CREATED).body(CardResponse.from(card));
 	}
@@ -57,10 +57,10 @@ public class CardController {
 		@RequestBody CardRequest cardRequest) {
 		Card card = cardService.updateCard(user.getUserId(), cardRequest);
 		dummyService.populateFromPool(card.getId());
-		CsvUploadResponse csvUploadResponse = csvService.uploadCsvAndSaveFileId(card.getId(), user.getUserId());
+		CsvUploadResponse csvUploadResponse = csvService.uploadCsvAndSaveFileId(user.getUserId(), card.getId());
 		String fileId = csvUploadResponse.getFileId();
 		AnalysisTriggerResponse analysisTriggerResponse = csvService.triggerAnalysis(user.getUserId());
-		csvService.saveBudgetsFromTriggerResponse(card.getId(), analysisTriggerResponse);
+		csvService.saveBudgetsFromTriggerResponse(user.getUserId(), analysisTriggerResponse);
 		analysisJobService.enqueue(user.getUserId(), fileId);
 		return ResponseEntity.ok(CardResponse.from(card));
 	}
