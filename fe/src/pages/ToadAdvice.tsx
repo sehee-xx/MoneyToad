@@ -412,42 +412,6 @@ const buildInsights = (category: string, d?: CategoryDetail, over?: number) => {
 export default function ToadAdvice() {
   const { data: doojoData, isLoading, error } = useDoojoQuery();
 
-  if (isLoading) {
-    return (
-      <div className="toad-advice-container">
-        <Header />
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <h2>두꺼비가 데이터를 분석하는 중...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !doojoData?.doojo?.length) {
-    return (
-      <div className="toad-advice-container">
-        <Header />
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <h2>데이터를 불러올 수 없습니다</h2>
-        </div>
-      </div>
-    );
-  }
-
-  const sheet = doojoData.doojo[0];
-  const preds = Object.entries(sheet.categoriesPrediction).map(([title, data]) => ({
-    title,
-    ...data,
-  }));
-
-  const detailsByCategory = useMemo<DetailMap>(() => {
-    const out: DetailMap = {};
-    Object.entries(sheet.categoriesDetail).forEach(([k, v]) => {
-      out[normalizeKey(k)] = v;
-    });
-    return out;
-  }, [sheet.categoriesDetail]);
-
   const [currentQuote, setCurrentQuote] = useState(0);
   const [showQuote, setShowQuote] = useState(false);
   const [, setHoveredCard] = useState<string | null>(null);
@@ -457,6 +421,25 @@ export default function ToadAdvice() {
     detail: string;
     over: number;
   }>(null);
+
+  const detailsByCategory = useMemo<DetailMap>(() => {
+    if (!doojoData?.doojo?.length) return {};
+    const sheet = doojoData.doojo[0];
+    const out: DetailMap = {};
+    Object.entries(sheet.categoriesDetail).forEach(([k, v]) => {
+      out[normalizeKey(k)] = v;
+    });
+    return out;
+  }, [doojoData?.doojo]);
+
+  const preds = useMemo(() => {
+    if (!doojoData?.doojo?.length) return [];
+    const sheet = doojoData.doojo[0];
+    return Object.entries(sheet.categoriesPrediction).map(([title, data]) => ({
+      title,
+      ...data,
+    }));
+  }, [doojoData?.doojo]);
 
   const advices = useMemo(() => {
     return preds
@@ -503,6 +486,28 @@ export default function ToadAdvice() {
     }, 5000);
     return () => clearInterval(i);
   }, [hasAdvice]);
+
+  if (isLoading) {
+    return (
+      <div className="toad-advice-container">
+        <Header />
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>두꺼비가 데이터를 분석하는 중...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !doojoData?.doojo?.length) {
+    return (
+      <div className="toad-advice-container">
+        <Header />
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>데이터를 불러올 수 없습니다</h2>
+        </div>
+      </div>
+    );
+  }
 
   const openDetail: CategoryDetail | undefined = open
     ? detailsByCategory[normalizeKey(open.title)]
