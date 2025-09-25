@@ -1,5 +1,6 @@
 /* 트리거(닫힌 상태) */
 .jp-select-trigger {
+  width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -16,6 +17,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 2px 4px rgba(0, 0, 0, 0.2);
   transition: all 0.18s ease;
+  position: relative;
 }
 .jp-select-trigger:hover {
   border-color: #5a6578;
@@ -77,4 +79,20 @@
   height: 28px;
   color: #f0e6d2;
   background: rgba(0, 0, 0, 0.15);
+}
+
+/* 트리거 왼쪽의 색 점 */
+.jp-select-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--jp-chip-color, #f0e6d2);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.25) inset;
+  margin-right: 8px;
+}
+
+/* 아이템 안의 색 점이 글자와 너무 달라붙지 않도록 */
+.jp-select-item .jp-select-dot {
+  margin-right: 8px;
 }

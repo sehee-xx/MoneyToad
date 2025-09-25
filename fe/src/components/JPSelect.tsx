@@ -11,8 +11,10 @@ type JPSelectProps = {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+  colorMap?: Record<string, string>;
 };
 
+// JPSelect.tsx 컴포넌트 내부 변경
 export default function JPSelect({
   value,
   onChange,
@@ -20,13 +22,21 @@ export default function JPSelect({
   className,
   placeholder = '선택',
   disabled,
+  colorMap, // ← 추가
 }: JPSelectProps) {
+  const currentColor = colorMap?.[value];
+
   return (
     <Select.Root value={value} onValueChange={onChange} disabled={disabled}>
-      {/* 트리거 (닫힌 상태) */}
+      {/* 트리거 */}
       <Select.Trigger
         aria-label="선택"
         className={`jp-select-trigger ${className || ''}`}
+        style={
+          currentColor
+            ? ({ ['--jp-chip-color' as any]: currentColor } as React.CSSProperties)
+            : undefined
+        }
       >
         <Select.Value placeholder={placeholder} />
         <Select.Icon>
@@ -34,7 +44,7 @@ export default function JPSelect({
         </Select.Icon>
       </Select.Trigger>
 
-      {/* 드롭다운 포털 */}
+      {/* 드롭다운 */}
       <Select.Portal>
         <Select.Content
           className="jp-select-content"
@@ -42,25 +52,33 @@ export default function JPSelect({
           sideOffset={6}
           position="popper"
         >
-          {/* 위쪽 스크롤 버튼 */}
           <Select.ScrollUpButton className="jp-select-scroll-button">
             <ChevronUp size={16} />
           </Select.ScrollUpButton>
 
-          {/* 옵션들이 들어갈 뷰포트 */}
           <Select.Viewport className="jp-select-viewport">
-            {options.map(opt => (
-              <Select.Item
-                key={opt.value}
-                value={opt.value}
-                className="jp-select-item"
-              >
-                <Select.ItemText>{opt.label}</Select.ItemText>
-              </Select.Item>
-            ))}
+            {options.map(opt => {
+              const c = colorMap?.[opt.value];
+              return (
+                <Select.Item
+                  key={opt.value}
+                  value={opt.value}
+                  className="jp-select-item"
+                >
+                  <Select.ItemText>
+                    {/* 왼쪽 색 점 + 라벨 */}
+                    <span
+                      className="jp-select-dot"
+                      style={c ? { background: c } : undefined}
+                      aria-hidden
+                    />
+                    {opt.label}
+                  </Select.ItemText>
+                </Select.Item>
+              );
+            })}
           </Select.Viewport>
 
-          {/* 아래쪽 스크롤 버튼 */}
           <Select.ScrollDownButton className="jp-select-scroll-button">
             <ChevronDown size={16} />
           </Select.ScrollDownButton>
