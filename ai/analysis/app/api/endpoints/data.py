@@ -14,6 +14,7 @@ from app.services.redis_client import RedisClient
 from app.services.s3_client import S3Client
 from app.db.database import get_db
 from app.db import models
+from app.deps.auth import get_current_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -318,7 +319,7 @@ async def run_prophet_analysis(
 
 @router.post(
     "",
-    response_model=LeakCalculationResponse,
+    response_model=LeakDataResponse,
     summary="Calculate monthly leak",
     description="Calculate financial leak and predict future spending using Prophet"
 )
@@ -326,17 +327,17 @@ async def calculate_monthly_leak(
     background_tasks: BackgroundTasks,
     file_id: str = Query(..., description="File ID to analyze"),
     db: Session = Depends(get_db)
-) -> LeakCalculationResponse:
+) -> LeakDataResponse:
     """
     Start async Prophet analysis for spending prediction.
-    
+
     Args:
         file_id: ID of the CSV file to analyze
         background_tasks: FastAPI background tasks
         db: Database session
-    
+
     Returns:
-        LeakCalculationResponse with job information
+        LeakDataResponse with analysis results
     """
     # Check if file exists in Redis
     file_metadata = redis_client.get_file_metadata(file_id)
@@ -345,7 +346,7 @@ async def calculate_monthly_leak(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"File with ID '{file_id}' not found"
         )
-    
+
     # Check if analysis is already running
     current_status = redis_client.get_csv_status(file_id)
     if current_status == 'analyzing':
@@ -353,7 +354,7 @@ async def calculate_monthly_leak(
             status_code=status.HTTP_409_CONFLICT,
             detail="Analysis is already in progress for this file"
         )
-    
+
     # Create analysis job
     job_id = str(uuid.uuid4())
     job = models.AnalysisJob(
@@ -363,7 +364,7 @@ async def calculate_monthly_leak(
     )
     db.add(job)
     db.commit()
-    
+
     # Start background task
     background_tasks.add_task(
         run_prophet_analysis,
@@ -371,13 +372,85 @@ async def calculate_monthly_leak(
         job_id,
         db
     )
-    
-    return LeakCalculationResponse(
-        file_id=file_id,
-        year=datetime.now().year,
-        month=datetime.now().month,
-        total_leak=0.0,
-        message=f"Prophet analysis started. Job ID: {job_id}"
+
+    # Wait for analysis to complete (with timeout)
+    import asyncio
+    max_wait = 60  # 60 seconds timeout
+    wait_interval = 1  # Check every 1 second
+    elapsed = 0
+
+    while elapsed < max_wait:
+        await asyncio.sleep(wait_interval)
+        elapsed += wait_interval
+
+        # Check job status
+        job = db.query(models.AnalysisJob).filter(
+            models.AnalysisJob.job_id == job_id
+        ).first()
+
+        if job and job.status == "completed":
+            # Analysis completed, get leak data
+            year = datetime.now().year
+            month = datetime.now().month
+
+            # Get all category predictions
+            predictions = db.query(models.Prediction).filter(
+                models.Prediction.file_id == file_id,
+                models.Prediction.prediction_date == f"{year}-{month:02d}-01"
+            ).all()
+
+            if not predictions:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"No prediction data found for {year}-{month:02d}"
+                )
+
+            # Get leak analysis if available
+            leak_analysis = db.query(models.LeakAnalysis).filter(
+                models.LeakAnalysis.file_id == file_id,
+                models.LeakAnalysis.year == year,
+                models.LeakAnalysis.month == month
+            ).first()
+
+            # Build response
+            category_predictions = {}
+            total_predicted = 0
+
+            for pred in predictions:
+                category_predictions[pred.category] = {
+                    "predicted_amount": float(pred.predicted_amount),
+                    "lower_bound": float(pred.lower_bound) if pred.lower_bound else None,
+                    "upper_bound": float(pred.upper_bound) if pred.upper_bound else None
+                }
+                total_predicted += pred.predicted_amount
+
+            details = {
+                "total_predicted": float(total_predicted),
+                "categories_count": len(predictions),
+                "category_predictions": category_predictions,
+                "prediction_date": predictions[0].prediction_date.isoformat() if predictions else None,
+                "created_at": predictions[0].created_at.isoformat() if predictions else None
+            }
+
+            return LeakDataResponse(
+                file_id=file_id,
+                year=year,
+                month=month,
+                leak_amount=float(leak_analysis.leak_amount) if leak_analysis and leak_analysis.leak_amount else 0.0,
+                transactions_count=len(predictions),
+                details=details
+            )
+
+        elif job and job.status == "failed":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Analysis failed: {job.error_message}"
+            )
+
+    # Timeout reached
+    raise HTTPException(
+        status_code=status.HTTP_408_REQUEST_TIMEOUT,
+        detail="Analysis is taking longer than expected. Please check status later."
     )
 
 
@@ -650,15 +723,23 @@ class DoojoResponse(BaseModel):
 @router.get(
     "/doojo",
     response_model=DoojoResponse,
-    summary="Get doojo (stamp breaking) data",
-    description="Get category spending analysis with min/max ranges and leak thresholds from MySQL"
+    summary="Get doojo (stamp breaking) data 🔒",
+    description="Get category spending analysis with min/max ranges and leak thresholds from MySQL. **Requires JWT Bearer token**",
+    responses={
+        401: {"description": "Unauthorized - Invalid or missing JWT token"},
+        404: {"description": "User not found or no analysis data"}
+    },
+    tags=["Protected"]
 )
 async def get_doojo_data(
-    file_id: str = Query(..., description="File ID"),
+    user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ) -> DoojoResponse:
     """
-    두꺼비 조언 데이터 조회 - MySQL에서 카테고리별 지출 분석 조회
+    두꺼비 조언 데이터 조회 - JWT 토큰의 user_id를 통해 카테고리별 지출 분석 조회
+
+    JWT 토큰에서 user_id를 추출하고, users 테이블에서 해당 user의 file_id를 찾아
+    doojo analysis 데이터를 조회합니다.
 
     각 카테고리별로 다음 정보를 제공:
     - min: 과거 12개월간 최소 지출액
@@ -668,12 +749,30 @@ async def get_doojo_data(
     - result: real > current 이면 true, 아니면 false
 
     Args:
-        file_id: 파일 ID
+        user_id: JWT 토큰에서 추출한 사용자 ID
         db: Database session
 
     Returns:
         DoojoResponse with category analysis from MySQL
+
+    Raises:
+        401: Invalid or missing JWT token
+        404: User not found or no analysis data
     """
+    # Get user's file_id from users table (using parameterized query to prevent SQL injection)
+    from sqlalchemy import text
+    user_query = text("SELECT file_id FROM users WHERE id = :user_id")
+    result = db.execute(user_query, {"user_id": user_id}).first()
+
+    if not result or not result.file_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No analysis file found for user {user_id}. Please upload and analyze transaction data first."
+        )
+
+    file_id = result.file_id
+    logger.info(f"User {user_id} has file_id: {file_id}")
+
     # Check if analysis is in progress
     analysis_status = redis_client.get_csv_status(file_id)
     if analysis_status == 'analyzing':
@@ -687,7 +786,7 @@ async def get_doojo_data(
     current_year = current_date.year
     current_month = current_date.month
 
-    # Get doojo data from MySQL
+    # Get doojo data from MySQL using file_id
     doojo_data = db.query(models.DoojoAnalysis).filter(
         models.DoojoAnalysis.file_id == file_id,
         models.DoojoAnalysis.year == current_year,

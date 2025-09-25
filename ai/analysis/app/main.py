@@ -28,7 +28,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+        "displayRequestDuration": True
+    }
 )
 
 app.add_middleware(
@@ -50,7 +54,8 @@ async def root():
         "endpoints": {
             "start_analysis": "POST /ai/data",
             "get_predictions": "GET /ai/data/leak",
-            "get_baseline": "GET /ai/data/baseline"
+            "get_baseline": "GET /ai/data/baseline",
+            "get_doojo": "GET /ai/data/doojo (requires JWT)"
         }
     }
 

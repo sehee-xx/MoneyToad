@@ -109,13 +109,15 @@ def update_refs_in_dict(obj: Any, service_name: str, schema_mappings: Dict[str, 
 def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> dict:
     """Merge multiple OpenAPI specs into one"""
     merged = gateway_spec.copy()
-    
+
     # Ensure components and schemas exist
     if 'components' not in merged:
         merged['components'] = {}
     if 'schemas' not in merged['components']:
         merged['components']['schemas'] = {}
-    
+    if 'securitySchemes' not in merged['components']:
+        merged['components']['securitySchemes'] = {}
+
     # Merge each service spec
     for service_name, spec in service_specs.items():
         if not spec:
@@ -141,6 +143,13 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
                 # Update any $ref inside the schema itself
                 updated_schema = update_refs_in_dict(schema, service_name, schema_mappings)
                 merged['components']['schemas'][prefixed_name] = updated_schema
+
+        # Merge security schemes from services
+        if 'components' in spec and 'securitySchemes' in spec['components']:
+            for scheme_name, scheme in spec['components']['securitySchemes'].items():
+                # Add security scheme (HTTPBearer for JWT)
+                if scheme_name not in merged['components']['securitySchemes']:
+                    merged['components']['securitySchemes'][scheme_name] = scheme
         
         # Then merge paths with updated references
         if 'paths' in spec:
@@ -177,6 +186,8 @@ def merge_openapi_specs(gateway_spec: dict, service_specs: Dict[str, dict]) -> d
                         # Update summary to include service name
                         if 'summary' in operation:
                             operation['summary'] = f"[{service_config['name']}] {operation['summary']}"
+                        # Preserve security requirements from original spec
+                        # This ensures endpoints that require auth maintain their security settings
                 
                 merged['paths'][new_path] = updated_path_item
     
