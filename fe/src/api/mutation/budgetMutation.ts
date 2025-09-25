@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateBudget } from '../services/budgets';
-import type { UpdateBudgetRequest } from '../../types';
+import type { UpdateBudgetRequest, MonthlyBudgetResponse } from '../../types';
 import { monthlyBudgetQueryKeys } from '../queryKeys';
 
 export const useUpdateBudgetMutation = (year: number, month: number, onMutationComplete?: (budgetId: number) => void) => {
@@ -20,10 +20,10 @@ export const useUpdateBudgetMutation = (year: number, month: number, onMutationC
       const previousData = queryClient.getQueryData(queryKey);
 
       // 낙관적 업데이트
-      queryClient.setQueryData(queryKey, (old: any) => {
+      queryClient.setQueryData(queryKey, (old: MonthlyBudgetResponse[] | undefined) => {
         if (!old) return old;
 
-        return old.map((item: any) =>
+        return old.map((item: MonthlyBudgetResponse) =>
           item.id === budgetId
             ? { ...item, budget: newBudget }
             : item
