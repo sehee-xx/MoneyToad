@@ -3,7 +3,7 @@
 ========================= */
 :root {
   --header-h: 64px; /* 실제 헤더 높이 */
-  --stage-max-w: 1200px; /* 무대 기준 폭 */
+  --stage-max-w: 1400px; /* 무대 기준 폭 */
   --stage-ar: 16 / 9; /* 무대 비율 */
   --stage-side-pad: 2vw; /* 뷰포트에서 좌우 최소 여백 */
   --stage-bottom-gap: 40px; /* 연못 하단 여백 (항상 조금 비게) */

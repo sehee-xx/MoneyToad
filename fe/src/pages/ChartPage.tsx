@@ -471,7 +471,7 @@ export default function ChartPage() {
   }: any) => {
     if (percent < 0.03) return null; // 3% 미만 숨김
     const RADIAN = Math.PI / 180;
-    const labelRadius = outerRadius + 42;
+    const labelRadius = outerRadius + 52;
     const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
     const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
     const pct = Math.round(percent * 100);
@@ -485,7 +485,7 @@ export default function ChartPage() {
         x={x}
         y={y}
         fill={labelColor}
-        fontSize={12}
+        fontSize={16}
         fontWeight={800}
         textAnchor="middle"
         dominantBaseline="central"
