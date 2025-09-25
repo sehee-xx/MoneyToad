@@ -21,3 +21,8 @@ export const monthlyBudgetQueryKeys = {
   monthly: (year: number, month: number) => [...monthlyBudgetQueryKeys.all, 'monthly', year, month] as const,
   yearly: () => [...monthlyBudgetQueryKeys.all, 'yearly'] as const,
 } as const;
+
+export const doojoQueryKeys = {
+  all: ['doojo'] as const,
+  data: () => [...doojoQueryKeys.all, 'data'] as const,
+} as const;
