@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class TransactionService {
 
 	private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
 	private static final DateTimeFormatter YM_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
+	private static final Set<String> EXCLUDED_FOR_LEAK = Set.of("보험 / 세금");
 
 	private final TransactionRepository transactionRepository;
 	private final CardRepository cardRepository;
@@ -107,7 +109,14 @@ public class TransactionService {
 			.build();
 	}
 
-	public Map<YearMonth, Map<String, Integer>> getSpentMapByMonth(Long userId, YearMonth startYm, YearMonth endYm) {
+
+	private static boolean includeForLeak(String category) {
+		return category != null && !EXCLUDED_FOR_LEAK.contains(category);
+	}
+
+	public Map<YearMonth, Map<String, Integer>> getSpentMapByMonth(
+		Long userId, YearMonth startYm, YearMonth endYm) {
+
 		LocalDateTime start = startYm.atDay(1).atStartOfDay();
 		LocalDateTime end = endYm.plusMonths(1).atDay(1).atStartOfDay(); // [start, end)
 		Card card = cardRepository.findByUserId(userId).orElseThrow(EntityNotFoundException::new);
@@ -117,9 +126,13 @@ public class TransactionService {
 
 		Map<YearMonth, Map<String, Integer>> spentByMonth = new HashMap<>();
 		for (MonthlyCategoryTotalRow r : rows) {
+			// null 카테고리는 "미분류"로 포함, 제외 대상만 스킵
+			String rawCat = r.getCategory();
+			String cat = (rawCat == null ? "미분류" : rawCat);
+			if (rawCat != null && !includeForLeak(rawCat)) continue;
+
 			YearMonth ym = YearMonth.of(r.getY(), r.getM());
 			Map<String, Integer> byCat = spentByMonth.computeIfAbsent(ym, k -> new HashMap<>());
-			String cat = (r.getCategory() == null ? "미분류" : r.getCategory());
 			int total = Math.toIntExact(Objects.requireNonNullElse(r.getTotal(), 0L));
 			byCat.merge(cat, total, Integer::sum);
 		}
