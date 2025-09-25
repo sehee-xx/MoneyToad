@@ -40,33 +40,29 @@ public class BudgetController {
 	public ResponseEntity<List<IsLeakedResponse>> getRecent12MonthsLeaks(
 		@AuthenticationPrincipal CustomUserDetails user) {
 		Long userId = user.getUserId();
-		YearMonth endYm = YearMonth.now();           // 2025-09 기준
+		YearMonth endYm = YearMonth.now();           // 예: 2025-09
 		YearMonth startYm = endYm.minusMonths(11);   // 2024-10 ~ 2025-09
-
-		// ✅ 이미 '보험 / 세금'을 제외하고, null/빈값은 '기타'로 정규화해서 가져오는 서비스 사용
-		Map<YearMonth, Map<String, Integer>> budgetByMonth =
-			budgetService.getBudgetMapByMonthExcludingOthers(userId, startYm, endYm);
-
-		Map<YearMonth, Map<String, Integer>> spentByMonth =
-			transactionService.getSpentMapByMonthExcludingOthers(userId, startYm, endYm);
 
 		List<IsLeakedResponse> result = new ArrayList<>(12);
 
 		for (YearMonth ym = startYm; !ym.isAfter(endYm); ym = ym.plusMonths(1)) {
-			Map<String, Integer> bm = budgetByMonth.getOrDefault(ym, Map.of());
-			Map<String, Integer> sm = spentByMonth.getOrDefault(ym, Map.of());
+			int year = ym.getYear();
+			int month = ym.getMonthValue();
 
-			boolean leaked = false;
+			// 1) 월별 데이터 조회 (월 화면과 동일 소스)
+			List<Budget> budgets = budgetService.getMonthlyBudgets(userId, year, month);
+			List<TransactionResponse> transactions =
+				transactionService.getMonthlyTransactions(userId, year, month);
 
-			// ⛑️ 고정된 12개 카테고리만 비교 (없는 건 0으로 간주)
-			for (String cat : CATEGORY_ORDER) {
-				int budget = bm.getOrDefault(cat, 0);
-				int spent  = sm.getOrDefault(cat, 0);
-				if (spent > budget) {
-					leaked = true;
-					break;
-				}
-			}
+			// 2) 화면에서 쓰는 것과 동일한 규칙(visible/HIDDEN + CATEGORY_ORDER)으로 12개 카테고리 응답 생성
+			List<BudgetResponse> monthly = toBudgetResponses(budgets, transactions);
+
+			// 3) 하나라도 지출이 예산을 넘으면 누수
+			boolean leaked = monthly.stream().anyMatch(br -> {
+				int budget  = br.getBudget()  == null ? 0 : br.getBudget();
+				int spending = br.getSpending() == null ? 0 : br.getSpending();
+				return spending > budget;
+			});
 
 			result.add(IsLeakedResponse.from(ym, leaked));
 		}
