@@ -1,5 +1,5 @@
 import { request, REQUEST_METHOD } from '../client';
-import type { TransactionYear, MonthlyTransaction, CategoryTransaction, UpdateCategoryRequest } from '../../types';
+import type { TransactionYear, MonthlyTransaction, CategoryTransaction, UpdateCategoryRequest, TransactionPeerYear } from '../../types';
 
 export const getYearTransaction = async () => {
   const response = await request<TransactionYear[]>({
@@ -11,7 +11,7 @@ export const getYearTransaction = async () => {
 };
 
 export const getPeerYearTransaction = async () => {
-  const response = await request<TransactionYear[]>({
+  const response = await request<TransactionPeerYear[]>({
     method: REQUEST_METHOD.GET,
     url: `${import.meta.env.VITE_BACK_URL}/api/transactions/peer`,
   });
