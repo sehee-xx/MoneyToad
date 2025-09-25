@@ -185,15 +185,16 @@ LOG_LEVEL=INFO
 1. **업로드 요청** → 즉시 file_id 반환 (202)
 2. **백그라운드 처리** → S3 업로드 + 체크섬 계산
 3. **메타데이터 저장** → Redis에 파일 정보 저장
-4. **상태 업데이트** → uploading → none
+4. **상태 업데이트** → uploading → ingesting → none
 
 ## 🔄 상태 관리
 
 ### 파일 상태
 | Status | Description | 다음 가능 동작 |
 |--------|-------------|--------------|
-| `uploading` | 파일 업로드 중 | 대기 |
-| `analyzing` | AI 분석 진행 중 | 대기 |
+| `uploading` | S3에 파일 업로드 중 | 삭제/교체 불가 |
+| `ingesting` | 데이터 처리 및 검증 중 | 삭제/교체 불가 |
+| `analyzing` | Prophet AI 분석 진행 중 | 삭제/교체 불가 |
 | `none` | 유휴 상태 | 모든 작업 가능 |
 
 ### Redis 키 구조
@@ -299,7 +300,7 @@ GET /health
 - ✅ Redis를 primary storage로 변경
 - ✅ 비동기 업로드/교체 구현
 - ✅ 백그라운드 태스크 처리
-- ✅ ingesting 상태 제거 (간소화)
+- ✅ 4-state 시스템 (uploading, ingesting, analyzing, none)
 
 ### v1.0.0
 - 초기 릴리스

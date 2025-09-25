@@ -443,7 +443,7 @@ async def delete_csv(
         
         # Check if file is being processed (optional business logic)
         current_status = await csv_repo.get_status_by_id(file_id)
-        if current_status and current_status in ["ingesting", "leakage_calculating", "analyzing"]:
+        if current_status and current_status in ["ingesting", "analyzing"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot delete file while status is '{current_status}'"
@@ -519,7 +519,7 @@ async def replace_csv(
         
         # Check if file is being processed
         current_status = await csv_repo.get_status_by_id(file_id)
-        if current_status and current_status in ["uploading", "ingesting", "leakage_calculating", "analyzing"]:
+        if current_status and current_status in ["uploading", "ingesting", "analyzing"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot replace file while status is '{current_status}'"
@@ -570,7 +570,7 @@ async def get_csv_status(
     Get the current processing status of a CSV file by file ID.
     
     Accessible to both admin and regular users.
-    Returns one of: 'ingesting', 'leakage_calculating', 'analyzing', 'none'
+    Returns one of: 'uploading', 'ingesting', 'analyzing', 'none'
     
     Args:
         file_id: File ID to check

@@ -23,7 +23,7 @@ Analysis Service는 Facebook Prophet을 활용하여 사용자의 금융 거래 
 
 ### 데이터 관리
 - **Azure MySQL 저장**: 예측 결과 영구 보관 (SSL 보안 연결)
-- **Redis 캐싱**: 상태 및 메타데이터 고속 처리
+- **Redis 캐싱**: 상태 관리 (analyzing → none) 및 메타데이터 저장
 - **S3 연동**: CSV 파일 직접 다운로드
 - **비동기 처리**: BackgroundTasks 활용
 
@@ -409,10 +409,10 @@ GET /health
 
 ### 분석 시작 안 됨
 ```bash
-# 상태 확인
+# 상태 확인 (analyzing이면 대기, none이면 분석 가능)
 GET /api/ai/csv/status?file_id=abc-123
 
-# 분류 완료 확인 후 재시도
+# 상태가 none일 때 분석 시작
 POST /api/ai/data?file_id=abc-123
 ```
 
@@ -439,7 +439,7 @@ docker-compose logs analysis --tail 50
 - **API Gateway**: 요청 라우팅
 - **CSV Manager**: 파일 다운로드
 - **Classifier**: 분류된 데이터 수신
-- **Redis**: 상태 공유
+- **Redis**: 상태 공유 (analyzing/none)
 - **Azure MySQL**: 클라우드 기반 결과 저장 (SSL 보안 연결)
 
 ## 🔗 관련 문서
