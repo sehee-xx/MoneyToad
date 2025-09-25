@@ -40,9 +40,10 @@ public class BudgetController {
 	public ResponseEntity<List<IsLeakedResponse>> getRecent12MonthsLeaks(
 		@AuthenticationPrincipal CustomUserDetails user) {
 		Long userId = user.getUserId();
-		YearMonth endYm = YearMonth.now();
-		YearMonth startYm = endYm.minusMonths(11);
+		YearMonth endYm = YearMonth.now();           // 2025-09 기준
+		YearMonth startYm = endYm.minusMonths(11);   // 2024-10 ~ 2025-09
 
+		// ✅ 이미 '보험 / 세금'을 제외하고, null/빈값은 '기타'로 정규화해서 가져오는 서비스 사용
 		Map<YearMonth, Map<String, Integer>> budgetByMonth =
 			budgetService.getBudgetMapByMonthExcludingOthers(userId, startYm, endYm);
 
@@ -50,23 +51,26 @@ public class BudgetController {
 			transactionService.getSpentMapByMonthExcludingOthers(userId, startYm, endYm);
 
 		List<IsLeakedResponse> result = new ArrayList<>(12);
-		for (YearMonth cursor = startYm; !cursor.isAfter(endYm); cursor = cursor.plusMonths(1)) {
-			Map<String, Integer> bm = budgetByMonth.getOrDefault(cursor, Map.of());
-			Map<String, Integer> sm = spentByMonth.getOrDefault(cursor, Map.of());
 
-			// 카테고리는 서비스에서 이미 12개로 정규화되어 옴 (기타 포함)
-			Set<String> cats = new HashSet<>(bm.keySet());
-			cats.addAll(sm.keySet()); // 예산 없는 카테고리 지출도 누수로 판단하려면 합집합 유지
+		for (YearMonth ym = startYm; !ym.isAfter(endYm); ym = ym.plusMonths(1)) {
+			Map<String, Integer> bm = budgetByMonth.getOrDefault(ym, Map.of());
+			Map<String, Integer> sm = spentByMonth.getOrDefault(ym, Map.of());
 
 			boolean leaked = false;
-			for (String cat : cats) {
+
+			// ⛑️ 고정된 12개 카테고리만 비교 (없는 건 0으로 간주)
+			for (String cat : CATEGORY_ORDER) {
 				int budget = bm.getOrDefault(cat, 0);
 				int spent  = sm.getOrDefault(cat, 0);
-				if (spent > budget) { leaked = true; break; }
+				if (spent > budget) {
+					leaked = true;
+					break;
+				}
 			}
 
-			result.add(IsLeakedResponse.from(cursor, leaked));
+			result.add(IsLeakedResponse.from(ym, leaked));
 		}
+
 		return ResponseEntity.ok(result);
 	}
 
