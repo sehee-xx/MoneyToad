@@ -44,37 +44,6 @@ public class TransactionService {
 	private final CardRepository cardRepository;
 
 	/**
-	 * GET /transactions
-	 * 최근 12개월(현재월 포함) 월별 총 소비 응답
-	 * Controller 반환 타입: List<MonthlySpendingResponse>
-	 */
-	public List<MonthlySpendingResponse> getYearlySpending(Long userId) {
-		YearMonth now = YearMonth.now(ZONE_SEOUL);
-		YearMonth from = now.minusMonths(11);
-
-		LocalDateTime start = from.atDay(1).atStartOfDay();           // inclusive
-		LocalDateTime end = now.plusMonths(1).atDay(1).atStartOfDay(); // exclusive
-
-		List<MonthlyTotalProjection> rows =
-			transactionRepository.aggregateMonthlyTotals(userId, start, end);
-
-		Map<YearMonth, Long> dbMap = rows.stream()
-			.collect(Collectors.toMap(
-				r -> YearMonth.of(r.getYear(), r.getMonth()),
-				r -> Optional.ofNullable(r.getTotal()).orElse(0L)
-			));
-
-		List<MonthlySpendingResponse> result = new ArrayList<>();
-		YearMonth cursor = from;
-		for (int i = 0; i < 12; i++) {
-			long total = dbMap.getOrDefault(cursor, 0L);
-			result.add(new MonthlySpendingResponse(cursor.format(YM_FORMAT), (int)total));
-			cursor = cursor.plusMonths(1);
-		}
-		return result;
-	}
-
-	/**
 	 * GET /transactions/{year}/{month}
 	 * 해당 월의 전체 거래 목록
 	 * Controller 반환 타입: List<TransactionResponse>
