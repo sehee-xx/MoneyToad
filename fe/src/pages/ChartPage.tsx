@@ -15,12 +15,17 @@ import {
 import "./ChartPage.css";
 import Header from "../components/Header";
 import JPSelect from "../components/JPSelect";
-import { useYearTransactionQuery, usePeerYearTransactionQuery, useMonthlyTransactionsQuery } from "../api/queries/transactionQuery";
+import {
+  useYearTransactionQuery,
+  usePeerYearTransactionQuery,
+  useMonthlyTransactionsQuery,
+} from "../api/queries/transactionQuery";
 import { useUpdateTransactionCategoryMutation } from "../api/mutation/transactionMutation";
 import type { MonthlyTransaction } from "../types";
 
 export const chartAssets = [
   "/charts/background.png",
+  "/charts/detailBackground.png",
   "/charts/sitting_girl.png",
   "/charts/toad.png",
   "/charts/water.png",
@@ -56,6 +61,7 @@ type Txn = {
   merchant: string;
   amount: number;
   category: Category;
+  leaked?: boolean;
 };
 
 type MonthData = {
@@ -82,6 +88,14 @@ const JP_COLORS = [
   "#20B2AA", // 진한 청록
 ];
 
+export const CATEGORY_COLORS: Record<Category, string> = CATEGORIES.reduce(
+  (acc, c, i) => {
+    acc[c] = JP_COLORS[i % JP_COLORS.length];
+    return acc;
+  },
+  {} as Record<Category, string>
+);
+
 const monthLabel = (i: number) => `${i + 1}월`;
 const KRW = (n: number) => n.toLocaleString("ko-KR");
 const toNum = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
@@ -97,16 +111,16 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div
         style={{
-          background: "#fff",
-          border: "none",
-          padding: 12,
-          borderRadius: 4,
-          boxShadow: "0 4px 12px rgba(0,0,0,.4)",
+          backgroundColor: "#fff",
+          borderRadius: "10px",
+          padding: "10px 10px",
         }}
       >
         <div style={{ fontWeight: "bold", color: "#2A3437" }}>
           {label}
-          {leaked && <span style={{ color: "#FF4444", marginLeft: "8px" }}>누수</span>}
+          {leaked && (
+            <span style={{ color: "#FF4444", marginLeft: 8 }}>[누수]</span>
+          )}
         </div>
         <div style={{ color: "#817716" }}>
           내 소비 : {me ? KRW(me.value) : "-"}원
@@ -159,7 +173,7 @@ export default function ChartPage() {
     const currentDate = new Date();
     return {
       currentYear: currentDate.getFullYear(),
-      currentMonth: currentDate.getMonth()
+      currentMonth: currentDate.getMonth(),
     };
   };
 
@@ -172,90 +186,96 @@ export default function ChartPage() {
     Array.from({ length: 12 }, (_, i) => seedMonth(i))
   );
 
-  /* API 데이터를 월별 데이터로 변환 */
   const apiMonthlyData = useMemo(() => {
-    if (!yearTransactionData) return Array(12).fill(null).map((_, index) => ({
-      amount: 0,
-      isLastYear: false,
-      leaked: false,
-      month: index
-    }));
+    if (!yearTransactionData) {
+      return Array.from({ length: 12 }, (_, index) => ({
+        amount: 0,
+        isLastYear: false,
+        leaked: false,
+        month: index,
+      }));
+    }
 
     const { currentYear, currentMonth } = getCurrentDateInfo();
 
-    const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
+    // 각 월에 대해 사용할 연도 결정: 미래 달이면 작년, 아니면 올해
+    const desiredYearByMonth = Array.from({ length: 12 }, (_, m) =>
+      m > currentMonth ? currentYear - 1 : currentYear
+    );
+
+    const monthlyData: MonthData[] = Array.from({ length: 12 }, (_, index) => ({
       amount: 0,
-      isLastYear: false,
+      isLastYear: desiredYearByMonth[index] < currentYear,
       leaked: false,
-      month: index
+      month: index,
     }));
 
-    yearTransactionData.forEach(transaction => {
-      const [year, month] = transaction.date.split('-').map(Number);
-      const transactionYear = year;
-      const transactionMonth = month - 1;
-
-      const isLastYear = transactionYear < currentYear ||
-        (transactionYear === currentYear && transactionMonth > currentMonth);
-
-      monthlyData[transactionMonth].amount += transaction.totalAmount;
-      monthlyData[transactionMonth].isLastYear = isLastYear;
-      monthlyData[transactionMonth].leaked = transaction.leaked;
+    // 선택한 '그 해'의 데이터만 합계에 반영
+    yearTransactionData.forEach((transaction) => {
+      const [year, month] = transaction.date.split("-").map(Number);
+      const mIdx = month - 1;
+      if (year === desiredYearByMonth[mIdx]) {
+        monthlyData[mIdx].amount += transaction.totalAmount;
+        if (transaction.leaked) monthlyData[mIdx].leaked = true; // OR 집계
+      }
     });
 
     return monthlyData;
-  }, [yearTransactionData]);;
+  }, [yearTransactionData]);
 
   /* 월별 합계 - API 데이터 우선 사용 */
   const myMonthly = useMemo(() => {
     if (yearTransactionData && yearTransactionData.length > 0) {
-      return apiMonthlyData.map(monthData => monthData.amount);
+      return apiMonthlyData.map((monthData) => monthData.amount);
     }
     // API 데이터가 없으면 기존 더미 데이터 사용
     return txnsByMonth.map((m) => m.reduce((a, t) => a + t.amount, 0));
   }, [yearTransactionData, apiMonthlyData, txnsByMonth]);
   /* 또래 API 데이터를 월별 데이터로 변환 */
   const apiPeerMonthlyData = useMemo(() => {
-    if (!peerYearTransactionData) return Array(12).fill(null).map((_, index) => ({
-      amount: 0,
-      isLastYear: false,
-      leaked: false,
-      month: index
-    }));
+    if (!peerYearTransactionData) {
+      return Array.from({ length: 12 }, (_, index) => ({
+        amount: 0,
+        isLastYear: false,
+        leaked: false,
+        month: index,
+      }));
+    }
 
     const { currentYear, currentMonth } = getCurrentDateInfo();
 
-    const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
+    const desiredYearByMonth = Array.from({ length: 12 }, (_, m) =>
+      m > currentMonth ? currentYear - 1 : currentYear
+    );
+
+    const monthlyData: MonthData[] = Array.from({ length: 12 }, (_, index) => ({
       amount: 0,
-      isLastYear: false,
+      isLastYear: desiredYearByMonth[index] < currentYear,
       leaked: false,
-      month: index
+      month: index,
     }));
 
-    peerYearTransactionData.forEach(transaction => {
-      const [year, month] = transaction.date.split('-').map(Number);
-      const transactionYear = year;
-      const transactionMonth = month - 1;
-
-      const isLastYear = transactionYear < currentYear ||
-        (transactionYear === currentYear && transactionMonth > currentMonth);
-
-      monthlyData[transactionMonth].amount += transaction.totalAmount;
-      monthlyData[transactionMonth].isLastYear = isLastYear;
+    peerYearTransactionData.forEach((transaction) => {
+      const [year, month] = transaction.date.split("-").map(Number);
+      const mIdx = month - 1;
+      if (year === desiredYearByMonth[mIdx]) {
+        monthlyData[mIdx].amount += transaction.totalAmount;
+      }
     });
 
     return monthlyData;
-  }, [peerYearTransactionData]);;
+  }, [peerYearTransactionData]);
 
   const peerMonthly = useMemo(() => {
     if (peerYearTransactionData && peerYearTransactionData.length > 0) {
-      return apiPeerMonthlyData.map(monthData => monthData.amount);
+      return apiPeerMonthlyData.map((monthData) => monthData.amount);
     }
     // API 데이터가 없으면 기존 더미 계산 로직 사용
-    return myMonthly.map((v, i) => Math.round(v * (0.9 + ((i * 17) % 15) / 100)));
+    return myMonthly.map((v, i) =>
+      Math.round(v * (0.9 + ((i * 17) % 15) / 100))
+    );
   }, [peerYearTransactionData, apiPeerMonthlyData, myMonthly]);
 
-  /* 라인차트 데이터 */
   const lineData = useMemo(
     () =>
       Array.from({ length: 12 }, (_, i) => ({
@@ -263,12 +283,17 @@ export default function ChartPage() {
         month: monthLabel(i),
         me: myMonthly[i],
         peers: peerMonthly[i],
-        leaked: yearTransactionData && yearTransactionData.length > 0 
-          ? apiMonthlyData[i].leaked 
-          : false,
+        leaked:
+          yearTransactionData && yearTransactionData.length > 0
+            ? apiMonthlyData[i].leaked
+            : false,
+        isLastYear:
+          yearTransactionData && yearTransactionData.length > 0
+            ? apiMonthlyData[i].isLastYear
+            : false, // ← 추가
       })),
     [myMonthly, peerMonthly, yearTransactionData, apiMonthlyData]
-  );;
+  );
 
   /* 상세 상태 */
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -302,10 +327,11 @@ export default function ChartPage() {
   /* MonthlyTransaction을 Txn으로 변환 */
   const convertToTxn = (monthlyTxn: MonthlyTransaction): Txn => ({
     id: monthlyTxn.id.toString(),
-    date: monthlyTxn.transactionDateTime.split('T')[0], // YYYY-MM-DD 형태로 변환
+    date: monthlyTxn.transactionDateTime.split("T")[0], // YYYY-MM-DD 형태로 변환
     merchant: monthlyTxn.merchantName,
     amount: monthlyTxn.amount,
-    category: monthlyTxn.category as Category
+    category: monthlyTxn.category as Category,
+    leaked: Boolean((monthlyTxn as any).leaked),
   });
 
   /* 안전 클릭 핸들러: index → payload.idx */
@@ -333,7 +359,7 @@ export default function ChartPage() {
     // API 호출
     updateCategoryMutation.mutate({
       transactionId: parseInt(id), // string을 number로 변환
-      data: { category: cat }
+      data: { category: cat },
     });
 
     // 로컬 상태 즉시 업데이트 (optimistic update)
@@ -364,8 +390,32 @@ export default function ChartPage() {
       : selectedCategory === "전체"
       ? detailTxns
       : detailTxns.filter((t) => t.category === selectedCategory);
-  const monthTotal =
-    selectedMonth === null ? 0 : detailTxns.reduce((a, t) => a + t.amount, 0);
+  const monthTotal = useMemo(() => {
+    if (selectedMonth === null) return 0;
+
+    // 연간 집계 데이터가 있다면 → 라인차트와 동일한 집계값 사용
+    if (yearTransactionData && yearTransactionData.length > 0) {
+      return apiMonthlyData[selectedMonth].amount;
+    }
+
+    // 없을 때만 표의 개별 거래 합으로 폴백
+    return detailTxns.reduce((a, t) => a + t.amount, 0);
+  }, [selectedMonth, yearTransactionData, apiMonthlyData, detailTxns]);
+
+  // ★ 누수 합계: 상세에 뜬 거래들 중 leaked=true인 금액만 합산
+  const leakTotal = useMemo(() => {
+    if (selectedMonth === null) return 0;
+    return detailTxns.filter((t) => t.leaked).reduce((a, t) => a + t.amount, 0);
+  }, [selectedMonth, detailTxns]);
+
+  // ★ 누수 카테고리 집합: 그 카테고리에 leaked=true 거래가 하나라도 있으면 누수 카테고리로 간주
+  const leakedCategorySet = useMemo(() => {
+    const s = new Set<string>();
+    detailTxns.forEach((t) => {
+      if (t.leaked) s.add(t.category);
+    });
+    return s;
+  }, [detailTxns]);
 
   /* 파이 데이터 */
   const pieData = useMemo(() => {
@@ -394,13 +444,18 @@ export default function ChartPage() {
     }
 
     return [
-      { name: selectedCategory, value: sel, color: "#D4AF37" },
-      { name: "기타", value: others, color: "#4a5568" },
+      {
+        name: selectedCategory,
+        value: sel,
+        color: CATEGORY_COLORS[selectedCategory as Category],
+      },
+      { name: "나머지", value: others, color: "#4a5568" },
     ];
   }, [selectedMonth, selectedCategory, txnsByMonth, detailTxns, monthTotal]);
 
   /* 파이 라벨 */
   // 파이차트 커스텀 라벨 - 균일한 위치
+  // 라벨: 이름 + 퍼센트 (>= 3%만 표시), 폰트 업
   const renderCustomLabel = ({
     cx,
     cy,
@@ -409,29 +464,30 @@ export default function ChartPage() {
     percent,
     name,
   }: any) => {
-    if (percent < 0.03) return null; // 3% 미만은 라벨 숨김
-
+    if (percent < 0.03) return null; // 3% 미만 숨김
     const RADIAN = Math.PI / 180;
-    const labelRadius = outerRadius + 50; // 일정한 거리
+    const labelRadius = outerRadius + 42;
     const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
     const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
+    const pct = Math.round(percent * 100);
+
+    // ★ '나머지'는 항상 기본색, 나머지는 누수 카테고리면 붉은색
+    const isLeakedCategory = name !== "나머지" && leakedCategorySet.has(name);
+    const labelColor = isLeakedCategory ? "#EC6665" : "#212A2D";
 
     return (
       <text
         x={x}
         y={y}
-        fill="#f0e6d2"
-        fontSize={11}
-        fontWeight="600"
+        fill={labelColor}
+        fontSize={12}
+        fontWeight={800}
         textAnchor="middle"
         dominantBaseline="central"
         pointerEvents="none"
-        style={{
-          textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
-          filter: "drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))",
-        }}
+        style={{ overflow: "visible" }}
       >
-        {`${name}`}
+        {`${name} ${pct}%`}
       </text>
     );
   };
@@ -441,16 +497,22 @@ export default function ChartPage() {
     const { cx, cy, index, payload } = props;
     if (cx == null || cy == null) return <g />;
 
-    const flower = chartAssets[4];
-    const leaf = chartAssets[5];
-    const deadFlower = chartAssets[6];
-    const deadLeaf = chartAssets[7];
+    const flower = chartAssets[5];
+    const leaf = chartAssets[6];
+    const deadFlower = chartAssets[7];
+    const deadLeaf = chartAssets[8];
 
     const isCurrentMonth = index === getCurrentDateInfo().currentMonth;
     const leaked = payload?.leaked || false;
+    const isLastYear = payload?.isLastYear || false;
+
     const href = leaked
-      ? (isCurrentMonth ? deadFlower : deadLeaf)
-      : (isCurrentMonth ? flower : leaf);
+      ? isCurrentMonth
+        ? deadFlower
+        : deadLeaf
+      : isCurrentMonth
+      ? flower
+      : leaf;
 
     const size = 40;
     const x = cx - size / 2;
@@ -460,7 +522,7 @@ export default function ChartPage() {
       <g
         key={`dot-${index}`}
         transform={`translate(${x}, ${y})`}
-        style={{ cursor: "pointer" }}
+        style={{ cursor: "pointer", opacity: isLastYear ? 0.6 : 1 }}
         onClick={(e) => {
           e.stopPropagation();
           onPointClickSafe(props);
@@ -605,9 +667,12 @@ export default function ChartPage() {
         <section id="screen2" className="jp-screen jp-detail-screen">
           <div className="jp-card">
             <div className="jp-card-head">
-              <h2>{monthLabel(selectedMonth)} 상세</h2>
+              <h1>{monthLabel(selectedMonth)} 상세</h1>
               <div className="jp-head-actions">
-                <span className="jp-total">합계: {KRW(monthTotal)}원</span>
+                <span className="jp-leak">누수 금액: {KRW(leakTotal)}원</span>
+                <span className="jp-total">
+                  | 총 소비 금액: {KRW(monthTotal)}원
+                </span>
                 <button
                   className="jp-close"
                   onClick={() => {
@@ -630,6 +695,7 @@ export default function ChartPage() {
                       { label: "전체", value: "전체" },
                       ...CATEGORIES.map((c) => ({ label: c, value: c })),
                     ]}
+                    colorMap={CATEGORY_COLORS}
                   />
                 </div>
 
@@ -663,6 +729,7 @@ export default function ChartPage() {
                               value: c,
                             }))}
                             className="min-w-[120px]"
+                            colorMap={CATEGORY_COLORS}
                           />
                         </td>
                       </tr>
@@ -674,12 +741,14 @@ export default function ChartPage() {
               <div className="jp-panel jp-pie-panel">
                 <div className="jp-pie-frame">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart
+                      margin={{ top: 10, right: 80, bottom: 30, left: 80 }}
+                    >
                       <Pie
                         data={pieData}
                         dataKey="value"
                         nameKey="name"
-                        outerRadius={160}
+                        outerRadius={200}
                         paddingAngle={0}
                         label={renderCustomLabel}
                         labelLine={false}
@@ -694,10 +763,6 @@ export default function ChartPage() {
                             }
                             stroke="transparent"
                             strokeWidth={0}
-                            style={{
-                              filter:
-                                "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))",
-                            }}
                           />
                         ))}
                       </Pie>
