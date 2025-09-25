@@ -26,6 +26,8 @@ export const chartAssets = [
   "/charts/water.png",
   "/charts/flower.png",
   "/charts/leaf.png",
+  "/charts/flower_gray.webp",
+  "/charts/leaf_gray.webp",
 ];
 
 /* ------------------------------ 상수/타입 ------------------------------ */
@@ -59,7 +61,8 @@ type Txn = {
 type MonthData = {
   amount: number;
   isLastYear: boolean;
-  month: number; // 실제 월 (0-11)
+  leaked: boolean;
+  month: number;
 };
 
 const JP_COLORS = [
@@ -89,6 +92,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const me = payload.find((p: any) => p.dataKey === "me");
     const peer = payload.find((p: any) => p.dataKey === "peers");
+    const leaked = payload[0]?.payload?.leaked || false;
+
     return (
       <div
         style={{
@@ -99,7 +104,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           boxShadow: "0 4px 12px rgba(0,0,0,.4)",
         }}
       >
-        <div style={{ fontWeight: "bold", color: "#2A3437" }}>{label}</div>
+        <div style={{ fontWeight: "bold", color: "#2A3437" }}>
+          {label}
+          {leaked && <span style={{ color: "#FF4444", marginLeft: "8px" }}>누수</span>}
+        </div>
         <div style={{ color: "#817716" }}>
           내 소비 : {me ? KRW(me.value) : "-"}원
         </div>
@@ -169,6 +177,7 @@ export default function ChartPage() {
     if (!yearTransactionData) return Array(12).fill(null).map((_, index) => ({
       amount: 0,
       isLastYear: false,
+      leaked: false,
       month: index
     }));
 
@@ -177,25 +186,25 @@ export default function ChartPage() {
     const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
       amount: 0,
       isLastYear: false,
+      leaked: false,
       month: index
     }));
 
     yearTransactionData.forEach(transaction => {
-      // "YYYY-MM" 형태의 날짜를 직접 파싱
       const [year, month] = transaction.date.split('-').map(Number);
       const transactionYear = year;
-      const transactionMonth = month - 1; // 0-based 월 인덱스
+      const transactionMonth = month - 1;
 
-      // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
       const isLastYear = transactionYear < currentYear ||
         (transactionYear === currentYear && transactionMonth > currentMonth);
 
       monthlyData[transactionMonth].amount += transaction.totalAmount;
       monthlyData[transactionMonth].isLastYear = isLastYear;
+      monthlyData[transactionMonth].leaked = transaction.leaked;
     });
 
     return monthlyData;
-  }, [yearTransactionData]);
+  }, [yearTransactionData]);;
 
   /* 월별 합계 - API 데이터 우선 사용 */
   const myMonthly = useMemo(() => {
@@ -210,6 +219,7 @@ export default function ChartPage() {
     if (!peerYearTransactionData) return Array(12).fill(null).map((_, index) => ({
       amount: 0,
       isLastYear: false,
+      leaked: false,
       month: index
     }));
 
@@ -218,16 +228,15 @@ export default function ChartPage() {
     const monthlyData: MonthData[] = Array(12).fill(null).map((_, index) => ({
       amount: 0,
       isLastYear: false,
+      leaked: false,
       month: index
     }));
 
     peerYearTransactionData.forEach(transaction => {
-      // "YYYY-MM" 형태의 날짜를 직접 파싱
       const [year, month] = transaction.date.split('-').map(Number);
       const transactionYear = year;
-      const transactionMonth = month - 1; // 0-based 월 인덱스
+      const transactionMonth = month - 1;
 
-      // 작년 달 판단: 작년이거나, 올해인데 현재달 이후
       const isLastYear = transactionYear < currentYear ||
         (transactionYear === currentYear && transactionMonth > currentMonth);
 
@@ -236,7 +245,7 @@ export default function ChartPage() {
     });
 
     return monthlyData;
-  }, [peerYearTransactionData]);
+  }, [peerYearTransactionData]);;
 
   const peerMonthly = useMemo(() => {
     if (peerYearTransactionData && peerYearTransactionData.length > 0) {
@@ -254,9 +263,12 @@ export default function ChartPage() {
         month: monthLabel(i),
         me: myMonthly[i],
         peers: peerMonthly[i],
+        leaked: yearTransactionData && yearTransactionData.length > 0 
+          ? apiMonthlyData[i].leaked 
+          : false,
       })),
-    [myMonthly, peerMonthly]
-  );
+    [myMonthly, peerMonthly, yearTransactionData, apiMonthlyData]
+  );;
 
   /* 상세 상태 */
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -426,11 +438,20 @@ export default function ChartPage() {
 
   /* 커스텀 점 */
   const MyConsumptionDot = (props: any): React.ReactElement<SVGElement> => {
-    const { cx, cy, index } = props;
+    const { cx, cy, index, payload } = props;
     if (cx == null || cy == null) return <g />;
 
+    const flower = chartAssets[4];
+    const leaf = chartAssets[5];
+    const deadFlower = chartAssets[6];
+    const deadLeaf = chartAssets[7];
+
     const isCurrentMonth = index === getCurrentDateInfo().currentMonth;
-    const href = isCurrentMonth ? "/charts/flower.png" : "/charts/leaf.png";
+    const leaked = payload?.leaked || false;
+    const href = leaked
+      ? (isCurrentMonth ? deadFlower : deadLeaf)
+      : (isCurrentMonth ? flower : leaf);
+
     const size = 40;
     const x = cx - size / 2;
     const y = cy - size / 2;

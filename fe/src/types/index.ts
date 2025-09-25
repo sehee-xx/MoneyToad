@@ -3,7 +3,10 @@ export type Gender = "여성" | "남성" | "";
 export interface TransactionYear {
   date: string;
   totalAmount: number;
+  leaked: boolean;
 }
+
+export type TransactionPeerYear = Omit<TransactionYear, 'leaked'>;
 
 export interface MonthlyTransaction {
   id: number;
