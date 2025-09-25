@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.potg.don.budget.dto.request.BudgetUpdateRequest;
 import com.potg.don.budget.entity.Budget;
 import com.potg.don.budget.repository.BudgetRepository;
+import com.potg.don.global.util.LeakCategories;
 import com.potg.don.user.entity.User;
 import com.potg.don.user.repository.UserRepository;
 
@@ -50,7 +51,7 @@ public class BudgetService {
 		Long userId, YearMonth startYm, YearMonth endYm) {
 
 		LocalDate start = startYm.atDay(1);
-		LocalDate end = endYm.atDay(1);
+		LocalDate end = endYm.atEndOfMonth();
 
 		List<Budget> budgets = budgetRepository
 			.findAllByUserIdAndBudgetDateBetweenOrderByBudgetDateAsc(userId, start, end);
@@ -67,6 +68,29 @@ public class BudgetService {
 			byCat.merge(cat == null ? "미분류" : cat, amt, Integer::sum); // 중복시 합산
 		}
 		return budgetByMonth;
+	}
+
+	public Map<YearMonth, Map<String, Integer>> getBudgetMapByMonthExcludingOthers(
+		Long userId, YearMonth startYm, YearMonth endYm
+	) {
+		LocalDate start = startYm.atDay(1);
+		LocalDate end = endYm.atEndOfMonth(); // Between 포함의 우측 경계는 말일이어야 전체 월 포함
+
+		List<Budget> budgets = budgetRepository
+			.findAllByUserIdAndBudgetDateBetweenOrderByBudgetDateAsc(userId, start, end);
+
+		Map<YearMonth, Map<String, Integer>> result = new HashMap<>();
+		for (Budget b : budgets) {
+			String mapped = LeakCategories.mapToAllowedOrNull(b.getCategory());
+			if (mapped == null) continue; // 보험/세금 등 12개 외는 제외
+
+			YearMonth ym = YearMonth.from(b.getBudgetDate());
+			int amt = (b.getAmount() == null ? 0 : b.getAmount());
+
+			result.computeIfAbsent(ym, k -> new HashMap<>())
+				.merge(mapped, amt, Integer::sum);
+		}
+		return result;
 	}
 
 }

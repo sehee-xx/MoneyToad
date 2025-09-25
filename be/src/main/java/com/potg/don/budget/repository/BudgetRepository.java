@@ -2,6 +2,7 @@ package com.potg.don.budget.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -12,7 +13,9 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
 	List<Budget> findAllByUserIdAndBudgetDate(Long userId, LocalDate monthFirstDay);
 
 	// 특정 사용자 + 기간 내(포함) 전체 예산, 월 오름차순
-	List<Budget> findAllByUserIdAndBudgetDateBetweenOrderByBudgetDateAsc(Long userId, LocalDate startInclusive,
-		LocalDate endInclusive);
+	List<Budget> findAllByUserIdAndBudgetDateBetweenOrderByBudgetDateAsc(
+		Long userId, LocalDate start, LocalDate end
+	);
 
+	Optional<Budget> findByUser_IdAndBudgetDateAndCategory(Long userId, LocalDate budgetDate, String category);
 }
