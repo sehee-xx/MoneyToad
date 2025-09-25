@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Header from "../components/Header";
 import "./ToadAdvice.css";
 
+/* ===== 카테고리 아이콘 ===== */
 const CATEGORY_ICONS: Record<string, string> = {
   식비: "/toadAdvice/eat.png",
   카페: "/toadAdvice/tea.png",
@@ -30,28 +31,29 @@ export const toadAdviceAssets = [
   "/toadAdvice/card.png",
 ];
 
-const DUMMY = {
-  fileId: "e96fbaf5-0989-4f39-bc15-57ef4ac0ade2",
+/* ===== 데모 데이터 (카드용) ===== */
+export const DUMMY = {
+  fileId: "c4e7a6f0-3a9d-4d1e-9d3e-5c2a1b7f1a22",
   doojo: [
     {
       month: 8,
       year: 2025,
-      categoriesCount: 13,
+      categoriesCount: 12,
       categoriesPrediction: [
         {
           title: "건강 / 병원",
           min: 100,
           max: 200,
           current: 150,
-          real: 120,
-          result: false,
+          real: 210,
+          result: true,
         },
         {
           title: "경조사 / 회비",
           min: 50,
           max: 100,
           current: 80,
-          real: 90,
+          real: 130,
           result: true,
         },
         {
@@ -59,7 +61,7 @@ const DUMMY = {
           min: 200,
           max: 300,
           current: 250,
-          real: 260,
+          real: 340,
           result: true,
         },
         {
@@ -67,15 +69,7 @@ const DUMMY = {
           min: 150,
           max: 250,
           current: 200,
-          real: 180,
-          result: false,
-        },
-        {
-          title: "기타",
-          min: 100,
-          max: 200,
-          current: 150,
-          real: 170,
+          real: 270,
           result: true,
         },
         {
@@ -83,7 +77,7 @@ const DUMMY = {
           min: 300,
           max: 400,
           current: 350,
-          real: 360,
+          real: 430,
           result: true,
         },
         {
@@ -91,23 +85,23 @@ const DUMMY = {
           min: 100,
           max: 200,
           current: 150,
-          real: 140,
-          result: false,
+          real: 230,
+          result: true,
         },
         {
           title: "보험 / 세금",
           min: 200,
           max: 300,
           current: 250,
-          real: 240,
-          result: false,
+          real: 320,
+          result: true,
         },
         {
           title: "생활용품",
           min: 150,
           max: 250,
           current: 200,
-          real: 220,
+          real: 280,
           result: true,
         },
         {
@@ -115,7 +109,7 @@ const DUMMY = {
           min: 400,
           max: 500,
           current: 450,
-          real: 480,
+          real: 540,
           result: true,
         },
         {
@@ -123,15 +117,15 @@ const DUMMY = {
           min: 300,
           max: 400,
           current: 350,
-          real: 330,
-          result: false,
+          real: 420,
+          result: true,
         },
         {
           title: "카페",
           min: 100,
           max: 200,
           current: 150,
-          real: 160,
+          real: 220,
           result: true,
         },
         {
@@ -139,7 +133,7 @@ const DUMMY = {
           min: 150,
           max: 250,
           current: 200,
-          real: 210,
+          real: 290,
           result: true,
         },
       ],
@@ -147,124 +141,134 @@ const DUMMY = {
   ],
 };
 
-// const DUMMY_NO_ADVICE = {
-//   fileId: "78f1b6b8-9b1d-4f83-8e57-0a7a6c3c0fa2",
-//   doojo: [
-//     {
-//       month: 8,
-//       year: 2025,
-//       categoriesCount: 13,
-//       categoriesPrediction: [
-//         {
-//           title: "건강 / 병원",
-//           min: 100,
-//           max: 200,
-//           current: 150,
-//           real: 120,
-//           result: false,
-//         },
-//         {
-//           title: "경조사 / 회비",
-//           min: 50,
-//           max: 100,
-//           current: 80,
-//           real: 70,
-//           result: false,
-//         },
-//         {
-//           title: "교육",
-//           min: 200,
-//           max: 300,
-//           current: 250,
-//           real: 230,
-//           result: false,
-//         },
-//         {
-//           title: "교통 / 차량",
-//           min: 150,
-//           max: 250,
-//           current: 200,
-//           real: 180,
-//           result: false,
-//         },
-//         {
-//           title: "기타",
-//           min: 100,
-//           max: 200,
-//           current: 150,
-//           real: 130,
-//           result: false,
-//         },
-//         {
-//           title: "마트/편의점",
-//           min: 300,
-//           max: 400,
-//           current: 350,
-//           real: 320,
-//           result: false,
-//         },
-//         {
-//           title: "문화생활",
-//           min: 100,
-//           max: 200,
-//           current: 150,
-//           real: 140,
-//           result: false,
-//         },
-//         {
-//           title: "보험 / 세금",
-//           min: 200,
-//           max: 300,
-//           current: 250,
-//           real: 240,
-//           result: false,
-//         },
-//         {
-//           title: "생활용품",
-//           min: 150,
-//           max: 250,
-//           current: 200,
-//           real: 190,
-//           result: false,
-//         },
-//         {
-//           title: "식비",
-//           min: 400,
-//           max: 500,
-//           current: 450,
-//           real: 430,
-//           result: false,
-//         },
-//         {
-//           title: "주거 / 통신",
-//           min: 300,
-//           max: 400,
-//           current: 350,
-//           real: 330,
-//           result: false,
-//         },
-//         {
-//           title: "카페",
-//           min: 100,
-//           max: 200,
-//           current: 150,
-//           real: 140,
-//           result: false,
-//         },
-//         {
-//           title: "패션 / 미용",
-//           min: 150,
-//           max: 250,
-//           current: 200,
-//           real: 180,
-//           result: false,
-//         },
-//       ],
-//     },
-//   ],
-// };
+/* ===== API 형태 예시 (카드 상세용) ===== */
+type MostSpent = { merchant: string; amount: number; date: string };
+type MostFreq = { merchant: string; count: number; total_amount: number };
+type CategoryDetail = { most_spent: MostSpent; most_frequent: MostFreq };
+type DetailMap = Record<string, CategoryDetail>;
 
-// 두꺼비 말풍선 멘트들
+/* 데모 상세 데이터 */
+const API_SHAPE_DEMO: { doojo: Array<{ categories_detail: DetailMap }> } = {
+  doojo: [
+    {
+      categories_detail: {
+        "건강 / 병원": {
+          most_spent: {
+            merchant: "서울병원",
+            amount: 70,
+            date: "2025-08-15T10:30",
+          },
+          most_frequent: { merchant: "서울약국", count: 3, total_amount: 90 },
+        },
+        "경조사 / 회비": {
+          most_spent: {
+            merchant: "친구결혼식",
+            amount: 50,
+            date: "2025-08-20T14:00",
+          },
+          most_frequent: { merchant: "동호회회비", count: 2, total_amount: 30 },
+        },
+        교육: {
+          most_spent: {
+            merchant: "온라인강의",
+            amount: 150,
+            date: "2025-08-10T09:00",
+          },
+          most_frequent: {
+            merchant: "학원수강료",
+            count: 1,
+            total_amount: 100,
+          },
+        },
+        "교통 / 차량": {
+          most_spent: {
+            merchant: "주유소",
+            amount: 80,
+            date: "2025-08-05T12:00",
+          },
+          most_frequent: { merchant: "버스", count: 10, total_amount: 100 },
+        },
+        기타: {
+          most_spent: {
+            merchant: "선물가게",
+            amount: 60,
+            date: "2025-08-18T16:00",
+          },
+          most_frequent: { merchant: "문구점", count: 4, total_amount: 90 },
+        },
+        "마트 / 편의점": {
+          most_spent: {
+            merchant: "이마트",
+            amount: 120,
+            date: "2025-08-12T18:00",
+          },
+          most_frequent: { merchant: "CU편의점", count: 5, total_amount: 130 },
+        },
+        문화생활: {
+          most_spent: {
+            merchant: "영화관",
+            amount: 60,
+            date: "2025-08-22T20:00",
+          },
+          most_frequent: { merchant: "도서관", count: 3, total_amount: 80 },
+        },
+        "보험 / 세금": {
+          most_spent: {
+            merchant: "자동차보험",
+            amount: 200,
+            date: "2025-08-01T10:00",
+          },
+          most_frequent: { merchant: "건강보험", count: 1, total_amount: 40 },
+        },
+        생활용품: {
+          most_spent: {
+            merchant: "다이소",
+            amount: 70,
+            date: "2025-08-14T15:00",
+          },
+          most_frequent: { merchant: "홈플러스", count: 2, total_amount: 80 },
+        },
+        식비: {
+          most_spent: {
+            merchant: "한식당",
+            amount: 150,
+            date: "2025-08-08T13:00",
+          },
+          most_frequent: {
+            merchant: "패스트푸드",
+            count: 6,
+            total_amount: 180,
+          },
+        },
+        "주거 / 통신": {
+          most_spent: {
+            merchant: "인터넷요금",
+            amount: 100,
+            date: "2025-08-03T11:00",
+          },
+          most_frequent: { merchant: "관리비", count: 1, total_amount: 80 },
+        },
+        카페: {
+          most_spent: {
+            merchant: "스타벅스",
+            amount: 40,
+            date: "2025-08-07T09:30",
+          },
+          most_frequent: { merchant: "이디야", count: 4, total_amount: 60 },
+        },
+        "패션 / 미용": {
+          most_spent: {
+            merchant: "미용실",
+            amount: 100,
+            date: "2025-08-25T14:30",
+          },
+          most_frequent: { merchant: "옷가게", count: 2, total_amount: 110 },
+        },
+      },
+    },
+  ],
+};
+
 const TOAD_QUOTES = [
   "지출을 확인해보겠소!",
   "흠... 이건 좀 과하지 않소?",
@@ -273,13 +277,12 @@ const TOAD_QUOTES = [
   "현명한 소비를 하시오!",
 ];
 
-// 유틸 함수들
+/* ===== 유틸 ===== */
 const highlightNumbers = (text: string): ReactNode[] => {
   const re = /\d[\d,]*(?:\.\d+)?(?:%|원|냥)?/g;
   const parts: ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
-
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     parts.push(
@@ -292,26 +295,270 @@ const highlightNumbers = (text: string): ReactNode[] => {
   if (last < text.length) parts.push(text.slice(last));
   return parts;
 };
-
 const won = (n: number) =>
   new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 }).format(n) + "냥";
-
 const estimateAvg = (min: number, max: number) => (min + max) / 2;
+const normalizeKey = (s: string) => s.replace(/\s*\/\s*/g, "/").trim(); // "마트 / 편의점" → "마트/편의점"
+const fmtDate = (iso: string) => {
+  const d = new Date(iso);
+  const mm = d.getMonth() + 1,
+    dd = d.getDate();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return `${mm}/${dd} ${hh}:${mi}(${wd})`;
+};
 
+const multiline = (t?: string) => t ?? "";
+
+/* ===== 간단 휴리스틱 ===== */
+const H = {
+  isLateNight: (iso: string) => {
+    const h = new Date(iso).getHours();
+    return h >= 22 || h < 6;
+  },
+  avgPerVisit: (total: number, cnt: number) =>
+    cnt > 0 ? Math.round(total / cnt) : 0,
+  freqPerWeek: (cnt: number) => (cnt > 0 ? (cnt / 4).toFixed(1) : "0.0"),
+};
+const BIG_TICKET: Record<string, number> = {
+  식비: 120,
+  카페: 20,
+  "마트/편의점": 80,
+  "교통 / 차량": 100,
+  "패션 / 미용": 150,
+  교육: 200,
+  생활용품: 60,
+  문화생활: 70,
+  "보험 / 세금": 150,
+  "주거 / 통신": 120,
+  "경조사 / 회비": 50,
+  "건강 / 병원": 80,
+  기타: 60,
+};
+
+/* ===== 카테고리별 두꺼비 코멘트 템플릿 ===== */
+type SpentCtx = {
+  merchant: string;
+  amount: number;
+  date: string;
+  over: number;
+};
+type FreqCtx = { merchant: string; count: number; total: number };
+type Pair = { spent: (c: SpentCtx) => string; freq: (c: FreqCtx) => string };
+
+/* ===== 카테고리별 두꺼비 코멘트 템플릿 (숫자 반복 제거, 액션만) ===== */
+const TEMPLATES: Record<string, Pair> = {
+  식비: {
+    spent: ({ date }) => {
+      const late = H.isLateNight(date);
+      return [
+        late ? "야밤 결제가 눈에 띄오." : "식사 규모 관리가 필요하오.",
+        "• ‘식사 전 10분 대기’로 충동구매를 누르시오.",
+        "• 주 1~2회 외식, 나머진 집밥/밀프rep로 바꾸시오.",
+      ].join("\n");
+    },
+    freq: ({ count, total }) => {
+      const avg = H.avgPerVisit(total, count);
+      return [
+        `월 ${count}회 방문(평균 ${won(avg)}). 잦은 소액 누수 패턴이오.`,
+        "• 평일 점심만 허용 같은 ‘상황 규칙’을 두시오.",
+      ].join("\n");
+    },
+  },
+  카페: {
+    spent: () =>
+      [
+        "카페 지출은 상시 누수 위험이오.",
+        "• 텀블러·원두구독으로 대체하시오.",
+        "• ‘평일 1회’ 같은 횟수 제한을 두시오.",
+      ].join("\n"),
+    freq: ({ count, total }) => {
+      const avg = H.avgPerVisit(total, count);
+      return [
+        `월 ${count}회 · 평균 ${won(avg)}.`,
+        "• 출근길 1회만 허용, 나머진 사무실 커피로 전환하시오.",
+      ].join("\n");
+    },
+  },
+  "마트/편의점": {
+    spent: ({ date }) =>
+      [
+        "목록 없이 장보면 장바구니가 무거워지오.",
+        "• 품목·수량 한도표를 미리 적으시오.",
+        H.isLateNight(date)
+          ? "• 야간·공복 장보기 금지!"
+          : "• 세일만 노리는 ‘목록 장보기’를 습관화하시오.",
+      ].join("\n"),
+    freq: ({ count, total }) => {
+      const avg = H.avgPerVisit(total, count);
+      return [
+        `월 ${count}회(평균 ${won(avg)}). 잦은 소액 누수이오.`,
+        "• 배달앱은 ‘장바구니 10분 룰’을 도입하시오.",
+      ].join("\n");
+    },
+  },
+  "패션 / 미용": {
+    spent: () =>
+      [
+        `시즌성 지출은 ‘분기 1회·한도 ${won(
+          BIG_TICKET["패션 / 미용"]
+        )}’로 관리하시오.`,
+        "• 24시간 보류 후 결제하면 충동을 줄일 수 있소.",
+      ].join("\n"),
+    freq: ({ count, total }) =>
+      [
+        `월 ${count}회 · 총 ${won(total)}.`,
+        "• 미용 주기를 6~8주로 늘리고 예약제로 변동을 줄이시오.",
+      ].join("\n"),
+  },
+  "교통 / 차량": {
+    spent: () =>
+      ["이동비는 고정성 지출이오.", "• 월 이동 예산 캡을 박아두시오."].join(
+        "\n"
+      ),
+    freq: ({ count, total }) =>
+      [
+        `월 ${count}회 · 총 ${won(total)}.`,
+        "• 대중교통·주유 자동충전 한도를 설정하시오.",
+      ].join("\n"),
+  },
+  교육: {
+    spent: () =>
+      [
+        "배움은 훌륭하오만 중복 수강은 독이 되오.",
+        "• ‘동시 수강 1개’ 원칙을 세우시오.",
+      ].join("\n"),
+    freq: ({ count }) =>
+      [
+        `월 ${count}회 결제.`,
+        "• 이수율 80% 미만이면 다음 달 결제를 멈추시오.",
+      ].join("\n"),
+  },
+  생활용품: {
+    spent: () =>
+      [
+        "소모품은 단가를 낮추는 것이 핵심이오.",
+        "• 정기배송·대용량으로 바꾸시오.",
+      ].join("\n"),
+    freq: ({ count, total }) =>
+      [
+        `월 ${count}회 · 총 ${won(total)}.`,
+        "• 메모앱 재고 체크로 중복 구매를 막으시오.",
+      ].join("\n"),
+  },
+  문화생활: {
+    spent: () =>
+      [
+        "문화비는 상한선을 명확히 하시오.",
+        "• ‘월 1~2회’ 캡, 얼리버드·멤버십을 활용하시오.",
+      ].join("\n"),
+    freq: ({ count, total }) =>
+      [
+        `월 ${count}회 · 총 ${won(total)}.`,
+        "• OTT/멤버십 중복 결제를 점검하시오.",
+      ].join("\n"),
+  },
+  "보험 / 세금": {
+    spent: () =>
+      [
+        "갱신·특약 중복을 점검할 시기요.",
+        "• 카드납 할인 여부도 확인하시오.",
+      ].join("\n"),
+    freq: ({ total }) =>
+      [`총 ${won(total)} 고정비.`, "• 연 1회 리밸런싱이 약이오."].join("\n"),
+  },
+  "주거 / 통신": {
+    spent: () => ["요금제·결합할인 재점검으로 절감 여지가 있소."].join("\n"),
+    freq: ({ total }) =>
+      [`총 ${won(total)}.`, "• 실제 사용량 대비 과금이 큰지 확인하시오."].join(
+        "\n"
+      ),
+  },
+  "경조사 / 회비": {
+    spent: () => ["이벤트성 지출은 예비비로 선반영하시오."].join("\n"),
+    freq: ({ total }) =>
+      [`총 ${won(total)}.`, "• 회비는 분기 결제로 묶어 관리하시오."].join("\n"),
+  },
+  "건강 / 병원": {
+    spent: () =>
+      ["비급여 반복이면 대체병원·보험 청구를 확인하시오."].join("\n"),
+    freq: ({ total }) =>
+      [`총 ${won(total)}.`, "• 약/보충제는 정기구독으로 단가를 낮추시오."].join(
+        "\n"
+      ),
+  },
+  기타: {
+    spent: () =>
+      [
+        "‘기타’가 커지면 추적이 어려워지오.",
+        "• 태그를 세분화하여 원인을 드러내시오.",
+      ].join("\n"),
+    freq: ({ total }) =>
+      [`총 ${won(total)}.`, "• 선물/잡화는 ‘월 한도’로 다스리시오."].join("\n"),
+  },
+};
+
+/* ===== 인사이트 빌더 ===== */
+const buildInsights = (category: string, d?: CategoryDetail, over?: number) => {
+  if (!d) return { spentText: "데이터가 없소.", freqText: "데이터가 없소." };
+  const key = normalizeKey(category);
+  const tpl = TEMPLATES[key] ?? {
+    spent: ({ merchant, amount, date }: SpentCtx) =>
+      `${merchant}에서 ${won(amount)}(${fmtDate(
+        date
+      )}). 일회성 큰 지출로 보이오.`,
+    freq: ({ merchant, count, total }: FreqCtx) => {
+      const avg = H.avgPerVisit(total, count);
+      return `${merchant} 월 ${count}회 · 1회 평균 ${won(
+        avg
+      )}. 반복 누수 주의하시오.`;
+    },
+  };
+  return {
+    spentText: tpl.spent({
+      merchant: d.most_spent.merchant,
+      amount: d.most_spent.amount,
+      date: d.most_spent.date,
+      over: over ?? 0,
+    }),
+    freqText: tpl.freq({
+      merchant: d.most_frequent.merchant,
+      count: d.most_frequent.count,
+      total: d.most_frequent.total_amount,
+    }),
+  };
+};
+
+/* ===== 컴포넌트 ===== */
 export default function ToadAdvice() {
-  // 조언 더미 데이터를 기본으로 사용 (데모용)
   const sheet = DUMMY.doojo[0];
-  // const sheet = DUMMY_NO_ADVICE.doojo[0];
+  const preds = sheet.categoriesPrediction;
+
+  // 상세 맵 정규화
+  const detailsByCategory = useMemo<DetailMap>(() => {
+    const src = API_SHAPE_DEMO.doojo[0].categories_detail;
+    const out: DetailMap = {};
+    Object.entries(src).forEach(([k, v]) => {
+      out[normalizeKey(k)] = v;
+    });
+    return out;
+  }, []);
 
   const [currentQuote, setCurrentQuote] = useState(0);
   const [showQuote, setShowQuote] = useState(false);
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-
-  const preds = sheet.categoriesPrediction;
+  const [, setHoveredCard] = useState<string | null>(null);
+  const [open, setOpen] = useState<null | {
+    id: string;
+    title: string;
+    detail: string;
+    over: number;
+  }>(null);
 
   const advices = useMemo(() => {
     return preds
       .filter((v) => v.result)
+      .slice(0, 12)
       .map((v) => {
         const avg = estimateAvg(v.min, v.max);
         const pct = avg > 0 ? ((v.real - avg) / avg) * 100 : 0;
@@ -323,191 +570,180 @@ export default function ToadAdvice() {
           `12개월 평균치보다 약 ${pct.toFixed(1)}% 높다고 판단해\n${won(
             over
           )} 만큼의 과소비가 발생했소!`;
-        return { id: v.title, category: v.title, detail, over, pct };
+        const preview = `과소비 ${won(over)} · 평균보다 +${pct.toFixed(0)}%`;
+        return { id: v.title, category: v.title, detail, preview, over, pct };
       })
-      .sort((a, b) => b.over - a.over); // 과소비 금액순으로 정렬
+      .sort((a, b) => b.over - a.over);
   }, [preds]);
 
-  const [open, setOpen] = useState<null | {
-    id: string;
-    title: string;
-    detail: string;
-    over: number;
-  }>(null);
   const hasAdvice = advices.length > 0;
+  const allCards = advices;
 
-  // 두꺼비 말풍선 애니메이션
+  const totalOverspend = useMemo(
+    () => allCards.reduce((s, a) => s + a.over, 0),
+    [allCards]
+  );
+  const avgPct = useMemo(
+    () =>
+      allCards.length > 0
+        ? Math.round(allCards.reduce((s, a) => s + a.pct, 0) / allCards.length)
+        : 0,
+    [allCards]
+  );
+
   useEffect(() => {
-    if (hasAdvice) {
-      const interval = setInterval(() => {
-        setShowQuote(true);
-        setCurrentQuote((prev) => (prev + 1) % TOAD_QUOTES.length);
-        setTimeout(() => setShowQuote(false), 3000);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
+    if (!hasAdvice) return;
+    const i = setInterval(() => {
+      setShowQuote(true);
+      setCurrentQuote((p) => (p + 1) % TOAD_QUOTES.length);
+      setTimeout(() => setShowQuote(false), 3000);
+    }, 5000);
+    return () => clearInterval(i);
   }, [hasAdvice]);
 
+  const openDetail: CategoryDetail | undefined = open
+    ? detailsByCategory[normalizeKey(open.title)]
+    : undefined;
+
+  const insight = open
+    ? buildInsights(open.title, openDetail, open.over)
+    : null;
+
   return (
-    <div className={`toad-advice-container ${!hasAdvice ? "no-scroll" : ""}`}>
-      {/* 메인 컨텐츠 - 스크롤할 수 있는 충분한 공간 */}
-      <div className="scrollable-content">
-        {/* 헤더 */}
+    <div className="toad-advice-container snap-container">
+      {/* ===== Page 1 ===== */}
+      <section className="page page-hero">
         <Header />
         <h1 className="main-title">두꺼비의 소비내역 조언소</h1>
         <p className="main-subtitle">
           현명한 두꺼비가 당신의 지출을 분석해드립니다
         </p>
 
-        {/* 메인 컨텐츠 */}
-        <main className="main-content">
-          {hasAdvice ? (
-            <div>
-              {/* 통계 요약 */}
-              <div className="stats-summary">
-                <div className="stats-card">
-                  <h2 className="stats-title">이번 달 과소비 현황</h2>
-                  <div className="stats-grid">
-                    <div className="stat-item stat-red">
-                      <div className="stat-number">{advices.length}개</div>
-                      <div className="stat-label">과소비 항목</div>
-                    </div>
-                    <div className="stat-item stat-orange">
-                      <div className="stat-number">
-                        {won(advices.reduce((sum, a) => sum + a.over, 0))}
-                      </div>
-                      <div className="stat-label">총 과소비 금액</div>
-                    </div>
-                    <div className="stat-item stat-blue">
-                      <div className="stat-number">
-                        {Math.round(
-                          advices.reduce((sum, a) => sum + a.pct, 0) /
-                            advices.length
-                        )}
-                        %
-                      </div>
-                      <div className="stat-label">평균 초과율</div>
+        {hasAdvice ? (
+          <>
+            <div className="hero-bottom">
+              <div className="toad-stack big">
+                {showQuote && (
+                  <div className="speech-bubble big fade-in">
+                    <div className="bubble-content big">
+                      <p className="bubble-text big">
+                        {TOAD_QUOTES[currentQuote]}
+                      </p>
+                      <div className="bubble-arrow big" />
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* 조언 카드들 */}
-              <div className="advice-grid">
-                {advices.map((advice, index) => (
-                  <div
-                    key={advice.id}
-                    className="advice-card slide-in-up"
-                    style={{
-                      animationDelay: `${index * 100}ms`,
-                    }}
-                    onMouseEnter={() => setHoveredCard(advice.id)}
-                    onMouseLeave={() => setHoveredCard(null)}
-                    onClick={() =>
-                      setOpen({
-                        id: advice.id,
-                        title: advice.category,
-                        detail: advice.detail,
-                        over: advice.over,
-                      })
-                    }
-                  >
-                    {/* 심각도 표시 */}
-                    <div className="severity-badge">!</div>
-
-                    <div className="card-content">
-                      <div className="card-header">
-                        <img
-                          className="category-img"
-                          src={getCategoryImage(advice.category)}
-                          alt={advice.category}
-                          width={44}
-                          height={44}
-                          draggable={false}
-                        />
-                        <div className="amount-info">
-                          <div className="over-amount">-{won(advice.over)}</div>
-                          <div className="over-percent">
-                            +{advice.pct.toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-
-                      <h3 className="category-title">{advice.category}</h3>
-
-                      {/* 호버시 미리보기 */}
-                      {hoveredCard === advice.id && (
-                        <div className="hover-preview fade-in">
-                          과소비가 발생했습니다!
-                          <br />
-                          클릭해서 자세한 내용을 확인하세요.
-                        </div>
-                      )}
-
-                      {/* 진행률 바 */}
-                      <div className="progress-container">
-                        <div className="progress-bar">
-                          <div
-                            className="progress-fill"
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                (advice.pct / 50) * 100
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            // 조언 없을 때 - 축하 애니메이션
-            <section className="no-advice-section">
-              <div className="no-advice-hero">
-                <h2 className="no-advice-title">훌륭하오! 과소비 항목이 없소!</h2>
+                )}
                 <img
-                  src="/toadAdvice/happyToad.png"
-                  alt="해피 두꺼비"
-                  className="no-advice-happy-toad"
+                  src="/toadAdvice/angryToad.png"
+                  className="toad-emoji big"
                   draggable={false}
+                  onClick={() => {
+                    setShowQuote((s) => !s);
+                    setCurrentQuote(
+                      Math.floor(Math.random() * TOAD_QUOTES.length)
+                    );
+                  }}
                 />
               </div>
-            </section>
-          )}
-        </main>
-      </div>
 
-      {/* 두꺼비 캐릭터 - 하단 고정 */}
-      {hasAdvice && (
-        <div className="toad-character">
-          <div className="character-container">
-            {/* 말풍선 */}
-            {showQuote && (
-              <div className="speech-bubble fade-in">
-                <div className="bubble-content">
-                  <p className="bubble-text">{TOAD_QUOTES[currentQuote]}</p>
-                  <div className="bubble-arrow" />
+              <div className="stats-card big">
+                <h2 className="stats-title big">이번 달 과소비 현황</h2>
+                <div className="stats-grid big">
+                  <div className="stat-item stat-red">
+                    <div className="stat-number">{allCards.length}개</div>
+                    <div className="stat-label">과소비 항목</div>
+                  </div>
+                  <div className="stat-item stat-orange">
+                    <div className="stat-number">{won(totalOverspend)}</div>
+                    <div className="stat-label">총 과소비 금액</div>
+                  </div>
+                  <div className="stat-item stat-blue">
+                    <div className="stat-number">{avgPct}%</div>
+                    <div className="stat-label">평균 초과율</div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
+            <div className="scroll-hint">아래로 스크롤</div>
+          </>
+        ) : null}
+      </section>
 
-            {/* 두꺼비 캐릭터 */}
-            <img
-              src="/toadAdvice/angryToad.png"
-              className="toad-emoji bob"
-              onClick={() => {
-                setShowQuote(!showQuote);
-                setCurrentQuote(Math.floor(Math.random() * TOAD_QUOTES.length));
-              }}
-            ></img>
+      {/* ===== Page 2 ===== */}
+      <section className="page page-cards">
+        <header className="cards-page-header">
+          <h2 className="cards-page-title">이번 달 과소비 요약</h2>
+          <div className="cards-page-stats">
+            <div className="cstat">
+              <div className="cstat-number">{allCards.length}개</div>
+              <div className="cstat-label">과소비 항목</div>
+            </div>
+            <div className="cstat">
+              <div className="cstat-number">{won(totalOverspend)}</div>
+              <div className="cstat-label">총 과소비 금액</div>
+            </div>
+            <div className="cstat">
+              <div className="cstat-number">{avgPct}%</div>
+              <div className="cstat-label">평균 초과율</div>
+            </div>
           </div>
-        </div>
-      )}
+        </header>
 
-      {/* 모달 */}
+        <div className="cards-grid">
+          {allCards.map((advice, index) => (
+            <div
+              key={advice.id}
+              className="advice-card slide-in-up"
+              style={{ animationDelay: `${index * 60}ms` }}
+              onMouseEnter={() => setHoveredCard(advice.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() =>
+                setOpen({
+                  id: advice.id,
+                  title: advice.category,
+                  detail: advice.detail,
+                  over: advice.over,
+                })
+              }
+            >
+              <div className="card-inner">
+                <div className="severity-badge">!</div>
+                <div className="card-content">
+                  <div className="card-header">
+                    <img
+                      className="category-img"
+                      src={getCategoryImage(advice.category)}
+                      alt={advice.category}
+                      width={44}
+                      height={44}
+                      draggable={false}
+                    />
+                    <div className="amount-info">
+                      <div className="over-amount">-{won(advice.over)}</div>
+                      <div className="over-percent">
+                        +{advice.pct.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                  <h3 className="category-title">{advice.category}</h3>
+                  <div className="progress-container">
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${Math.min(100, (advice.pct / 50) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== 모달 (좌/우 2컬럼) ===== */}
       {open && (
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setOpen(null)} />
@@ -516,28 +752,76 @@ export default function ToadAdvice() {
               ×
             </button>
 
-            <div className="modal-header">
-              <img
-                className="modal-icon"
-                src={getCategoryImage(open.title)}
-                alt={open.title}
-                width={120}
-                height={120}
-                draggable={false}
-              />
-              <h3 className="modal-title">{open.title}</h3>
-              <div className="modal-amount">과소비: {won(open.over)}</div>
-            </div>
-
-            <div className="modal-body">
-              <p className="modal-detail">{highlightNumbers(open.detail)}</p>
-            </div>
-
-            <div className="modal-footer">
-              <div className="advice-note">
-                <strong>두꺼비 조언:</strong> 다음 달에는 더 신중하게
-                지출하시오!
+            <div className="modal-flex">
+              {/* 왼쪽: 기존 모달 내용 */}
+              <div className="modal-left">
+                <div className="modal-header">
+                  <img
+                    className="modal-icon"
+                    src={getCategoryImage(open.title)}
+                    alt={open.title}
+                    width={120}
+                    height={120}
+                    draggable={false}
+                  />
+                  <h3 className="modal-title">{open.title}</h3>
+                  <div className="modal-amount">과소비: {won(open.over)}</div>
+                </div>
+                <div className="modal-body">
+                  <p className="modal-detail">
+                    {highlightNumbers(open.detail)}
+                  </p>
+                </div>
               </div>
+              <aside className="modal-right">
+                <h4 className="insights-title">AI를 활용한 두꺼비의 코멘트</h4>
+
+                {/* 가장 많이 쓴 곳 */}
+                <div className="insight-card">
+                  <div className="insight-tag">가장 많이 쓴 곳</div>
+                  {openDetail ? (
+                    <>
+                      <div className="insight-merchant">
+                        {openDetail.most_spent.merchant}
+                      </div>
+                      <div className="insight-meta">
+                        <span>{won(openDetail.most_spent.amount)}</span>
+                        <span className="dot">•</span>
+                        <span>{fmtDate(openDetail.most_spent.date)}</span>
+                      </div>
+                      <p className="insight-ai">
+                        {multiline(insight?.spentText)}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="insight-empty">데이터가 없소.</div>
+                  )}
+                </div>
+
+                {/* 가장 자주 간 곳 */}
+                <div className="insight-card">
+                  <div className="insight-tag">가장 자주 간 곳</div>
+                  {openDetail ? (
+                    <>
+                      <div className="insight-merchant">
+                        {openDetail.most_frequent.merchant}
+                      </div>
+                      <div className="insight-meta">
+                        <span>{openDetail.most_frequent.count}회</span>
+                        <span className="dot">•</span>
+                        <span>
+                          총 {won(openDetail.most_frequent.total_amount)}
+                        </span>
+                      </div>
+                      <p className="insight-ai">
+                        {multiline(insight?.freqText)}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="insight-empty">데이터가 없소.</div>
+                  )}
+                </div>
+              </aside>
             </div>
           </div>
         </div>
