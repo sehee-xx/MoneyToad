@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Header from "../components/Header";
+import { useDoojoQuery } from "../api";
 import "./ToadAdvice.css";
 
 /* ===== 카테고리 아이콘 ===== */
@@ -141,133 +142,10 @@ export const DUMMY = {
   ],
 };
 
-/* ===== API 형태 예시 (카드 상세용) ===== */
 type MostSpent = { merchant: string; amount: number; date: string };
-type MostFreq = { merchant: string; count: number; total_amount: number };
-type CategoryDetail = { most_spent: MostSpent; most_frequent: MostFreq };
+type MostFrequent = { merchant: string; count: number; totalAmount: number };
+type CategoryDetail = { mostSpent: MostSpent; mostFrequent: MostFrequent };
 type DetailMap = Record<string, CategoryDetail>;
-
-/* 데모 상세 데이터 */
-const API_SHAPE_DEMO: { doojo: Array<{ categories_detail: DetailMap }> } = {
-  doojo: [
-    {
-      categories_detail: {
-        "건강 / 병원": {
-          most_spent: {
-            merchant: "서울병원",
-            amount: 70,
-            date: "2025-08-15T10:30",
-          },
-          most_frequent: { merchant: "서울약국", count: 3, total_amount: 90 },
-        },
-        "경조사 / 회비": {
-          most_spent: {
-            merchant: "친구결혼식",
-            amount: 50,
-            date: "2025-08-20T14:00",
-          },
-          most_frequent: { merchant: "동호회회비", count: 2, total_amount: 30 },
-        },
-        교육: {
-          most_spent: {
-            merchant: "온라인강의",
-            amount: 150,
-            date: "2025-08-10T09:00",
-          },
-          most_frequent: {
-            merchant: "학원수강료",
-            count: 1,
-            total_amount: 100,
-          },
-        },
-        "교통 / 차량": {
-          most_spent: {
-            merchant: "주유소",
-            amount: 80,
-            date: "2025-08-05T12:00",
-          },
-          most_frequent: { merchant: "버스", count: 10, total_amount: 100 },
-        },
-        기타: {
-          most_spent: {
-            merchant: "선물가게",
-            amount: 60,
-            date: "2025-08-18T16:00",
-          },
-          most_frequent: { merchant: "문구점", count: 4, total_amount: 90 },
-        },
-        "마트 / 편의점": {
-          most_spent: {
-            merchant: "이마트",
-            amount: 120,
-            date: "2025-08-12T18:00",
-          },
-          most_frequent: { merchant: "CU편의점", count: 5, total_amount: 130 },
-        },
-        문화생활: {
-          most_spent: {
-            merchant: "영화관",
-            amount: 60,
-            date: "2025-08-22T20:00",
-          },
-          most_frequent: { merchant: "도서관", count: 3, total_amount: 80 },
-        },
-        "보험 / 세금": {
-          most_spent: {
-            merchant: "자동차보험",
-            amount: 200,
-            date: "2025-08-01T10:00",
-          },
-          most_frequent: { merchant: "건강보험", count: 1, total_amount: 40 },
-        },
-        생활용품: {
-          most_spent: {
-            merchant: "다이소",
-            amount: 70,
-            date: "2025-08-14T15:00",
-          },
-          most_frequent: { merchant: "홈플러스", count: 2, total_amount: 80 },
-        },
-        식비: {
-          most_spent: {
-            merchant: "한식당",
-            amount: 150,
-            date: "2025-08-08T13:00",
-          },
-          most_frequent: {
-            merchant: "패스트푸드",
-            count: 6,
-            total_amount: 180,
-          },
-        },
-        "주거 / 통신": {
-          most_spent: {
-            merchant: "인터넷요금",
-            amount: 100,
-            date: "2025-08-03T11:00",
-          },
-          most_frequent: { merchant: "관리비", count: 1, total_amount: 80 },
-        },
-        카페: {
-          most_spent: {
-            merchant: "스타벅스",
-            amount: 40,
-            date: "2025-08-07T09:30",
-          },
-          most_frequent: { merchant: "이디야", count: 4, total_amount: 60 },
-        },
-        "패션 / 미용": {
-          most_spent: {
-            merchant: "미용실",
-            amount: 100,
-            date: "2025-08-25T14:30",
-          },
-          most_frequent: { merchant: "옷가게", count: 2, total_amount: 110 },
-        },
-      },
-    },
-  ],
-};
 
 const TOAD_QUOTES = [
   "지출을 확인해보겠소!",
@@ -517,33 +395,58 @@ const buildInsights = (category: string, d?: CategoryDetail, over?: number) => {
   };
   return {
     spentText: tpl.spent({
-      merchant: d.most_spent.merchant,
-      amount: d.most_spent.amount,
-      date: d.most_spent.date,
+      merchant: d.mostSpent.merchant,
+      amount: d.mostSpent.amount,
+      date: d.mostSpent.date,
       over: over ?? 0,
     }),
     freqText: tpl.freq({
-      merchant: d.most_frequent.merchant,
-      count: d.most_frequent.count,
-      total: d.most_frequent.total_amount,
+      merchant: d.mostFrequent.merchant,
+      count: d.mostFrequent.count,
+      total: d.mostFrequent.totalAmount,
     }),
   };
 };
 
 /* ===== 컴포넌트 ===== */
 export default function ToadAdvice() {
-  const sheet = DUMMY.doojo[0];
-  const preds = sheet.categoriesPrediction;
+  const { data: doojoData, isLoading, error } = useDoojoQuery();
 
-  // 상세 맵 정규화
+  if (isLoading) {
+    return (
+      <div className="toad-advice-container">
+        <Header />
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>두꺼비가 데이터를 분석하는 중...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !doojoData?.doojo?.length) {
+    return (
+      <div className="toad-advice-container">
+        <Header />
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>데이터를 불러올 수 없습니다</h2>
+        </div>
+      </div>
+    );
+  }
+
+  const sheet = doojoData.doojo[0];
+  const preds = Object.entries(sheet.categoriesPrediction).map(([title, data]) => ({
+    title,
+    ...data,
+  }));
+
   const detailsByCategory = useMemo<DetailMap>(() => {
-    const src = API_SHAPE_DEMO.doojo[0].categories_detail;
     const out: DetailMap = {};
-    Object.entries(src).forEach(([k, v]) => {
+    Object.entries(sheet.categoriesDetail).forEach(([k, v]) => {
       out[normalizeKey(k)] = v;
     });
     return out;
-  }, []);
+  }, [sheet.categoriesDetail]);
 
   const [currentQuote, setCurrentQuote] = useState(0);
   const [showQuote, setShowQuote] = useState(false);
@@ -782,12 +685,12 @@ export default function ToadAdvice() {
                   {openDetail ? (
                     <>
                       <div className="insight-merchant">
-                        {openDetail.most_spent.merchant}
+                        {openDetail.mostSpent.merchant}
                       </div>
                       <div className="insight-meta">
-                        <span>{won(openDetail.most_spent.amount)}</span>
+                        <span>{won(openDetail.mostSpent.amount)}</span>
                         <span className="dot">•</span>
-                        <span>{fmtDate(openDetail.most_spent.date)}</span>
+                        <span>{fmtDate(openDetail.mostSpent.date)}</span>
                       </div>
                       <p className="insight-ai">
                         {multiline(insight?.spentText)}
@@ -804,13 +707,13 @@ export default function ToadAdvice() {
                   {openDetail ? (
                     <>
                       <div className="insight-merchant">
-                        {openDetail.most_frequent.merchant}
+                        {openDetail.mostFrequent.merchant}
                       </div>
                       <div className="insight-meta">
-                        <span>{openDetail.most_frequent.count}회</span>
+                        <span>{openDetail.mostFrequent.count}회</span>
                         <span className="dot">•</span>
                         <span>
-                          총 {won(openDetail.most_frequent.total_amount)}
+                          총 {won(openDetail.mostFrequent.totalAmount)}
                         </span>
                       </div>
                       <p className="insight-ai">

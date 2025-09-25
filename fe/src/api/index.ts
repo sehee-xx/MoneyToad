@@ -9,6 +9,7 @@ export { setupAuthInterceptor } from './interceptors';
 export { useUserInfoQuery } from './queries/userQuery';
 export { useCardInfoQuery } from './queries/cardQuery';
 export { useYearTransactionQuery, useMonthlyTransactionsQuery, useCategoryTransactionsQuery } from './queries/transactionQuery';
+export { useDoojoQuery } from './queries/doojoQuery';
 
 // Mutation hooks
 export { useUpdateUserBasicInfoMutation } from './mutation/userMutation';
