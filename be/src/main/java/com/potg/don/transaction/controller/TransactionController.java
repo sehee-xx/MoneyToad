@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.potg.don.auth.entity.CustomUserDetails;
 import com.potg.don.budget.dto.response.IsLeakedResponse;
+import com.potg.don.budget.entity.Budget;
 import com.potg.don.budget.service.BudgetService;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
 import com.potg.don.transaction.dto.response.MonthlyCategorySpendingResponse;
@@ -85,7 +87,35 @@ public class TransactionController {
 		@AuthenticationPrincipal CustomUserDetails user,
 		@PathVariable Integer year,
 		@PathVariable Integer month) {
-		return ResponseEntity.ok(transactionService.getMonthlyCategorySpending(user.getUserId(), year, month));
+		Long userId = user.getUserId();
+
+		// 1) 월별 예산 조회 → 카테고리별 합계 맵
+		List<Budget> budgets = budgetService.getMonthlyBudgets(userId, year, month);
+		Map<String, Integer> budgetMap = budgets.stream()
+			.collect(Collectors.toMap(
+				Budget::getCategory,
+				b -> b.getAmount() == null ? 0 : b.getAmount(),
+				Integer::sum
+			));
+
+		// 2) 월별 지출 조회 (보험/세금 포함)
+		List<MonthlyCategorySpendingResponse> spendings =
+			transactionService.getMonthlyCategorySpending(userId, year, month);
+
+		// 3) leakedAmount 계산
+		final String INS_TAX = "보험 / 세금";
+
+		List<MonthlyCategorySpendingResponse> result = spendings.stream()
+			.map(r -> {
+				String cat = r.getCategory();
+				int spent  = r.getTotalAmount();
+				int leaked = INS_TAX.equals(cat) ? 0
+					: Math.max(0, spent - budgetMap.getOrDefault(cat, 0));
+				return new MonthlyCategorySpendingResponse(cat, spent, leaked);
+			})
+			.toList();
+
+		return ResponseEntity.ok(result);
 	}
 
 	@PatchMapping("/{transactionId}/category")
