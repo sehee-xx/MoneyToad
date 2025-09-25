@@ -11,7 +11,12 @@ class Settings(BaseSettings):
     PORT: int = 8001
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://j13a409.p.ssafy.io",
+        "http://j13a409.p.ssafy.io"
+    ]
     
     # Database
     DATABASE_URL: Optional[str] = None

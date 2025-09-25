@@ -37,7 +37,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://j13a409.p.ssafy.io",
+        "http://j13a409.p.ssafy.io"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
