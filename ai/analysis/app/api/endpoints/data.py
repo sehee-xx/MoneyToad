@@ -755,19 +755,24 @@ class CategoryDoojo(BaseModel):
     avg: float
 
 
-class MerchantDetail(BaseModel):
-    """가맹점 상세 정보"""
+class MostSpentDetail(BaseModel):
+    """최대 지출 거래 정보"""
     merchant: str
-    amount: Optional[float] = None
-    date: Optional[str] = None
-    count: Optional[int] = None
-    total_amount: Optional[float] = None
+    amount: float
+    date: str
+
+
+class MostFrequentDetail(BaseModel):
+    """최다 이용 가맹점 정보"""
+    merchant: str
+    count: int
+    total_amount: float
 
 
 class CategoryDetail(BaseModel):
     """카테고리별 상세 분석"""
-    most_spent: MerchantDetail
-    most_frequent: MerchantDetail
+    most_spent: MostSpentDetail
+    most_frequent: MostFrequentDetail
 
 
 class DoojoMonthData(BaseModel):
@@ -864,59 +869,144 @@ async def get_doojo_data(
             detail=f"No doojo analysis data found for {current_year}-{current_month:02d}. Please run analysis first."
         )
 
-    # Fetch CSV data from S3 for detailed analysis
-    file_metadata = redis_client.get_file_metadata(file_id)
-    s3_key = file_metadata.get('s3_key') if file_metadata else None
+    # Get user's cards to fetch transactions from MySQL
+    from sqlalchemy import text, and_, extract
+    from sqlalchemy.sql import func
+
+    # Get all card_ids for this user
+    cards_query = text("SELECT c.id FROM cards c JOIN users u ON c.user_id = u.id WHERE u.id = :user_id")
+    card_results = db.execute(cards_query, {"user_id": user_id}).fetchall()
+    card_ids = [row[0] for row in card_results]
 
     categories_detail = {}
+    real_amounts = {}
+    historical_avg = {}
 
-    if s3_key:
-        try:
-            csv_data = await s3_client.fetch_csv_data(file_id, s3_key)
-            if csv_data is not None:
-                import pandas as pd
-                # Filter data for current month
-                csv_data['transaction_date_time'] = pd.to_datetime(csv_data['transaction_date_time'])
-                current_month_data = csv_data[
-                    (csv_data['transaction_date_time'].dt.year == current_year) &
-                    (csv_data['transaction_date_time'].dt.month == current_month)
-                ]
+    if card_ids:
+        # Import Transaction model if not already imported
+        from sqlalchemy.orm import aliased
+        import pandas as pd
 
-                # Calculate categories_detail for each category
-                for category in csv_data['category'].unique():
-                    cat_data = current_month_data[current_month_data['category'] == category]
+        # Get current month transactions from transactions table
+        transactions_query = text("""
+            SELECT category, merchant_name, amount, transaction_date_time
+            FROM transactions
+            WHERE card_id IN :card_ids
+            AND YEAR(transaction_date_time) = :year
+            AND MONTH(transaction_date_time) = :month
+        """)
 
-                    if not cat_data.empty:
-                        # Find most spent transaction
-                        max_transaction = cat_data.loc[cat_data['amount'].idxmax()]
+        current_month_transactions = db.execute(
+            transactions_query,
+            {"card_ids": tuple(card_ids), "year": current_year, "month": current_month}
+        ).fetchall()
 
-                        # Find most frequent merchant
-                        merchant_counts = cat_data.groupby('merchant').agg({
-                            'amount': ['count', 'sum']
-                        }).reset_index()
-                        merchant_counts.columns = ['merchant', 'count', 'total_amount']
-                        most_frequent = merchant_counts.loc[merchant_counts['count'].idxmax()]
+        # Calculate real_amount and details per category
+        category_data = {}
 
-                        categories_detail[category] = CategoryDetail(
-                            most_spent=MerchantDetail(
-                                merchant=str(max_transaction['merchant']),
-                                amount=float(max_transaction['amount']),
-                                date=max_transaction['transaction_date_time'].isoformat()
-                            ),
-                            most_frequent=MerchantDetail(
-                                merchant=str(most_frequent['merchant']),
-                                count=int(most_frequent['count']),
-                                total_amount=float(most_frequent['total_amount'])
+        for txn in current_month_transactions:
+            category = txn.category
+            if category not in category_data:
+                category_data[category] = {
+                    'total': 0,
+                    'transactions': []
+                }
+
+            category_data[category]['total'] += txn.amount
+            category_data[category]['transactions'].append({
+                'merchant': txn.merchant_name,
+                'amount': txn.amount,
+                'date': txn.transaction_date_time
+            })
+
+        # Process each category
+        for category, data in category_data.items():
+            real_amounts[category] = data['total']
+
+            if data['transactions']:
+                # Find most spent transaction
+                max_txn = max(data['transactions'], key=lambda x: x['amount'])
+
+                # Calculate most frequent merchant
+                merchant_stats = {}
+                for txn in data['transactions']:
+                    merchant = txn['merchant']
+                    if merchant not in merchant_stats:
+                        merchant_stats[merchant] = {'count': 0, 'total': 0}
+                    merchant_stats[merchant]['count'] += 1
+                    merchant_stats[merchant]['total'] += txn['amount']
+
+                # Find most frequent merchant
+                most_freq_merchant = max(merchant_stats.keys(), key=lambda m: merchant_stats[m]['count'])
+
+                categories_detail[category] = CategoryDetail(
+                    most_spent=MostSpentDetail(
+                        merchant=max_txn['merchant'],
+                        amount=float(max_txn['amount']),
+                        date=max_txn['date'].isoformat()
+                    ),
+                    most_frequent=MostFrequentDetail(
+                        merchant=most_freq_merchant,
+                        count=merchant_stats[most_freq_merchant]['count'],
+                        total_amount=float(merchant_stats[most_freq_merchant]['total'])
+                    )
+                )
+
+        # Calculate historical average for each category
+        avg_query = text("""
+            SELECT category, AVG(amount) as avg_amount
+            FROM transactions
+            WHERE card_id IN :card_ids
+            GROUP BY category
+        """)
+
+        avg_results = db.execute(avg_query, {"card_ids": tuple(card_ids)}).fetchall()
+        for row in avg_results:
+            historical_avg[row.category] = float(row.avg_amount) if row.avg_amount else 0.0
+
+    # Fallback to S3 data if no transactions in MySQL
+    if not categories_detail:
+        file_metadata = redis_client.get_file_metadata(file_id)
+        s3_key = file_metadata.get('s3_key') if file_metadata else None
+
+        if s3_key:
+            try:
+                csv_data = await s3_client.fetch_csv_data(file_id, s3_key)
+                if csv_data is not None:
+                    import pandas as pd
+                    csv_data['transaction_date_time'] = pd.to_datetime(csv_data['transaction_date_time'])
+                    current_month_data = csv_data[
+                        (csv_data['transaction_date_time'].dt.year == current_year) &
+                        (csv_data['transaction_date_time'].dt.month == current_month)
+                    ]
+
+                    for category in csv_data['category'].unique():
+                        cat_data = current_month_data[current_month_data['category'] == category]
+                        if not cat_data.empty:
+                            real_amounts[category] = float(cat_data['amount'].sum())
+                            max_transaction = cat_data.loc[cat_data['amount'].idxmax()]
+                            merchant_counts = cat_data.groupby('merchant').agg({
+                                'amount': ['count', 'sum']
+                            }).reset_index()
+                            merchant_counts.columns = ['merchant', 'count', 'total_amount']
+                            most_frequent = merchant_counts.loc[merchant_counts['count'].idxmax()]
+
+                            categories_detail[category] = CategoryDetail(
+                                most_spent=MostSpentDetail(
+                                    merchant=str(max_transaction['merchant']),
+                                    amount=float(max_transaction['amount']),
+                                    date=max_transaction['transaction_date_time'].isoformat()
+                                ),
+                                most_frequent=MostFrequentDetail(
+                                    merchant=str(most_frequent['merchant']),
+                                    count=int(most_frequent['count']),
+                                    total_amount=float(most_frequent['total_amount'])
+                                )
                             )
-                        )
 
-                # Calculate historical average for each category
-                historical_avg = csv_data.groupby('category')['amount'].mean().to_dict()
-        except Exception as e:
-            logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
-            historical_avg = {}
-    else:
-        historical_avg = {}
+                    historical_avg = csv_data.groupby('category')['amount'].mean().to_dict()
+            except Exception as e:
+                logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
 
     # Build categories prediction data from MySQL
     categories_prediction = {}
@@ -932,29 +1022,30 @@ async def get_doojo_data(
         # Calculate avg (use historical average if available, otherwise use current threshold)
         avg_value = historical_avg.get(doojo.category, float(doojo.current_threshold))
 
+        # Use real amount from transactions table if available
+        real_value = real_amounts.get(doojo.category, None)
+
+        # Recalculate result based on real transactions data
+        if real_value is not None:
+            result = real_value > float(doojo.current_threshold)
+        else:
+            # If no real data, result should be None or false
+            result = None
+
         categories_prediction[doojo.category] = CategoryDoojo(
             min=float(doojo.min_amount),
             max=float(doojo.max_amount),
             current=float(doojo.current_threshold),
-            real=float(doojo.real_amount) if doojo.real_amount is not None else None,
+            real=real_value,
             result=result,
             avg=avg_value
         )
 
-        # Add sample detail if no real data available
+        # Only add detail if we don't have real transaction data
+        # Don't create fake merchant names
         if doojo.category not in categories_detail:
-            categories_detail[doojo.category] = CategoryDetail(
-                most_spent=MerchantDetail(
-                    merchant=f"{doojo.category}",
-                    amount=float(doojo.real_amount) if doojo.real_amount else float(doojo.current_threshold),
-                    date=f"{current_year}-{current_month:02d}-15T12:00"
-                ),
-                most_frequent=MerchantDetail(
-                    merchant=f"{doojo.category}",
-                    count=1,
-                    total_amount=float(doojo.real_amount) if doojo.real_amount else float(doojo.current_threshold)
-                )
-            )
+            # Leave categories_detail empty for categories without transactions
+            pass
 
     # Create month data
     doojo_month = DoojoMonthData(
