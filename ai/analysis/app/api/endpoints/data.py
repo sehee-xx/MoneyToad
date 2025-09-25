@@ -945,12 +945,12 @@ async def get_doojo_data(
         if doojo.category not in categories_detail:
             categories_detail[doojo.category] = CategoryDetail(
                 most_spent=MerchantDetail(
-                    merchant=f"{doojo.category} 주요지출",
+                    merchant=f"{doojo.category}",
                     amount=float(doojo.real_amount) if doojo.real_amount else float(doojo.current_threshold),
                     date=f"{current_year}-{current_month:02d}-15T12:00"
                 ),
                 most_frequent=MerchantDetail(
-                    merchant=f"{doojo.category} 빈번지출",
+                    merchant=f"{doojo.category}",
                     count=1,
                     total_amount=float(doojo.real_amount) if doojo.real_amount else float(doojo.current_threshold)
                 )
