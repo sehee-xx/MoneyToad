@@ -19,6 +19,7 @@ export interface MonthlyTransaction {
 export interface CategoryTransaction {
   category: string;
   totalAmount: number;
+  leakedAmount: number;
 }
 
 export interface UpdateCategoryRequest {

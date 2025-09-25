@@ -19,6 +19,7 @@ import {
   useYearTransactionQuery,
   usePeerYearTransactionQuery,
   useMonthlyTransactionsQuery,
+  useCategoryTransactionsQuery,
 } from "../api/queries/transactionQuery";
 import { useUpdateTransactionCategoryMutation } from "../api/mutation/transactionMutation";
 import type { MonthlyTransaction } from "../types";
@@ -321,6 +322,12 @@ export default function ChartPage() {
     selectedMonthNum || 0
   );
 
+  /* 카테고리별 거래 내역 API */
+  const { data: categoryTransactionsData } = useCategoryTransactionsQuery(
+    selectedYear || 0,
+    selectedMonthNum || 0
+  );
+
   /* 카테고리 업데이트 Mutation */
   const updateCategoryMutation = useUpdateTransactionCategoryMutation();
 
@@ -402,11 +409,18 @@ export default function ChartPage() {
     return detailTxns.reduce((a, t) => a + t.amount, 0);
   }, [selectedMonth, yearTransactionData, apiMonthlyData, detailTxns]);
 
-  // ★ 누수 합계: 상세에 뜬 거래들 중 leaked=true인 금액만 합산
+  // ★ 누수 합계: getCategoryTransactions API에서 leakedAmount 합산
   const leakTotal = useMemo(() => {
     if (selectedMonth === null) return 0;
+    
+    // API 데이터가 있으면 카테고리별 leakedAmount 합산
+    if (categoryTransactionsData && categoryTransactionsData.length > 0) {
+      return categoryTransactionsData.reduce((total, category) => total + category.leakedAmount, 0);
+    }
+    
+    // API 데이터가 없으면 기존 로직 사용 (상세에 뜬 거래들 중 leaked=true인 금액만 합산)
     return detailTxns.filter((t) => t.leaked).reduce((a, t) => a + t.amount, 0);
-  }, [selectedMonth, detailTxns]);
+  }, [selectedMonth, categoryTransactionsData, detailTxns]);
 
   // ★ 누수 카테고리 집합: 그 카테고리에 leaked=true 거래가 하나라도 있으면 누수 카테고리로 간주
   const leakedCategorySet = useMemo(() => {
