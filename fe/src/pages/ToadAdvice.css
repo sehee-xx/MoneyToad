@@ -236,7 +236,7 @@
 .cards-page-stats {
   display: grid;
   grid-auto-flow: column;
-  gap: 18px;
+  gap: 40px;
 }
 .cstat {
   text-align: right;
@@ -245,9 +245,10 @@
   color: #8f2f1d;
   font-weight: 900;
   font-size: 18px;
+  text-align: center;
 }
 .cstat-label {
-  font-size: 16px;
+  font-size: 18px;
   opacity: 0.85;
 }
 
@@ -308,6 +309,7 @@
 /* 카드 내용 */
 .card-content {
   padding: 24px;
+  cursor: pointer;
 }
 .card-header {
   display: flex;
