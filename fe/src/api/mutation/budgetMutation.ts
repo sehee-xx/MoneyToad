@@ -50,10 +50,10 @@ export const useUpdateBudgetMutation = (year: number, month: number, onMutationC
       if (onMutationComplete) {
         onMutationComplete(variables.budgetId);
       }
-    },
-    onSettled: () => {
+
       // 필요한 경우에만 특정 쿼리 재검증
-      // queryClient.invalidateQueries({ queryKey: monthlyBudgetQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: monthlyBudgetQueryKeys.all });
+
     },
   });
 };

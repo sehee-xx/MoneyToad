@@ -168,10 +168,10 @@ const MonthNavigation: React.FC<{
           // 기본 누수 여부 (연-월 인덱스 사용)
           let leaked = !!leakIndex.get(`${yearForBtn}-${m.value}`);
 
-          // 낙관 반영은 "올해의 현재 달"만
+          // 낙관적 반영은 "선택된 달"만
           if (
             yearForBtn === nowYear &&
-            m.value === nowMonth &&
+            m.value === selectedMonth &&
             typeof optimisticCurrentMonthLeaked === "boolean"
           ) {
             leaked = optimisticCurrentMonthLeaked;
