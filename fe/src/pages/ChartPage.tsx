@@ -92,6 +92,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const me = payload.find((p: any) => p.dataKey === "me");
     const peer = payload.find((p: any) => p.dataKey === "peers");
+    const leaked = payload[0]?.payload?.leaked || false;
+
     return (
       <div
         style={{
@@ -102,7 +104,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           boxShadow: "0 4px 12px rgba(0,0,0,.4)",
         }}
       >
-        <div style={{ fontWeight: "bold", color: "#2A3437" }}>{label}</div>
+        <div style={{ fontWeight: "bold", color: "#2A3437" }}>
+          {label}
+          {leaked && <span style={{ color: "#FF4444", marginLeft: "8px" }}>누수</span>}
+        </div>
         <div style={{ color: "#817716" }}>
           내 소비 : {me ? KRW(me.value) : "-"}원
         </div>
