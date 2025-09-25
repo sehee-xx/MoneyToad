@@ -486,7 +486,7 @@ export default function ChartPage() {
     const pct = Math.round(percent * 100);
 
     // ★ '나머지'는 항상 기본색, 나머지는 누수 카테고리면 붉은색
-    const isLeakedCategory = name !== "나머지" && leakedCategorySet.has(name);
+    const isLeakedCategory = categoryTransactionsData?.find((category) => category.category === name && category.leakedAmount > 0);
     const labelColor = isLeakedCategory ? "#EC6665" : "#212A2D";
 
     return (
