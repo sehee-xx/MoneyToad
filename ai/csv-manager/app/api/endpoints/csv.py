@@ -155,11 +155,15 @@ def validate_csv_for_prophet(file_content: bytes) -> Dict[str, Any]:
 
         # Check total data requirement (30 days minimum for baseline analysis)
         if total_days < 30:
-            prophet_warnings.append(f"Only {total_days} days of data available. Baseline analysis requires at least 30 days for optimal results.")
+            prophet_errors.append(f"Insufficient data period: {total_days} days (minimum 30 days required for baseline analysis)")
+
+        # Check if data spans at least 2 months for meaningful predictions
+        if total_days < 60:
+            prophet_warnings.append(f"Limited data period: {total_days} days. Recommend at least 60 days for accurate predictions.")
 
         # Check total rows
         if total_rows < 30:
-            prophet_warnings.append(f"Only {total_rows} transaction rows. More data recommended for better predictions.")
+            prophet_errors.append(f"Insufficient transactions: {total_rows} rows (minimum 30 required)")
 
         # Check category-wise data
         category_analysis = clean_df.groupby('category').agg({
@@ -168,16 +172,22 @@ def validate_csv_for_prophet(file_content: bytes) -> Dict[str, Any]:
         }).round(2)
 
         categories_with_insufficient_data = []
+        categories_with_warnings = []
         for category in clean_df['category'].unique():
             cat_data = clean_df[clean_df['category'] == category]
             cat_days = cat_data['transaction_date_time'].nunique()
             cat_rows = len(cat_data)
 
-            if cat_days < 7:
-                categories_with_insufficient_data.append(f"'{category}' ({cat_days} days, {cat_rows} transactions)")
+            if cat_rows < 2:
+                categories_with_insufficient_data.append(f"'{category}' (only {cat_rows} transaction)")
+            elif cat_days < 7:
+                categories_with_warnings.append(f"'{category}' ({cat_days} days, {cat_rows} transactions)")
 
         if categories_with_insufficient_data:
-            prophet_warnings.append(f"Categories with insufficient data (< 7 days): {', '.join(categories_with_insufficient_data)}")
+            prophet_errors.append(f"Categories with insufficient data (< 2 transactions): {', '.join(categories_with_insufficient_data[:3])}{'...' if len(categories_with_insufficient_data) > 3 else ''}")
+
+        if categories_with_warnings:
+            prophet_warnings.append(f"Categories with limited data (< 7 days): {', '.join(categories_with_warnings[:3])}{'...' if len(categories_with_warnings) > 3 else ''}")
 
         # Create validation summary
         validation_summary = {
