@@ -12,9 +12,11 @@ import com.potg.don.analysisJob.repository.AnalysisJobRepository;
 import com.potg.don.analysisJob.service.AnalysisJobService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class AnalysisJobScheduler {
 
 	private final AnalysisJobRepository jobRepo;
@@ -24,9 +26,13 @@ public class AnalysisJobScheduler {
 	@Scheduled(fixedDelay = 2000)
 	public void poll() {
 		Instant now = Instant.now();
+
 		List<AnalysisJob> jobs = jobRepo.findPollableJobs(now, PageRequest.of(0, 10));
+		log.info("[Scheduler] pollable jobs: {}", jobs.size()); // ← 추가
 		for (AnalysisJob j : jobs) {
 			try {
+				log.info("[Scheduler] picking job id={}, status={}, nextPollAt={}, leasedUntil={}",
+					j.getId(), j.getStatus(), j.getNextPollAt(), j.getLeasedUntil());
 				jobService.pollOnce(j);
 			} catch (Exception e) {
 				// 실패 시 다음 재시도 예약
