@@ -215,6 +215,13 @@ const BIG_TICKET: Record<string, number> = {
   기타: 60,
 };
 
+const pctLabel = (pct: number) =>
+  pct === 0
+    ? "12개월 평균과 같음"
+    : `12개월 평균보다 ${Math.abs(pct).toFixed(1)}% ${
+        pct > 0 ? "높음" : "낮음"
+      }`;
+
 /* ===== 카테고리별 두꺼비 코멘트 템플릿 ===== */
 type SpentCtx = {
   merchant: string;
@@ -452,11 +459,12 @@ export default function ToadAdvice() {
         const detail =
           `'${v.title}'의 누수 기준액이 ${won(v.current)}인데\n실제로 ${won(
             v.real
-          )} 만큼 썼고\n` +
-          `12개월 평균치보다 약 ${pct.toFixed(1)}% 높다고 판단해\n${won(
-            over
-          )} 만큼의 과소비가 발생했소!`;
-        const preview = `과소비 ${won(over)} · 평균보다 +${pct.toFixed(0)}%`;
+          )}만큼 썼고\n` +
+          `${pctLabel(pct)}로 보이오.\n${won(over)}만큼의 과소비가 발생했소!`;
+        const preview = `과소비 ${won(over)} · ${pctLabel(pct).replace(
+          "12개월 ",
+          ""
+        )}`;
         return { id: v.title, category: v.title, detail, preview, over, pct };
       })
       .sort((a, b) => b.over - a.over);
@@ -491,7 +499,7 @@ export default function ToadAdvice() {
     return (
       <div className="toad-advice-container">
         <Header />
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ padding: "2rem", textAlign: "center" }}>
           <h2>두꺼비가 데이터를 분석하는 중...</h2>
         </div>
       </div>
@@ -502,7 +510,7 @@ export default function ToadAdvice() {
     return (
       <div className="toad-advice-container">
         <Header />
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ padding: "2rem", textAlign: "center" }}>
           <h2>데이터를 불러올 수 없습니다</h2>
         </div>
       </div>
@@ -629,7 +637,11 @@ export default function ToadAdvice() {
                     <div className="amount-info">
                       <div className="over-amount">-{won(advice.over)}</div>
                       <div className="over-percent">
-                        +{advice.pct.toFixed(1)}%
+                        {advice.pct === 0
+                          ? "평균과 같음"
+                          : `평균보다 ${Math.abs(advice.pct).toFixed(1)}% ${
+                              advice.pct > 0 ? "높음" : "낮음"
+                            }`}
                       </div>
                     </div>
                   </div>
