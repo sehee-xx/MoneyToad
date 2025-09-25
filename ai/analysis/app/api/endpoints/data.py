@@ -70,6 +70,9 @@ async def run_baseline_analysis(
 
                 # Save baseline for each category
                 for category, cat_baseline in month_data.get('categories', {}).items():
+                    # Ensure predicted amount is not negative when saving
+                    predicted_amount = max(0.0, cat_baseline.get('predicted', 0))
+
                     # Check existing baseline
                     existing = db.query(models.BaselinePrediction).filter(
                         models.BaselinePrediction.file_id == file_id,
@@ -84,14 +87,14 @@ async def run_baseline_analysis(
                             category=category,
                             year=baseline_year,
                             month=baseline_month,
-                            predicted_amount=cat_baseline.get('predicted', 0),
+                            predicted_amount=predicted_amount,
                             lower_bound=cat_baseline.get('lower_bound'),
                             upper_bound=cat_baseline.get('upper_bound'),
                             training_cutoff_date=cutoff_date
                         )
                         db.add(baseline_pred)
                     else:
-                        existing.predicted_amount = cat_baseline.get('predicted', 0)
+                        existing.predicted_amount = predicted_amount
                         existing.lower_bound = cat_baseline.get('lower_bound')
                         existing.upper_bound = cat_baseline.get('upper_bound')
                         existing.training_cutoff_date = cutoff_date
@@ -731,13 +734,14 @@ async def get_baseline_predictions(
                 "training_cutoff": baseline.training_cutoff_date.isoformat() if baseline.training_cutoff_date else None
             }
 
-        # Update with actual values
+        # Update with actual values (ensure no negative predictions)
+        predicted = max(0.0, float(baseline.predicted_amount))  # Convert negative to 0
         monthly_baselines[month_key]["categories"][baseline.category] = {
-            "predicted_amount": float(baseline.predicted_amount),
-            "lower_bound": float(baseline.lower_bound) if baseline.lower_bound else None,
-            "upper_bound": float(baseline.upper_bound) if baseline.upper_bound else None
+            "predicted_amount": predicted,
+            "lower_bound": float(baseline.lower_bound) if baseline.lower_bound else 0.0,
+            "upper_bound": float(baseline.upper_bound) if baseline.upper_bound else 0.0
         }
-        monthly_baselines[month_key]["total"] += baseline.predicted_amount
+        monthly_baselines[month_key]["total"] += predicted  # Use the non-negative value for total
     
     # Sort months chronologically
     sorted_months = sorted(monthly_baselines.keys(), reverse=True)

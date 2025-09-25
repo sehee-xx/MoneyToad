@@ -410,6 +410,9 @@ class ProphetService:
                         lower_bound = month_forecast['yhat_lower'].sum()
                         upper_bound = month_forecast['yhat_upper'].sum()
 
+                        # Ensure predicted amount is not negative
+                        predicted_amount = max(0.0, predicted_amount)
+
                         # Update the prediction for this category (overwriting the zero values)
                         month_predictions[category] = {
                             'predicted': float(predicted_amount),
