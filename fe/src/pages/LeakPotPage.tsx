@@ -667,8 +667,8 @@ const LeakPotPage = () => {
 
   const updateBudgetMutation = useUpdateBudgetMutation();
 
-  // 디바운스 타이머
-  const debounceTimer = useRef<number | null>(null);
+  // 카테고리별 디바운스 타이머
+  const debounceTimers = useRef<Map<number, number>>(new Map());
 
   // 에셋 프리로드
   useEffect(() => {
@@ -703,7 +703,8 @@ const LeakPotPage = () => {
   // 타이머 정리
   useEffect(() => {
     return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimers.current.forEach((timerId) => clearTimeout(timerId));
+      debounceTimers.current.clear();
     };
   }, []);
 
@@ -752,14 +753,19 @@ const LeakPotPage = () => {
         )
       );
 
-      // debounce
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => {
+      // 카테고리별 debounce
+      const existingTimer = debounceTimers.current.get(id);
+      if (existingTimer) clearTimeout(existingTimer);
+
+      const timerId = setTimeout(() => {
         updateBudgetMutation.mutate({
           budgetId: id,
           budget: newThreshold,
         });
+        debounceTimers.current.delete(id);
       }, 500) as unknown as number;
+
+      debounceTimers.current.set(id, timerId);
     },
     [updateBudgetMutation]
   );
