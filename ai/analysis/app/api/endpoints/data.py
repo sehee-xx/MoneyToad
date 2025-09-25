@@ -1075,13 +1075,13 @@ async def get_doojo_data(
                 logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
 
     # Get budget data from budgets table for current month
-    # budget_date is VARCHAR(7) in format 'YYYY-MM'
-    budget_date = f"{current_year}-{current_month:02d}"
+    # budget_date is stored as DATE in format 'YYYY-MM-DD'
+    budget_date = f"{current_year}-{current_month:02d}-01"
     budgets_query = text("""
         SELECT category, amount
         FROM budgets
         WHERE user_id = :user_id
-        AND CAST(budget_date AS CHAR) = :budget_date
+        AND budget_date = :budget_date
         AND category IS NOT NULL
     """)
 
