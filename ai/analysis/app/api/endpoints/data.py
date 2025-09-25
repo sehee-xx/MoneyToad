@@ -319,9 +319,9 @@ async def run_prophet_analysis(
                     'categories_analyzed': current_month_result.get('categories_analyzed'),
                     'total_current_predicted': current_month_result.get('total_current_predicted'),
                     'trend': current_month_result.get('trend'),
-                    'baseline_months_calculated': baseline_predictions.get('months_calculated', 0) if baseline_predictions else 0
+                    'baseline_months_calculated': 0  # Baseline is calculated in background
                 }
-            
+
             db.commit()
 
             # Don't update Redis status here - wait for baseline to complete
@@ -331,7 +331,7 @@ async def run_prophet_analysis(
             if current_month_result:
                 analysis_metadata = {
                     **current_month_result,
-                    'baseline_predictions': baseline_predictions
+                    'baseline_predictions': None  # Will be updated when baseline completes
                 }
                 redis_client.set_analysis_metadata(file_id, analysis_metadata)
 
