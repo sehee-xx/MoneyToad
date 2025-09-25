@@ -639,12 +639,12 @@ const LeakPotPage = () => {
   const { month } = useParams();
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<Category[]>([]);
   const [leakingCategories, setLeakingCategories] = useState<LeakingCategory[]>(
     []
   );
   const [totalLeak, setTotalLeak] = useState<number>(0);
   const [pageLoading, setPageLoading] = useState(true);
+  const [pendingThresholds, setPendingThresholds] = useState<Record<number, number>>({});
   const formatter = new Intl.NumberFormat("ko-KR");
 
   // 계산된 기준(요청 월의 데이터 연도/월)
@@ -665,7 +665,34 @@ const LeakPotPage = () => {
     error: yearlyLeakError,
   } = useYearlyBudgetLeaksQuery();
 
-  const updateBudgetMutation = useUpdateBudgetMutation();
+  // pending 상태 정리 콜백
+  const handleMutationComplete = useCallback((budgetId: number) => {
+    setPendingThresholds(prev => {
+      const { [budgetId]: _, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const updateBudgetMutation = useUpdateBudgetMutation(year, targetMonth, handleMutationComplete);
+
+  // budgetData로부터 categories 계산 + pending 상태 병합
+  const categories = useMemo(() => {
+    let baseCategories: Category[] = [];
+
+    if (budgetData?.length) {
+      baseCategories = budgetData.map(adaptBudgetDataToCategory);
+    } 
+
+    if (!isBudgetLoading && !budgetData) {
+      baseCategories = INITIAL_CATEGORIES.map((c) => ({ ...c, threshold: c.spending }));
+    }
+
+    // pending 상태와 병합 (드래그 중인 값 우선)
+    return baseCategories.map(cat => ({
+      ...cat,
+      threshold: pendingThresholds[cat.id] ?? cat.threshold
+    }));
+  }, [budgetData, isBudgetLoading, pendingThresholds]);
 
   // 카테고리별 디바운스 타이머
   const debounceTimers = useRef<Map<number, number>>(new Map());
@@ -708,17 +735,6 @@ const LeakPotPage = () => {
     };
   }, []);
 
-  // budget → categories
-  useEffect(() => {
-    if (budgetData?.length) {
-      const adapted = budgetData.map(adaptBudgetDataToCategory);
-      setCategories(adapted);
-    } else if (!isBudgetLoading && !budgetData) {
-      setCategories(
-        INITIAL_CATEGORIES.map((c) => ({ ...c, threshold: c.spending }))
-      );
-    }
-  }, [budgetData, isBudgetLoading]);
 
   // 누수 계산
   useEffect(() => {
@@ -746,14 +762,13 @@ const LeakPotPage = () => {
 
   const handleThresholdChange = useCallback(
     (id: number, newThreshold: number) => {
-      // UI 즉시 업데이트
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.id === id ? { ...cat, threshold: newThreshold } : cat
-        )
-      );
+      // 즉시 로컬 상태 업데이트 (드래그 중 즉각적 피드백)
+      setPendingThresholds(prev => ({
+        ...prev,
+        [id]: newThreshold
+      }));
 
-      // 카테고리별 debounce
+      // 카테고리별 debounce - 낙관적 업데이트는 mutation에서 처리
       const existingTimer = debounceTimers.current.get(id);
       if (existingTimer) clearTimeout(existingTimer);
 
