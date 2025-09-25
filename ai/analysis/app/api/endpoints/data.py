@@ -888,17 +888,18 @@ async def get_doojo_data(
         import pandas as pd
 
         # Get current month transactions from transactions table
+        # Using DATE_FORMAT for better compatibility
         transactions_query = text("""
             SELECT category, merchant_name, amount, transaction_date_time
             FROM transactions
             WHERE card_id IN :card_ids
-            AND YEAR(transaction_date_time) = :year
-            AND MONTH(transaction_date_time) = :month
+            AND DATE_FORMAT(transaction_date_time, '%Y-%m') = :year_month
         """)
 
+        year_month = f"{current_year}-{current_month:02d}"
         current_month_transactions = db.execute(
             transactions_query,
-            {"card_ids": tuple(card_ids), "year": current_year, "month": current_month}
+            {"card_ids": tuple(card_ids), "year_month": year_month}
         ).fetchall()
 
         # Calculate real_amount and details per category
@@ -921,6 +922,10 @@ async def get_doojo_data(
 
         # Process each category
         for category, data in category_data.items():
+            # Skip "보험 / 세금" category
+            if category == "보험 / 세금":
+                continue
+
             real_amounts[category] = data['total']
 
             if data['transactions']:
@@ -1009,12 +1014,13 @@ async def get_doojo_data(
                 logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
 
     # Get budget data from budgets table for current month
+    # budget_date is VARCHAR(7) in format 'YYYY-MM'
     budget_date = f"{current_year}-{current_month:02d}"
     budgets_query = text("""
         SELECT category, amount
         FROM budgets
         WHERE user_id = :user_id
-        AND budget_date = :budget_date
+        AND CAST(budget_date AS CHAR) = :budget_date
         AND category IS NOT NULL
     """)
 
@@ -1034,6 +1040,10 @@ async def get_doojo_data(
     categories_prediction = {}
 
     for doojo in doojo_data:
+        # Skip "보험 / 세금" category
+        if doojo.category == "보험 / 세금":
+            continue
+
         # Convert result string to boolean
         result = None
         if doojo.result == 'true':
