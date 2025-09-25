@@ -53,7 +53,9 @@ public class DummyService {
 	}
 
 	// ✅ 월 전체 최소 건수(설정)
-	private static final int MONTHLY_MIN_TX = 25; // 필요 시 조정
+	private static final int MONTHLY_MIN_TX = 30; // 필요 시 조정
+
+	private static final int MONTH_SPAN = 15;
 
 	/**
 	 * 카드에 대해 기존 내역을 삭제하고,
@@ -71,7 +73,7 @@ public class DummyService {
 		YearMonth nowYm = YearMonth.now();
 
 		// 2) 최근 12개월 반복
-		for (int m = 0; m < 12; m++) {
+		for (int m = 0; m < MONTH_SPAN; m++) {
 			YearMonth ym = nowYm.minusMonths(m);
 			int daysInMonth = ym.lengthOfMonth();
 
