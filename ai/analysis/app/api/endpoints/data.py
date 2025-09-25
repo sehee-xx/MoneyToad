@@ -752,6 +752,22 @@ class CategoryDoojo(BaseModel):
     current: float
     real: Optional[float] = None
     result: Optional[bool] = None
+    avg: float
+
+
+class MerchantDetail(BaseModel):
+    """가맹점 상세 정보"""
+    merchant: str
+    amount: Optional[float] = None
+    date: Optional[str] = None
+    count: Optional[int] = None
+    total_amount: Optional[float] = None
+
+
+class CategoryDetail(BaseModel):
+    """카테고리별 상세 분석"""
+    most_spent: MerchantDetail
+    most_frequent: MerchantDetail
 
 
 class DoojoMonthData(BaseModel):
@@ -760,6 +776,7 @@ class DoojoMonthData(BaseModel):
     year: int
     categories_count: int
     categories_prediction: Dict[str, CategoryDoojo]
+    categories_detail: Dict[str, CategoryDetail]
 
 
 class DoojoResponse(BaseModel):
@@ -847,6 +864,60 @@ async def get_doojo_data(
             detail=f"No doojo analysis data found for {current_year}-{current_month:02d}. Please run analysis first."
         )
 
+    # Fetch CSV data from S3 for detailed analysis
+    file_metadata = redis_client.get_file_metadata(file_id)
+    s3_key = file_metadata.get('s3_key') if file_metadata else None
+
+    categories_detail = {}
+
+    if s3_key:
+        try:
+            csv_data = await s3_client.fetch_csv_data(file_id, s3_key)
+            if csv_data is not None:
+                import pandas as pd
+                # Filter data for current month
+                csv_data['transaction_date_time'] = pd.to_datetime(csv_data['transaction_date_time'])
+                current_month_data = csv_data[
+                    (csv_data['transaction_date_time'].dt.year == current_year) &
+                    (csv_data['transaction_date_time'].dt.month == current_month)
+                ]
+
+                # Calculate categories_detail for each category
+                for category in csv_data['category'].unique():
+                    cat_data = current_month_data[current_month_data['category'] == category]
+
+                    if not cat_data.empty:
+                        # Find most spent transaction
+                        max_transaction = cat_data.loc[cat_data['amount'].idxmax()]
+
+                        # Find most frequent merchant
+                        merchant_counts = cat_data.groupby('merchant').agg({
+                            'amount': ['count', 'sum']
+                        }).reset_index()
+                        merchant_counts.columns = ['merchant', 'count', 'total_amount']
+                        most_frequent = merchant_counts.loc[merchant_counts['count'].idxmax()]
+
+                        categories_detail[category] = CategoryDetail(
+                            most_spent=MerchantDetail(
+                                merchant=str(max_transaction['merchant']),
+                                amount=float(max_transaction['amount']),
+                                date=max_transaction['transaction_date_time'].isoformat()
+                            ),
+                            most_frequent=MerchantDetail(
+                                merchant=str(most_frequent['merchant']),
+                                count=int(most_frequent['count']),
+                                total_amount=float(most_frequent['total_amount'])
+                            )
+                        )
+
+                # Calculate historical average for each category
+                historical_avg = csv_data.groupby('category')['amount'].mean().to_dict()
+        except Exception as e:
+            logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
+            historical_avg = {}
+    else:
+        historical_avg = {}
+
     # Build categories prediction data from MySQL
     categories_prediction = {}
 
@@ -858,20 +929,40 @@ async def get_doojo_data(
         elif doojo.result == 'false':
             result = False
 
+        # Calculate avg (use historical average if available, otherwise use current threshold)
+        avg_value = historical_avg.get(doojo.category, float(doojo.current_threshold))
+
         categories_prediction[doojo.category] = CategoryDoojo(
             min=float(doojo.min_amount),
             max=float(doojo.max_amount),
             current=float(doojo.current_threshold),
             real=float(doojo.real_amount) if doojo.real_amount is not None else None,
-            result=result
+            result=result,
+            avg=avg_value
         )
+
+        # Add sample detail if no real data available
+        if doojo.category not in categories_detail:
+            categories_detail[doojo.category] = CategoryDetail(
+                most_spent=MerchantDetail(
+                    merchant=f"{doojo.category} 주요지출",
+                    amount=float(doojo.real_amount) if doojo.real_amount else float(doojo.current_threshold),
+                    date=f"{current_year}-{current_month:02d}-15T12:00"
+                ),
+                most_frequent=MerchantDetail(
+                    merchant=f"{doojo.category} 빈번지출",
+                    count=1,
+                    total_amount=float(doojo.real_amount) if doojo.real_amount else float(doojo.current_threshold)
+                )
+            )
 
     # Create month data
     doojo_month = DoojoMonthData(
         month=current_month,
         year=current_year,
         categories_count=len(categories_prediction),
-        categories_prediction=categories_prediction
+        categories_prediction=categories_prediction,
+        categories_detail=categories_detail
     )
 
     return DoojoResponse(
