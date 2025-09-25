@@ -656,6 +656,12 @@ async def get_baseline_predictions(
         models.BaselinePrediction.month.desc()
     ).all()
 
+    # Get all unique categories from the data to ensure consistency
+    all_categories_query = db.query(models.BaselinePrediction.category).filter(
+        models.BaselinePrediction.file_id == file_id
+    ).distinct()
+    all_categories = set([cat.category for cat in all_categories_query.all()])
+
     # Check data availability and provide detailed feedback
     current_date = datetime.now()
     expected_months = []
@@ -685,20 +691,47 @@ async def get_baseline_predictions(
             detail=error_detail
         )
     
+    # If we don't have any categories yet, get them from a broader query or use default list
+    if not all_categories and not baselines:
+        # Try to get categories from predictions table as fallback
+        pred_categories_query = db.query(models.Prediction.category).filter(
+            models.Prediction.file_id == file_id
+        ).distinct()
+        pred_categories = [cat.category for cat in pred_categories_query.all()]
+
+        if pred_categories:
+            all_categories = set(pred_categories)
+        else:
+            # Default categories if no data exists yet
+            all_categories = {
+                "식비", "카페", "마트 / 편의점", "교통 / 차량", "주거 / 통신",
+                "패션 / 미용", "문화생활", "건강 / 병원", "교육", "경조사 / 회비",
+                "생활용품", "기타", "보험 / 세금"
+            }
+
     # Group by month
     monthly_baselines = {}
     for baseline in baselines:
         month_key = f"{baseline.year}-{baseline.month:02d}"
-        
+
         if month_key not in monthly_baselines:
+            # Initialize with all categories set to 0
             monthly_baselines[month_key] = {
                 "year": baseline.year,
                 "month": baseline.month,
                 "total": 0,
-                "categories": {},
+                "categories": {
+                    cat: {
+                        "predicted_amount": 0.0,
+                        "lower_bound": 0.0,
+                        "upper_bound": 0.0
+                    }
+                    for cat in all_categories
+                },
                 "training_cutoff": baseline.training_cutoff_date.isoformat() if baseline.training_cutoff_date else None
             }
-        
+
+        # Update with actual values
         monthly_baselines[month_key]["categories"][baseline.category] = {
             "predicted_amount": float(baseline.predicted_amount),
             "lower_bound": float(baseline.lower_bound) if baseline.lower_bound else None,
@@ -712,6 +745,31 @@ async def get_baseline_predictions(
     # Check if we have all expected months
     missing_months = [month for month in expected_months if month not in monthly_baselines]
 
+    # Add missing months with all zeros for all categories
+    for missing_month in missing_months:
+        year, month = missing_month.split('-')
+        year = int(year)
+        month = int(month)
+        cutoff_date = datetime(year, month, 1) - timedelta(days=1)
+
+        monthly_baselines[missing_month] = {
+            "year": year,
+            "month": month,
+            "total": 0,
+            "categories": {
+                cat: {
+                    "predicted_amount": 0.0,
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.0
+                }
+                for cat in all_categories
+            },
+            "training_cutoff": cutoff_date.isoformat()
+        }
+
+    # Re-sort after adding missing months
+    sorted_months = sorted(monthly_baselines.keys(), reverse=True)
+
     response = {
         "file_id": file_id,
         "baseline_months": [
@@ -719,25 +777,24 @@ async def get_baseline_predictions(
                 "month": monthly_baselines[month]["month"],
                 "year": monthly_baselines[month]["year"],
                 "total_predicted": float(monthly_baselines[month]["total"]),
-                "categories_count": len(monthly_baselines[month]["categories"]),
+                "categories_count": len(all_categories),  # Always return total category count
                 "category_predictions": monthly_baselines[month]["categories"] if not category else {
-                    category: monthly_baselines[month]["categories"].get(category)
+                    category: monthly_baselines[month]["categories"].get(category, {
+                        "predicted_amount": 0.0,
+                        "lower_bound": 0.0,
+                        "upper_bound": 0.0
+                    })
                 },
                 "training_data_until": monthly_baselines[month]["training_cutoff"]
             }
             for month in sorted_months
         ],
-        "months_count": len(sorted_months),
+        "months_count": 11,  # Always 11 months
         "category_filter": category
     }
 
-    # Add warnings if some months are missing
-    if missing_months:
-        response["warnings"] = {
-            "missing_months": missing_months,
-            "message": f"Baseline predictions not available for {len(missing_months)} months due to insufficient historical data",
-            "available_coverage": f"{len(sorted_months)} out of 11 months"
-        }
+    # No longer add warnings since we're filling missing data with zeros
+    # All 11 months will always be present
 
     return response
 

@@ -334,47 +334,66 @@ class ProphetService:
             calc_date = current_date - timedelta(days=30 * i)
             months_to_calculate.append((calc_date.year, calc_date.month))
 
+        # Get all unique categories from the entire dataset for consistency
+        all_categories = csv_data['category'].unique()
+
         for target_year, target_month in months_to_calculate:
             month_key = f"{target_year}-{target_month:02d}"
-            
+
             # Get data up to the end of previous month
             cutoff_date = datetime(target_year, target_month, 1) - timedelta(days=1)
             train_data = csv_data[csv_data['date'] <= cutoff_date].copy()
-            
+
+            # Initialize month predictions with 0 for all categories
+            month_predictions = {
+                category: {
+                    'predicted': 0.0,
+                    'lower_bound': 0.0,
+                    'upper_bound': 0.0,
+                    'data_points': 0
+                }
+                for category in all_categories
+            }
+
             if len(train_data) < 30:  # Need at least 30 days of data
-                logger.warning(f"Not enough data for baseline {month_key}")
+                logger.warning(f"Not enough data for baseline {month_key} - returning zeros")
                 baseline_results[month_key] = {
                     'year': target_year,
                     'month': target_month,
-                    'categories': {},
+                    'categories': month_predictions,  # All zeros
                     'total': 0,
+                    'categories_count': len(all_categories),
+                    'training_data_until': cutoff_date.isoformat(),
                     'status': 'insufficient_data'
                 }
                 continue
-            
+
             # Calculate predictions for each category
             categories = train_data['category'].unique()
-            month_predictions = {}
+            # month_predictions already initialized with zeros for all categories
             total_predicted = 0
-            
+
             for category in categories:
                 try:
                     # Prepare data for this category
                     category_train = train_data[train_data['category'] == category].copy()
                     
                     if len(category_train) < 7:  # Need at least a week of data
+                        # Keep the zero values already set for this category
                         continue
                     
                     # Prepare Prophet data
                     prophet_data = self.prepare_category_data(category_train, category)
                     
                     if len(prophet_data) < 2:
+                        # Keep the zero values already set for this category
                         continue
-                    
+
                     # Train model
                     model = self.train_prophet_model(prophet_data, category)
-                    
+
                     if model is None:
+                        # Keep the zero values already set for this category
                         continue
                     
                     # Predict for target month
@@ -390,7 +409,8 @@ class ProphetService:
                         predicted_amount = month_forecast['yhat'].sum()
                         lower_bound = month_forecast['yhat_lower'].sum()
                         upper_bound = month_forecast['yhat_upper'].sum()
-                        
+
+                        # Update the prediction for this category (overwriting the zero values)
                         month_predictions[category] = {
                             'predicted': float(predicted_amount),
                             'lower_bound': float(lower_bound),
@@ -398,15 +418,17 @@ class ProphetService:
                             'data_points': len(category_train)
                         }
                         total_predicted += predicted_amount
+                    # If no forecast, keep the zero values already set
                         
                 except Exception as e:
                     logger.error(f"Error calculating baseline for {category} in {month_key}: {e}")
+                    # Keep the zero values already set for this category on error
                     continue
             
             baseline_results[month_key] = {
                 'year': target_year,
                 'month': target_month,
-                'categories': month_predictions,
+                'categories': month_predictions,  # Now includes all categories with zeros for missing ones
                 'total': float(total_predicted),
                 'categories_count': len(month_predictions),
                 'training_data_until': cutoff_date.isoformat(),
