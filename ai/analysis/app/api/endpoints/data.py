@@ -99,8 +99,14 @@ async def run_baseline_analysis(
             db.commit()
             logger.info(f"Baseline predictions saved for {file_id}")
 
+        # Update Redis status to none after baseline completion
+        redis_client.set_csv_status(file_id, "none")
+        logger.info(f"All analysis completed for {file_id}, status set to none")
+
     except Exception as e:
         logger.error(f"Baseline analysis failed for {file_id}: {str(e)}")
+        # Update Redis status to none even on failure
+        redis_client.set_csv_status(file_id, "none")
     finally:
         if db:
             db.close()
@@ -314,10 +320,10 @@ async def run_prophet_analysis(
                 }
             
             db.commit()
-            
-            # Update Redis status to none (idle state)
-            redis_client.set_csv_status(file_id, "none")
-            
+
+            # Don't update Redis status here - wait for baseline to complete
+            # redis_client.set_csv_status(file_id, "none")  # Moved to baseline completion
+
             # Store analysis metadata separately if needed
             if current_month_result:
                 analysis_metadata = {
@@ -325,8 +331,8 @@ async def run_prophet_analysis(
                     'baseline_predictions': baseline_predictions
                 }
                 redis_client.set_analysis_metadata(file_id, analysis_metadata)
-            
-            logger.info(f"Prophet analysis completed for {file_id}, status set to none")
+
+            logger.info(f"Current month analysis completed for {file_id}, baseline running in background")
         else:
             raise Exception("Prophet analysis failed - no prediction ID")
             
@@ -351,11 +357,11 @@ async def run_prophet_analysis(
             if db:
                 db.close()
 
-        # Update Redis status back to none (idle) even on failure
-        redis_client.set_csv_status(file_id, "none")
-
         # Store error metadata for debugging
         redis_client.set_analysis_metadata(file_id, {"error": str(e)})
+
+        # Update Redis status to none on failure (since baseline won't run)
+        redis_client.set_csv_status(file_id, "none")
     finally:
         # Always close the db connection
         if db:
@@ -633,13 +639,8 @@ async def get_baseline_predictions(
     Get baseline predictions (소비 기준 금액) for past 11 months
     Each month's prediction is calculated using only prior data
     """
-    # Check if analysis is in progress
-    analysis_status = redis_client.get_csv_status(file_id)
-    if analysis_status == 'analyzing':
-        raise HTTPException(
-            status_code=status.HTTP_202_ACCEPTED,
-            detail="Analysis is still in progress. Please try again later."
-        )
+    # Don't check Redis status - baseline runs in background
+    # Just return what's available in the database
 
     # Build query
     query = db.query(models.BaselinePrediction).filter(
