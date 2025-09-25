@@ -422,15 +422,6 @@ export default function ChartPage() {
     return detailTxns.filter((t) => t.leaked).reduce((a, t) => a + t.amount, 0);
   }, [selectedMonth, categoryTransactionsData, detailTxns]);
 
-  // ★ 누수 카테고리 집합: 그 카테고리에 leaked=true 거래가 하나라도 있으면 누수 카테고리로 간주
-  const leakedCategorySet = useMemo(() => {
-    const s = new Set<string>();
-    detailTxns.forEach((t) => {
-      if (t.leaked) s.add(t.category);
-    });
-    return s;
-  }, [detailTxns]);
-
   /* 파이 데이터 */
   const pieData = useMemo(() => {
     if (selectedMonth === null) return [];
