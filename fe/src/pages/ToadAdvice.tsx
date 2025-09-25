@@ -499,7 +499,7 @@ export default function ToadAdvice() {
     return (
       <div className="toad-advice-container">
         <Header />
-        <div style={{ padding: "2rem", textAlign: "center" }}>
+        <div style={{ padding: "2rem", textAlign: "center", color: "#fff" }}>
           <h2>두꺼비가 데이터를 분석하는 중...</h2>
         </div>
       </div>
@@ -510,7 +510,7 @@ export default function ToadAdvice() {
     return (
       <div className="toad-advice-container">
         <Header />
-        <div style={{ padding: "2rem", textAlign: "center" }}>
+        <div style={{ padding: "2rem", textAlign: "center", color: "#fff"}}>
           <h2>데이터를 불러올 수 없습니다</h2>
         </div>
       </div>
