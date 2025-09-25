@@ -1008,6 +1008,28 @@ async def get_doojo_data(
             except Exception as e:
                 logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
 
+    # Get budget data from budgets table for current month
+    budget_date = f"{current_year}-{current_month:02d}"
+    budgets_query = text("""
+        SELECT category, amount
+        FROM budgets
+        WHERE user_id = :user_id
+        AND budget_date = :budget_date
+        AND category IS NOT NULL
+    """)
+
+    budget_results = db.execute(
+        budgets_query,
+        {"user_id": user_id, "budget_date": budget_date}
+    ).fetchall()
+
+    # Create budget dictionary
+    budgets_by_category = {}
+    for budget in budget_results:
+        budgets_by_category[budget.category] = float(budget.amount)
+
+    logger.info(f"Found {len(budgets_by_category)} budgets for user {user_id} in {budget_date}")
+
     # Build categories prediction data from MySQL
     categories_prediction = {}
 
@@ -1025,9 +1047,12 @@ async def get_doojo_data(
         # Use real amount from transactions table if available
         real_value = real_amounts.get(doojo.category, None)
 
-        # Recalculate result based on real transactions data
+        # Use budget amount as current threshold if available, otherwise use Prophet prediction
+        current_value = budgets_by_category.get(doojo.category, float(doojo.current_threshold))
+
+        # Recalculate result based on real transactions data vs budget
         if real_value is not None:
-            result = real_value > float(doojo.current_threshold)
+            result = real_value > current_value
         else:
             # If no real data, result should be None or false
             result = None
@@ -1035,7 +1060,7 @@ async def get_doojo_data(
         categories_prediction[doojo.category] = CategoryDoojo(
             min=float(doojo.min_amount),
             max=float(doojo.max_amount),
-            current=float(doojo.current_threshold),
+            current=current_value,  # Now uses budget amount if available
             real=real_value,
             result=result,
             avg=avg_value
