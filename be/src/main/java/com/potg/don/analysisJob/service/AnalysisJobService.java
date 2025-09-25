@@ -16,9 +16,11 @@ import com.potg.don.user.entity.User;
 import com.potg.don.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AnalysisJobService {
 
 	private final AnalysisJobRepository jobRepo;
@@ -50,20 +52,25 @@ public class AnalysisJobService {
 	/** 스케줄러가 호출: poll 대상 Job을 1건 처리 */
 	@Transactional
 	public void pollOnce(AnalysisJob job) {
+		log.info("[Job] pollOnce start id={}, fileId={}", job.getId(), job.getFileId());
 		// 간단 락: 15초 리스
 		job.setLeasedUntil(Instant.now().plusSeconds(15));
 		jobRepo.saveAndFlush(job);
 
 		var status = csvClient.getCsvStatus(job.getFileId());
+		log.info("[Job] status={} for fileId={}", status != null ? status.getStatus() : "null", job.getFileId());
 		String s = status != null && status.getStatus()!=null ? status.getStatus().toLowerCase() : "";
 
 		if ("none".equals(s)) {
 			// 완료 → 결과 조회 & 저장
+			log.info("[Job] DONE -> fetching baseline for fileId={}", job.getFileId());
 			saveBaselineToBudgets(job.getUserId(), job.getFileId());
 			job.setStatus(AnalysisJob.Status.DONE);
 			job.setLastMessage("DONE");
 			job.setNextPollAt(null);
+			log.info("[Job] baseline saved for userId={}", job.getUserId());
 		} else {
+			log.info("[Job] RUNNING retryCount={}, nextPollAt={}", job.getRetryCount(), job.getNextPollAt());
 			// 진행중 → 백오프 증가
 			int rc = (job.getRetryCount()==null?0:job.getRetryCount()) + 1;
 			job.setRetryCount(rc);
