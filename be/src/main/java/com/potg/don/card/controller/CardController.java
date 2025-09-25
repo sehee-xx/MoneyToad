@@ -11,12 +11,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.potg.don.analysisJob.service.AnalysisJobService;
 import com.potg.don.auth.entity.CustomUserDetails;
 import com.potg.don.card.dto.request.CardRequest;
 import com.potg.don.card.dto.response.CardResponse;
 import com.potg.don.card.entity.Card;
 import com.potg.don.card.service.CardService;
 import com.potg.don.dummy.service.DummyService;
+import com.potg.don.transaction.dto.response.AnalysisTriggerResponse;
+import com.potg.don.transaction.dto.response.CsvUploadResponse;
+import com.potg.don.transaction.service.CsvService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 public class CardController {
 	private final CardService cardService;
 	private final DummyService dummyService;
+	private final CsvService csvService;
+	private final AnalysisJobService analysisJobService;
 
 	@GetMapping("")
 	public ResponseEntity<CardResponse> getCard(@AuthenticationPrincipal CustomUserDetails user) {
@@ -38,6 +44,11 @@ public class CardController {
 		@RequestBody CardRequest cardRequest) {
 		Card card = cardService.registerCard(user.getUserId(), cardRequest);
 		dummyService.populateFromPool(card.getId());
+		CsvUploadResponse csvUploadResponse = csvService.uploadCsvAndSaveFileId(card.getId(), user.getUserId());
+		String fileId = csvUploadResponse.getFileId();
+		AnalysisTriggerResponse analysisTriggerResponse = csvService.triggerAnalysis(user.getUserId());
+		csvService.saveBudgetsFromTriggerResponse(card.getId(), analysisTriggerResponse);
+		analysisJobService.enqueue(user.getUserId(), fileId);
 		return ResponseEntity.status(HttpStatus.CREATED).body(CardResponse.from(card));
 	}
 
@@ -46,6 +57,11 @@ public class CardController {
 		@RequestBody CardRequest cardRequest) {
 		Card card = cardService.updateCard(user.getUserId(), cardRequest);
 		dummyService.populateFromPool(card.getId());
+		CsvUploadResponse csvUploadResponse = csvService.uploadCsvAndSaveFileId(card.getId(), user.getUserId());
+		String fileId = csvUploadResponse.getFileId();
+		AnalysisTriggerResponse analysisTriggerResponse = csvService.triggerAnalysis(user.getUserId());
+		csvService.saveBudgetsFromTriggerResponse(card.getId(), analysisTriggerResponse);
+		analysisJobService.enqueue(user.getUserId(), fileId);
 		return ResponseEntity.ok(CardResponse.from(card));
 	}
 
