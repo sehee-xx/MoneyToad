@@ -481,12 +481,8 @@ async def get_leak_data(
             "created_at": predictions[0].created_at.isoformat() if predictions else None
         }
     
-    if leak_analysis:
-        details.update({
-            "actual_amount": float(leak_analysis.actual_amount) if leak_analysis.actual_amount else None,
-            "leak_amount": float(leak_analysis.leak_amount) if leak_analysis.leak_amount else None,
-            "analysis_data": leak_analysis.analysis_data
-        })
+    # Remove analysis_data from response to ensure consistency
+    # Only keep prediction data without actual values
     
     # Next month predictions removed - focusing on current month and baseline only
     
