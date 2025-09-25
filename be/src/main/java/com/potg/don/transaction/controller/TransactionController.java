@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.potg.don.auth.entity.CustomUserDetails;
+import com.potg.don.budget.dto.response.IsLeakedResponse;
 import com.potg.don.budget.service.BudgetService;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
 import com.potg.don.transaction.dto.response.MonthlyCategorySpendingResponse;
@@ -45,40 +46,29 @@ public class TransactionController {
 		YearMonth startYm = endYm.minusMonths(11);
 
 		Map<YearMonth, Map<String, Integer>> budgetByMonth =
-			budgetService.getBudgetMapByMonth(userId, startYm, endYm);
+			budgetService.getBudgetMapByMonthExcludingOthers(userId, startYm, endYm);
 
 		Map<YearMonth, Map<String, Integer>> spentByMonth =
-			transactionService.getSpentMapByMonth(userId, startYm, endYm);
+			transactionService.getSpentMapByMonthExcludingOthers(userId, startYm, endYm);
 
 		List<MonthlySpendingResponse> result = new ArrayList<>(12);
-		YearMonth cursor = startYm;
-
-		while (!cursor.isAfter(endYm)) {
+		for (YearMonth cursor = startYm; !cursor.isAfter(endYm); cursor = cursor.plusMonths(1)) {
 			Map<String, Integer> bm = budgetByMonth.getOrDefault(cursor, Map.of());
 			Map<String, Integer> sm = spentByMonth.getOrDefault(cursor, Map.of());
-
-			// ✅ 월 총 지출 합계
 			int totalSpent = sm.values().stream().mapToInt(Integer::intValue).sum();
-
-			// 누수 여부 판단
+			// 카테고리는 서비스에서 이미 12개로 정규화되어 옴 (기타 포함)
 			Set<String> cats = new HashSet<>(bm.keySet());
-			cats.addAll(sm.keySet());
+			cats.addAll(sm.keySet()); // 예산 없는 카테고리 지출도 누수로 판단하려면 합집합 유지
 
 			boolean leaked = false;
 			for (String cat : cats) {
 				int budget = bm.getOrDefault(cat, 0);
 				int spent  = sm.getOrDefault(cat, 0);
-				if (spent > budget) {
-					leaked = true;
-					break;
-				}
+				if (spent > budget) { leaked = true; break; }
 			}
 
-			// ✅ totalSpent 포함해서 응답 생성
 			result.add(MonthlySpendingResponse.from(cursor.toString(), totalSpent, leaked));
-			cursor = cursor.plusMonths(1);
 		}
-
 		return ResponseEntity.ok(result);
 	}
 

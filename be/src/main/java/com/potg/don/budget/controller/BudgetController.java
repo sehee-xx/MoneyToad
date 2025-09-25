@@ -44,31 +44,28 @@ public class BudgetController {
 		YearMonth startYm = endYm.minusMonths(11);
 
 		Map<YearMonth, Map<String, Integer>> budgetByMonth =
-			budgetService.getBudgetMapByMonth(userId, startYm, endYm);
+			budgetService.getBudgetMapByMonthExcludingOthers(userId, startYm, endYm);
 
 		Map<YearMonth, Map<String, Integer>> spentByMonth =
-			transactionService.getSpentMapByMonth(userId, startYm, endYm);
+			transactionService.getSpentMapByMonthExcludingOthers(userId, startYm, endYm);
 
 		List<IsLeakedResponse> result = new ArrayList<>(12);
-		YearMonth cursor = startYm;
-		while (!cursor.isAfter(endYm)) {
+		for (YearMonth cursor = startYm; !cursor.isAfter(endYm); cursor = cursor.plusMonths(1)) {
 			Map<String, Integer> bm = budgetByMonth.getOrDefault(cursor, Map.of());
 			Map<String, Integer> sm = spentByMonth.getOrDefault(cursor, Map.of());
 
+			// 카테고리는 서비스에서 이미 12개로 정규화되어 옴 (기타 포함)
 			Set<String> cats = new HashSet<>(bm.keySet());
-			cats.addAll(sm.keySet());
+			cats.addAll(sm.keySet()); // 예산 없는 카테고리 지출도 누수로 판단하려면 합집합 유지
 
 			boolean leaked = false;
 			for (String cat : cats) {
 				int budget = bm.getOrDefault(cat, 0);
-				int spent = sm.getOrDefault(cat, 0);
-				if (spent > budget) {
-					leaked = true;
-					break;
-				}
+				int spent  = sm.getOrDefault(cat, 0);
+				if (spent > budget) { leaked = true; break; }
 			}
+
 			result.add(IsLeakedResponse.from(cursor, leaked));
-			cursor = cursor.plusMonths(1);
 		}
 		return ResponseEntity.ok(result);
 	}

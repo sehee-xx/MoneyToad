@@ -91,6 +91,30 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 		@Param("end") LocalDateTime end
 	);
 
+	// 카드 한 장의 월별 카테고리 합계 (보험/세금 제외, null/빈 카테고리는 '기타'로 취급)
+	@Query(value = """
+        SELECT
+            YEAR(t.transaction_date_time) AS y,
+            MONTH(t.transaction_date_time) AS m,
+            COALESCE(NULLIF(t.category, ''), '기타') AS category,
+            SUM(t.amount) AS total
+        FROM transactions t
+        WHERE t.card_id = :cardId
+          AND t.transaction_date_time >= :start
+          AND t.transaction_date_time < :end
+          AND (
+                COALESCE(NULLIF(t.category, ''), '기타') IN (:allowed) 
+              )
+        GROUP BY y, m, category
+        ORDER BY y, m
+        """, nativeQuery = true)
+	List<MonthlyCategoryTotalRow> aggregateCategoryTotalsByMonthForCardFiltered(
+		@Param("cardId") Long cardId,
+		@Param("start") LocalDateTime start,
+		@Param("end") LocalDateTime end,
+		@Param("allowed") List<String> allowed
+	);
+
 	/**
 	 * 소유권 검증 포함 단건 조회 (업데이트용)
 	 */

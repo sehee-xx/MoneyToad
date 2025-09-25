@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.potg.don.card.entity.Card;
 import com.potg.don.card.repository.CardRepository;
+import com.potg.don.global.util.LeakCategories;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
 import com.potg.don.transaction.dto.response.MonthlyCategorySpendingResponse;
 import com.potg.don.transaction.dto.response.MonthlySpendingResponse;
@@ -39,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 public class TransactionService {
 
 	private static final ZoneId ZONE_SEOUL = ZoneId.of("Asia/Seoul");
-	private static final DateTimeFormatter YM_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 	private static final Set<String> EXCLUDED_FOR_LEAK = Set.of("보험 / 세금");
 
 	private final TransactionRepository transactionRepository;
@@ -137,5 +137,40 @@ public class TransactionService {
 			byCat.merge(cat, total, Integer::sum);
 		}
 		return spentByMonth;
+	}
+
+	/**
+	 * 최근 12개월 범위의 월별-카테고리별 지출 합계 맵
+	 * - 키: YearMonth
+	 * - 값: (카테고리 -> 합계)
+	 * - 카테고리: LeakCategories.ALLOWED(12개)만 포함 (보험/세금 등 제외)
+	 * - null/빈 카테고리는 "기타"로 정규화
+	 */
+	public Map<YearMonth, Map<String, Integer>> getSpentMapByMonthExcludingOthers(
+		Long userId, YearMonth startYm, YearMonth endYm
+	) {
+		LocalDateTime start = startYm.atDay(1).atStartOfDay();
+		LocalDateTime end = endYm.plusMonths(1).atDay(1).atStartOfDay(); // [start, end)
+
+		Long cardId = cardRepository.findByUserId(userId)
+			.orElseThrow(EntityNotFoundException::new)
+			.getId();
+
+		List<MonthlyCategoryTotalRow> rows =
+			transactionRepository.aggregateCategoryTotalsByMonthForCardFiltered(
+				cardId, start, end, LeakCategories.ALLOWED
+			);
+
+		Map<YearMonth, Map<String, Integer>> result = new HashMap<>();
+		for (MonthlyCategoryTotalRow r : rows) {
+			YearMonth ym = YearMonth.of(r.getY(), r.getM());
+			String mapped = LeakCategories.mapToAllowedOrNull(r.getCategory()); // '기타' 포함 12개
+			if (mapped == null) continue; // 방어적
+
+			int total = Math.toIntExact(Objects.requireNonNullElse(r.getTotal(), 0L));
+			result.computeIfAbsent(ym, k -> new HashMap<>())
+				.merge(mapped, total, Integer::sum);
+		}
+		return result;
 	}
 }
