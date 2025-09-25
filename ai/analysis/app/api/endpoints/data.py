@@ -2,7 +2,7 @@
 Data analysis endpoints for financial data processing
 """
 from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, Query, HTTPException, status, BackgroundTasks, Depends
+from fastapi import APIRouter, Query, HTTPException, status, Depends, BackgroundTasks
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -43,15 +43,83 @@ class LeakDataResponse(BaseModel):
     details: dict
 
 
+async def run_baseline_analysis(
+    file_id: str,
+    csv_data
+):
+    """
+    Background task to run baseline analysis for past 11 months
+    """
+    db = None
+    try:
+        # Get fresh DB session for background task
+        db = next(get_db())
+
+        logger.info(f"Starting baseline calculation for past 11 months for {file_id}")
+        baseline_predictions = await prophet_service.calculate_baseline_predictions_async(csv_data)
+
+        if baseline_predictions and baseline_predictions.get('baseline_months'):
+            logger.info(f"Saving {len(baseline_predictions['baseline_months'])} months of baseline data")
+            for month_key, month_data in baseline_predictions['baseline_months'].items():
+                if month_data['status'] != 'completed':
+                    continue
+
+                baseline_year = month_data['year']
+                baseline_month = month_data['month']
+                cutoff_date = month_data.get('training_data_until', '').split('T')[0] if month_data.get('training_data_until') else None
+
+                # Save baseline for each category
+                for category, cat_baseline in month_data.get('categories', {}).items():
+                    # Check existing baseline
+                    existing = db.query(models.BaselinePrediction).filter(
+                        models.BaselinePrediction.file_id == file_id,
+                        models.BaselinePrediction.category == category,
+                        models.BaselinePrediction.year == baseline_year,
+                        models.BaselinePrediction.month == baseline_month
+                    ).first()
+
+                    if not existing:
+                        baseline_pred = models.BaselinePrediction(
+                            file_id=file_id,
+                            category=category,
+                            year=baseline_year,
+                            month=baseline_month,
+                            predicted_amount=cat_baseline.get('predicted', 0),
+                            lower_bound=cat_baseline.get('lower_bound'),
+                            upper_bound=cat_baseline.get('upper_bound'),
+                            training_cutoff_date=cutoff_date
+                        )
+                        db.add(baseline_pred)
+                    else:
+                        existing.predicted_amount = cat_baseline.get('predicted', 0)
+                        existing.lower_bound = cat_baseline.get('lower_bound')
+                        existing.upper_bound = cat_baseline.get('upper_bound')
+                        existing.training_cutoff_date = cutoff_date
+
+            db.commit()
+            logger.info(f"Baseline predictions saved for {file_id}")
+
+    except Exception as e:
+        logger.error(f"Baseline analysis failed for {file_id}: {str(e)}")
+    finally:
+        if db:
+            db.close()
+
+
 async def run_prophet_analysis(
     file_id: str,
     job_id: str,
-    db: Session
+    db: Session = None,
+    background_tasks: BackgroundTasks = None
 ):
     """
-    Background task to run Prophet analysis
+    Run Prophet analysis - current month immediately, baseline in background
     """
     try:
+        # Get fresh DB session for task
+        if db is None:
+            db = next(get_db())
+
         # Update status to analyzing
         redis_client.set_csv_status(file_id, "analyzing")
 
@@ -221,46 +289,14 @@ async def run_prophet_analysis(
             db.commit()
             logger.info(f"Current month predictions saved for {file_id}")
 
-            # STEP 2: Now calculate baseline for past 11 months
-            logger.info(f"Starting baseline calculation for past 11 months for {file_id}")
-            baseline_predictions = await prophet_service.calculate_baseline_predictions_async(csv_data)
-            if baseline_predictions and baseline_predictions.get('baseline_months'):
-                logger.info(f"Saving {len(baseline_predictions['baseline_months'])} months of baseline data")
-                for month_key, month_data in baseline_predictions['baseline_months'].items():
-                    if month_data['status'] != 'completed':
-                        continue
-                    
-                    baseline_year = month_data['year']
-                    baseline_month = month_data['month']
-                    cutoff_date = month_data.get('training_data_until', '').split('T')[0] if month_data.get('training_data_until') else None
-                    
-                    # Save baseline for each category
-                    for category, cat_baseline in month_data.get('categories', {}).items():
-                        # Check existing baseline
-                        existing = db.query(models.BaselinePrediction).filter(
-                            models.BaselinePrediction.file_id == file_id,
-                            models.BaselinePrediction.category == category,
-                            models.BaselinePrediction.year == baseline_year,
-                            models.BaselinePrediction.month == baseline_month
-                        ).first()
-                        
-                        if not existing:
-                            baseline_pred = models.BaselinePrediction(
-                                file_id=file_id,
-                                category=category,
-                                year=baseline_year,
-                                month=baseline_month,
-                                predicted_amount=cat_baseline.get('predicted', 0),
-                                lower_bound=cat_baseline.get('lower_bound'),
-                                upper_bound=cat_baseline.get('upper_bound'),
-                                training_cutoff_date=cutoff_date
-                            )
-                            db.add(baseline_pred)
-                        else:
-                            existing.predicted_amount = cat_baseline.get('predicted', 0)
-                            existing.lower_bound = cat_baseline.get('lower_bound')
-                            existing.upper_bound = cat_baseline.get('upper_bound')
-                            existing.training_cutoff_date = cutoff_date
+            # STEP 2: Start baseline calculation in background
+            if background_tasks:
+                logger.info(f"Starting baseline calculation in background for {file_id}")
+                background_tasks.add_task(
+                    run_baseline_analysis,
+                    file_id,
+                    csv_data
+                )
             
             # Update job status
             job = db.query(models.AnalysisJob).filter(
@@ -296,9 +332,11 @@ async def run_prophet_analysis(
             
     except Exception as e:
         logger.error(f"Prophet analysis failed for {file_id}: {str(e)}")
-        
+
         # Update job status to failed
         try:
+            if db is None:
+                db = next(get_db())
             job = db.query(models.AnalysisJob).filter(
                 models.AnalysisJob.job_id == job_id
             ).first()
@@ -309,12 +347,19 @@ async def run_prophet_analysis(
             db.commit()
         except:
             pass
-        
+        finally:
+            if db:
+                db.close()
+
         # Update Redis status back to none (idle) even on failure
         redis_client.set_csv_status(file_id, "none")
-        
+
         # Store error metadata for debugging
         redis_client.set_analysis_metadata(file_id, {"error": str(e)})
+    finally:
+        # Always close the db connection
+        if db:
+            db.close()
 
 
 @router.post(
@@ -329,16 +374,56 @@ async def calculate_monthly_leak(
     db: Session = Depends(get_db)
 ) -> LeakDataResponse:
     """
-    Start async Prophet analysis for spending prediction.
-
-    Args:
-        file_id: ID of the CSV file to analyze
-        background_tasks: FastAPI background tasks
-        db: Database session
-
-    Returns:
-        LeakDataResponse with analysis results
+    Start Prophet analysis and return leak data.
+    If data already exists, return it immediately.
+    Otherwise, start analysis and return results.
     """
+    # First check if we already have predictions
+    year = datetime.now().year
+    month = datetime.now().month
+
+    predictions = db.query(models.Prediction).filter(
+        models.Prediction.file_id == file_id,
+        models.Prediction.prediction_date == f"{year}-{month:02d}-01"
+    ).all()
+
+    if predictions:
+        # We already have predictions, return them immediately
+        category_predictions = {}
+        total_predicted = 0
+
+        for pred in predictions:
+            category_predictions[pred.category] = {
+                "predicted_amount": float(pred.predicted_amount),
+                "lower_bound": float(pred.lower_bound) if pred.lower_bound else None,
+                "upper_bound": float(pred.upper_bound) if pred.upper_bound else None
+            }
+            total_predicted += pred.predicted_amount
+
+        details = {
+            "total_predicted": float(total_predicted),
+            "categories_count": len(predictions),
+            "category_predictions": category_predictions,
+            "prediction_date": predictions[0].prediction_date.isoformat() if predictions else None,
+            "created_at": predictions[0].created_at.isoformat() if predictions else None
+        }
+
+        leak_analysis = db.query(models.LeakAnalysis).filter(
+            models.LeakAnalysis.file_id == file_id,
+            models.LeakAnalysis.year == year,
+            models.LeakAnalysis.month == month
+        ).first()
+
+        return LeakDataResponse(
+            file_id=file_id,
+            year=year,
+            month=month,
+            leak_amount=float(leak_analysis.leak_amount) if leak_analysis and leak_analysis.leak_amount else 0.0,
+            transactions_count=len(predictions),
+            details=details
+        )
+
+    # No predictions yet, need to run analysis
     # Check if file exists in Redis
     file_metadata = redis_client.get_file_metadata(file_id)
     if not file_metadata:
@@ -365,92 +450,54 @@ async def calculate_monthly_leak(
     db.add(job)
     db.commit()
 
-    # Start background task
-    background_tasks.add_task(
-        run_prophet_analysis,
-        file_id,
-        job_id,
-        db
-    )
+    # Run analysis (current month sync, baseline in background)
+    await run_prophet_analysis(file_id, job_id, db, background_tasks)
 
-    # Wait for analysis to complete (with timeout)
-    import asyncio
-    max_wait = 60  # 60 seconds timeout
-    wait_interval = 1  # Check every 1 second
-    elapsed = 0
+    # Analysis completed, now get the results
+    predictions = db.query(models.Prediction).filter(
+        models.Prediction.file_id == file_id,
+        models.Prediction.prediction_date == f"{year}-{month:02d}-01"
+    ).all()
 
-    while elapsed < max_wait:
-        await asyncio.sleep(wait_interval)
-        elapsed += wait_interval
+    if not predictions:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Analysis completed but no predictions found"
+        )
 
-        # Check job status
-        job = db.query(models.AnalysisJob).filter(
-            models.AnalysisJob.job_id == job_id
-        ).first()
+    # Build response
+    category_predictions = {}
+    total_predicted = 0
 
-        if job and job.status == "completed":
-            # Analysis completed, get leak data
-            year = datetime.now().year
-            month = datetime.now().month
+    for pred in predictions:
+        category_predictions[pred.category] = {
+            "predicted_amount": float(pred.predicted_amount),
+            "lower_bound": float(pred.lower_bound) if pred.lower_bound else None,
+            "upper_bound": float(pred.upper_bound) if pred.upper_bound else None
+        }
+        total_predicted += pred.predicted_amount
 
-            # Get all category predictions
-            predictions = db.query(models.Prediction).filter(
-                models.Prediction.file_id == file_id,
-                models.Prediction.prediction_date == f"{year}-{month:02d}-01"
-            ).all()
+    details = {
+        "total_predicted": float(total_predicted),
+        "categories_count": len(predictions),
+        "category_predictions": category_predictions,
+        "prediction_date": predictions[0].prediction_date.isoformat() if predictions else None,
+        "created_at": predictions[0].created_at.isoformat() if predictions else None
+    }
 
-            if not predictions:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"No prediction data found for {year}-{month:02d}"
-                )
+    leak_analysis = db.query(models.LeakAnalysis).filter(
+        models.LeakAnalysis.file_id == file_id,
+        models.LeakAnalysis.year == year,
+        models.LeakAnalysis.month == month
+    ).first()
 
-            # Get leak analysis if available
-            leak_analysis = db.query(models.LeakAnalysis).filter(
-                models.LeakAnalysis.file_id == file_id,
-                models.LeakAnalysis.year == year,
-                models.LeakAnalysis.month == month
-            ).first()
-
-            # Build response
-            category_predictions = {}
-            total_predicted = 0
-
-            for pred in predictions:
-                category_predictions[pred.category] = {
-                    "predicted_amount": float(pred.predicted_amount),
-                    "lower_bound": float(pred.lower_bound) if pred.lower_bound else None,
-                    "upper_bound": float(pred.upper_bound) if pred.upper_bound else None
-                }
-                total_predicted += pred.predicted_amount
-
-            details = {
-                "total_predicted": float(total_predicted),
-                "categories_count": len(predictions),
-                "category_predictions": category_predictions,
-                "prediction_date": predictions[0].prediction_date.isoformat() if predictions else None,
-                "created_at": predictions[0].created_at.isoformat() if predictions else None
-            }
-
-            return LeakDataResponse(
-                file_id=file_id,
-                year=year,
-                month=month,
-                leak_amount=float(leak_analysis.leak_amount) if leak_analysis and leak_analysis.leak_amount else 0.0,
-                transactions_count=len(predictions),
-                details=details
-            )
-
-        elif job and job.status == "failed":
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Analysis failed: {job.error_message}"
-            )
-
-    # Timeout reached
-    raise HTTPException(
-        status_code=status.HTTP_408_REQUEST_TIMEOUT,
-        detail="Analysis is taking longer than expected. Please check status later."
+    return LeakDataResponse(
+        file_id=file_id,
+        year=year,
+        month=month,
+        leak_amount=float(leak_analysis.leak_amount) if leak_analysis and leak_analysis.leak_amount else 0.0,
+        transactions_count=len(predictions),
+        details=details
     )
 
 

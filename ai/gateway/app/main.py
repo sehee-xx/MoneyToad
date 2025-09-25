@@ -326,7 +326,7 @@ async def proxy_request(
     headers.pop("host", None)
     
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             # Get request body if present
             body = None
             if method in ["POST", "PUT", "PATCH"]:
