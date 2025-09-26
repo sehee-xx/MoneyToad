@@ -112,7 +112,7 @@
   /* 배경: 한지 SVG + 가벼운 비네팅 */
   background:
     radial-gradient(120% 120% at 50% 40%, rgba(0,0,0,0.06), rgba(0,0,0,0) 60%) ,
-    url("/leakPot/tooltip.png") center/cover no-repeat;
+    url("/leakPot/tooltip.webp") center/cover no-repeat;
   border-radius: 5px;
 
   /* 글씨 */

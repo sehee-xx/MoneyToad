@@ -6,30 +6,30 @@ import "./ToadAdvice.css";
 
 /* ===== 카테고리 아이콘 ===== */
 const CATEGORY_ICONS: Record<string, string> = {
-  식비: "/toadAdvice/eat.png",
-  카페: "/toadAdvice/tea.png",
-  "마트/편의점": "/toadAdvice/market.png",
-  문화생활: "/toadAdvice/culture.png",
-  "교통 / 차량": "/toadAdvice/transport.png",
-  "패션 / 미용": "/toadAdvice/fashion.png",
-  생활용품: "/toadAdvice/living.png",
-  "주거 / 통신": "/toadAdvice/house.png",
-  "건강 / 병원": "/toadAdvice/health.png",
-  교육: "/toadAdvice/edu.png",
-  "경조사 / 회비": "/toadAdvice/event.png",
-  "보험 / 세금": "/toadAdvice/tax.png",
-  기타: "/toadAdvice/etc.png",
+  식비: "/toadAdvice/eat.webp",
+  카페: "/toadAdvice/tea.webp",
+  "마트/편의점": "/toadAdvice/market.webp",
+  문화생활: "/toadAdvice/culture.webp",
+  "교통 / 차량": "/toadAdvice/transport.webp",
+  "패션 / 미용": "/toadAdvice/fashion.webp",
+  생활용품: "/toadAdvice/living.webp",
+  "주거 / 통신": "/toadAdvice/house.webp",
+  "건강 / 병원": "/toadAdvice/health.webp",
+  교육: "/toadAdvice/edu.webp",
+  "경조사 / 회비": "/toadAdvice/event.webp",
+  "보험 / 세금": "/toadAdvice/tax.webp",
+  기타: "/toadAdvice/etc.webp",
 };
 const getCategoryImage = (category: string) =>
-  CATEGORY_ICONS[category] ?? "/toadAdvice/etc.png";
+  CATEGORY_ICONS[category] ?? "/toadAdvice/etc.webp";
 
 export const toadAdviceAssets = [
   ...Object.values(CATEGORY_ICONS),
-  "/toadAdvice/background.png",
-  "/toadAdvice/angryToad.png",
-  "/toadAdvice/happyToad.png",
-  "/toadAdvice/total.png",
-  "/toadAdvice/card.png",
+  "/toadAdvice/background.webp",
+  "/toadAdvice/angryToad.webp",
+  "/toadAdvice/happyToad.webp",
+  "/toadAdvice/total.webp",
+  "/toadAdvice/card.webp",
 ];
 
 /* ===== 데모 데이터 (카드용) ===== */
@@ -557,7 +557,7 @@ export default function ToadAdvice() {
                   </div>
                 )}
                 <img
-                  src="/toadAdvice/angryToad.png"
+                  src="/toadAdvice/angryToad.webp"
                   className="toad-emoji big"
                   draggable={false}
                   onClick={() => {
@@ -596,7 +596,7 @@ export default function ToadAdvice() {
                 훌륭하오! 과소비 항목이 없소!
               </div>
               <img
-                src="/toadAdvice/happyToad.png"
+                src="/toadAdvice/happyToad.webp"
                 className="toad-happy"
                 draggable={false}
               />

@@ -25,13 +25,13 @@ import { useUpdateTransactionCategoryMutation } from "../api/mutation/transactio
 import type { MonthlyTransaction } from "../types";
 
 export const chartAssets = [
-  "/charts/background.png",
-  "/charts/detailBackground.png",
-  "/charts/sitting_girl.png",
-  "/charts/toad.png",
-  "/charts/water.png",
-  "/charts/flower.png",
-  "/charts/leaf.png",
+  "/charts/background.webp",
+  "/charts/detailBackground.webp",
+  "/charts/sitting_girl.webp",
+  "/charts/toad.webp",
+  "/charts/water.webp",
+  "/charts/flower.webp",
+  "/charts/leaf.webp",
   "/charts/flower_gray.webp",
   "/charts/leaf_gray.webp",
 ];
@@ -635,7 +635,7 @@ export default function ChartPage() {
 
           {/* 연못 바닥: onLoad에서 실제 비율로 교체 */}
           <img
-            src="/charts/water.png"
+            src="/charts/water.webp"
             alt="Water"
             className="jp-water-image"
             onLoad={(e) => {
@@ -648,11 +648,11 @@ export default function ChartPage() {
 
           {/* 장식 이미지(무대 내부의 % 좌표) */}
           <img
-            src="/charts/sitting_girl.png"
+            src="/charts/sitting_girl.webp"
             alt="Sitting Girl"
             className="jp-page-image"
           />
-          <img src="/charts/toad.png" alt="Toad" className="jp-toad-image" />
+          <img src="/charts/toad.webp" alt="Toad" className="jp-toad-image" />
 
           {/* 라인차트 */}
           <div className="jp-linechart-wrap">

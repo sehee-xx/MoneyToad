@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import "./NotFound.css";
 
 export const notFoundAssets = [
-  "/404.png",
+  "/404.webp",
 ];
 
 export default function NotFound() {
@@ -11,7 +11,7 @@ export default function NotFound() {
   return (
     <div className="nf-wrap">
       {/* 404 배경 이미지 */}
-      <img src="/404.png" alt="404 Not Found" className="nf-bg" />
+      <img src="/404.webp" alt="404 Not Found" className="nf-bg" />
 
       {/* 두꺼비 옆 말풍선 */}
       <div className="nf-bubble tail-right">

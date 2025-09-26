@@ -4,7 +4,7 @@ import { useRegisterCardMutation } from "../api/mutation/cardMutation";
 import { useUpdateUserBasicInfoMutation } from "../api/mutation/userMutation";
 import "./UserInfoInputPage.css";
 
-const SCENE_BG = "/userInfo/talk-scene.png";
+const SCENE_BG = "/userInfo/talk-scene.webp";
 
 export const userInfoAssets = [
   SCENE_BG,

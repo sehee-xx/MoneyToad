@@ -24,7 +24,7 @@ body,
 
 .jp-wrap {
   min-height: 100vh;
-  background: url("/charts/background.png") no-repeat center top fixed;
+  background: url("/charts/background.webp") no-repeat center top fixed;
   background-size: cover;
   color: #fff;
   display: flex;
@@ -215,7 +215,7 @@ body,
   z-index: 2000; /* 헤더(1000)보다 위 */
   display: grid;
   place-items: center;
-  background: url("/charts/background.png") no-repeat center top fixed;
+  background: url("/charts/background.webp") no-repeat center top fixed;
   background-size: cover;
   overflow: visible; /* 스크롤 없음 */
 
@@ -234,7 +234,7 @@ body,
   max-height: calc(100vh - 2 * var(--overlay-pad));
 
   margin: 0;
-  background: url("/charts/detailBackground.png") no-repeat center top fixed;
+  background: url("/charts/detailBackground.webp") no-repeat center top fixed;
   border-radius: 20px;
   padding: clamp(22px, 2.4vw, 32px) clamp(18px, 2vw, 28px); /* 위·아래 살짝 증가 */
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4),
