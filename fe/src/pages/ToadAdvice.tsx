@@ -511,7 +511,8 @@ export default function ToadAdvice() {
       <div className="toad-advice-container">
         <Header />
         <div style={{ padding: "2rem", textAlign: "center", color: "#fff"}}>
-          <h2>데이터를 불러올 수 없습니다</h2>
+          <h2>두꺼비가 데이터를 정리하고 있습니다.</h2>
+          <h2>잠시 후 방문해 주세요.</h2>
         </div>
       </div>
     );
