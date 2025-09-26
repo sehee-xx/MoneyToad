@@ -43,8 +43,6 @@ export const useUpdateBudgetMutation = (year: number, month: number, onMutationC
       }
     },
     onSuccess: (_data, variables) => {
-      // 성공 시 서버 응답으로 캐시 업데이트 (선택적)
-      // 이미 낙관적 업데이트가 적용되어 있으므로 추가 작업 없음
 
       // pending 상태 정리
       if (onMutationComplete) {

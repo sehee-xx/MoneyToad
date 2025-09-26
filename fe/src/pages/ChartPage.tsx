@@ -584,9 +584,9 @@ export default function ChartPage() {
           cx={cx}
           cy={cy}
           r={5}
-          stroke="#F2AB9A"
+          stroke="#a47690ff"
           strokeWidth={2}
-          fill="#F2AB9A"
+          fill="#a47690ff"
         />
       </g>
     );
@@ -686,7 +686,7 @@ export default function ChartPage() {
                   type="monotone"
                   dataKey="me"
                   name="내 소비"
-                  stroke="#817716"
+                  stroke="#DCE775"
                   strokeWidth={3}
                   dot={MyConsumptionDot}
                   activeDot={MyConsumptionDot}
@@ -695,7 +695,7 @@ export default function ChartPage() {
                   type="monotone"
                   dataKey="peers"
                   name="또래 소비"
-                  stroke="#F2AB9A"
+                  stroke="#a47690ff"
                   strokeWidth={3}
                   dot={PeerDot}
                   activeDot={{ r: 7 }}
