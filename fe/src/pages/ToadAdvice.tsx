@@ -582,7 +582,21 @@ export default function ToadAdvice() {
             </div>
             <div className="scroll-hint">아래로 스크롤</div>
           </>
-        ) : null}
+        ) : 
+        (
+          <div className="hero-bottom">
+            <div className="toad-stack big">
+              <div className="toad-happy-title"> 
+                훌륭하오! 과소비 항목이 없소!
+              </div>
+              <img
+                  src="/toadAdvice/happyToad.png"
+                  className="toad-happy"
+                  draggable={false}
+                />
+            </div>
+          </div>
+          )}
       </section>
 
       {/* ===== Page 2 ===== */}
