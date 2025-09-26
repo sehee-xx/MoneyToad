@@ -778,6 +778,7 @@ export default function ChartPage() {
                             stroke="transparent"
                             strokeWidth={0}
                             onClick={() => handleClickCategory(entry.name)}
+                            style={{ cursor: 'pointer' }}
                           />
                         ))}
                       </Pie>
