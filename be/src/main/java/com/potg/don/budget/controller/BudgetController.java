@@ -132,7 +132,7 @@ public class BudgetController {
 				} else {
 					// 예산이 없으면 0 예산으로 생성 (두 가지 방법 중 택1)
 					// [방법 A] BudgetResponse에 팩토리 메서드 추가 가능할 때
-					return BudgetResponse.of(cat, 0, spent);
+					return BudgetResponse.of(cat, 0,0, spent);
 				}
 			})
 			.collect(Collectors.toList());
