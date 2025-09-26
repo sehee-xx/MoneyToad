@@ -80,6 +80,16 @@
 .toad-stack.big .toad-emoji.big {
   width: clamp(220px, 28vw, 360px);
 }
+.toad-happy {
+  width: clamp(220px, 28vw, 800px);
+}
+.toad-happy-title {
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 700;
+  color: #ffd400;
+  margin: 8px 0 4px;
+  text-align: center;
+}
 
 /* 말풍선 크게 */
 .speech-bubble {
