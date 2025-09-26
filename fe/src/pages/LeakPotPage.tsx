@@ -694,8 +694,8 @@ const LeakPotPage = () => {
     return baseCategories.map(cat => ({
       ...cat,
       threshold: pendingThresholds[cat.id] ?? cat.threshold
-    }));
-  }, [budgetData, isBudgetLoading, pendingThresholds]);
+    })).sort((a, b) => b.spending - a.spending);
+  }, [budgetData, isBudgetLoading, pendingThresholds]);;;
 
   // 카테고리별 디바운스 타이머
   const debounceTimers = useRef<Map<number, number>>(new Map());
