@@ -863,6 +863,8 @@ class DoojoResponse(BaseModel):
     tags=["Protected"]
 )
 async def get_doojo_data(
+    year: Optional[int] = Query(None, description="Year to query (default: current year)"),
+    month: Optional[int] = Query(None, ge=1, le=12, description="Month to query (1-12, default: current month)"),
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ) -> DoojoResponse:
@@ -880,6 +882,8 @@ async def get_doojo_data(
     - result: real > current 이면 true, 아니면 false
 
     Args:
+        year: 조회할 연도 (선택, 기본값: 현재 연도)
+        month: 조회할 월 (선택, 1-12, 기본값: 현재 월)
         user_id: JWT 토큰에서 추출한 사용자 ID
         db: Database session
 
@@ -912,23 +916,20 @@ async def get_doojo_data(
             detail="Analysis is still in progress. Please try again later."
         )
 
-    # Get current month and year
+    # Use provided year/month or default to current
     current_date = datetime.now()
-    current_year = current_date.year
-    current_month = current_date.month
+    query_year = year if year is not None else current_date.year
+    query_month = month if month is not None else current_date.month
 
     # Get doojo data from MySQL using file_id
     doojo_data = db.query(models.DoojoAnalysis).filter(
         models.DoojoAnalysis.file_id == file_id,
-        models.DoojoAnalysis.year == current_year,
-        models.DoojoAnalysis.month == current_month
+        models.DoojoAnalysis.year == query_year,
+        models.DoojoAnalysis.month == query_month
     ).all()
 
-    if not doojo_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No doojo analysis data found for {current_year}-{current_month:02d}. Please run analysis first."
-        )
+    # If no doojo data, we'll calculate it dynamically
+    dynamic_doojo = {}
 
     # Get user's cards to fetch transactions from MySQL
     from sqlalchemy import text, and_, extract
@@ -943,12 +944,66 @@ async def get_doojo_data(
     real_amounts = {}
     historical_avg = {}
 
+    # If no doojo data exists, calculate min/max dynamically from transactions
+    if not doojo_data and card_ids:
+        # Calculate min/max for each category from past 12 months
+        past_12_months_query = text("""
+            SELECT
+                category,
+                DATE_FORMAT(transaction_date_time, '%Y-%m') as month,
+                SUM(amount) as monthly_total
+            FROM transactions
+            WHERE card_id IN :card_ids
+            AND transaction_date_time >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+            AND category != '보험 / 세금'
+            GROUP BY category, DATE_FORMAT(transaction_date_time, '%Y-%m')
+        """)
+
+        past_data = db.execute(
+            past_12_months_query,
+            {"card_ids": tuple(card_ids)}
+        ).fetchall()
+
+        # Group by category to find min/max
+        category_stats = {}
+        for row in past_data:
+            if row.category not in category_stats:
+                category_stats[row.category] = []
+            category_stats[row.category].append(float(row.monthly_total))
+
+        # Calculate min/max for each category
+        for category, amounts in category_stats.items():
+            if amounts:
+                dynamic_doojo[category] = {
+                    'min_amount': min(amounts),
+                    'max_amount': max(amounts),
+                    'avg_amount': sum(amounts) / len(amounts)
+                }
+
+        # Get predictions for current threshold
+        predictions = db.query(models.Prediction).filter(
+            models.Prediction.file_id == file_id,
+            models.Prediction.prediction_date == f"{query_year}-{query_month:02d}-01"
+        ).all()
+
+        for pred in predictions:
+            if pred.category in dynamic_doojo:
+                dynamic_doojo[pred.category]['current_threshold'] = float(pred.predicted_amount)
+            else:
+                # If category not in historical data, use prediction as baseline
+                dynamic_doojo[pred.category] = {
+                    'min_amount': 0.0,
+                    'max_amount': float(pred.predicted_amount) * 1.5,  # Estimate max as 1.5x prediction
+                    'avg_amount': float(pred.predicted_amount),
+                    'current_threshold': float(pred.predicted_amount)
+                }
+
     if card_ids:
         # Import Transaction model if not already imported
         from sqlalchemy.orm import aliased
         import pandas as pd
 
-        # Get current month transactions from transactions table
+        # Get transactions for the specified month from transactions table
         # Using DATE_FORMAT for better compatibility
         transactions_query = text("""
             SELECT category, merchant_name, amount, transaction_date_time
@@ -957,7 +1012,7 @@ async def get_doojo_data(
             AND DATE_FORMAT(transaction_date_time, '%Y-%m') = :year_month
         """)
 
-        year_month = f"{current_year}-{current_month:02d}"
+        year_month = f"{query_year}-{query_month:02d}"
         current_month_transactions = db.execute(
             transactions_query,
             {"card_ids": tuple(card_ids), "year_month": year_month}
@@ -1031,7 +1086,7 @@ async def get_doojo_data(
             historical_avg[row.category] = float(row.avg_amount) if row.avg_amount else 0.0
 
     # Fallback to S3 data if no transactions in MySQL
-    if not categories_detail:
+    if not categories_detail or (not doojo_data and not card_ids):
         file_metadata = redis_client.get_file_metadata(file_id)
         s3_key = file_metadata.get('s3_key') if file_metadata else None
 
@@ -1042,8 +1097,8 @@ async def get_doojo_data(
                     import pandas as pd
                     csv_data['transaction_date_time'] = pd.to_datetime(csv_data['transaction_date_time'])
                     current_month_data = csv_data[
-                        (csv_data['transaction_date_time'].dt.year == current_year) &
-                        (csv_data['transaction_date_time'].dt.month == current_month)
+                        (csv_data['transaction_date_time'].dt.year == query_year) &
+                        (csv_data['transaction_date_time'].dt.month == query_month)
                     ]
 
                     for category in csv_data['category'].unique():
@@ -1071,12 +1126,41 @@ async def get_doojo_data(
                             )
 
                     historical_avg = csv_data.groupby('category')['amount'].mean().to_dict()
+
+                    # If no doojo data and no card_ids, calculate dynamic_doojo from S3 data
+                    if not doojo_data and not dynamic_doojo:
+                        # Calculate min/max per category from past 12 months
+                        csv_data['year_month'] = csv_data['transaction_date_time'].dt.to_period('M')
+                        monthly_spending = csv_data.groupby(['category', 'year_month'])['amount'].sum().reset_index()
+
+                        for category in csv_data['category'].unique():
+                            if category == "보험 / 세금":
+                                continue
+
+                            cat_monthly = monthly_spending[monthly_spending['category'] == category]['amount'].tolist()
+                            if cat_monthly:
+                                dynamic_doojo[category] = {
+                                    'min_amount': min(cat_monthly),
+                                    'max_amount': max(cat_monthly),
+                                    'avg_amount': sum(cat_monthly) / len(cat_monthly),
+                                    'current_threshold': sum(cat_monthly) / len(cat_monthly)  # Use avg as default
+                                }
+
+                        # Update with predictions if available
+                        predictions = db.query(models.Prediction).filter(
+                            models.Prediction.file_id == file_id,
+                            models.Prediction.prediction_date == f"{query_year}-{query_month:02d}-01"
+                        ).all()
+
+                        for pred in predictions:
+                            if pred.category in dynamic_doojo:
+                                dynamic_doojo[pred.category]['current_threshold'] = float(pred.predicted_amount)
             except Exception as e:
                 logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
 
-    # Get budget data from budgets table for current month
+    # Get budget data from budgets table for specified month
     # budget_date is stored as DATE in format 'YYYY-MM-DD'
-    budget_date = f"{current_year}-{current_month:02d}-01"
+    budget_date = f"{query_year}-{query_month:02d}-01"
     budgets_query = text("""
         SELECT category, amount
         FROM budgets
@@ -1097,56 +1181,90 @@ async def get_doojo_data(
 
     logger.info(f"Found {len(budgets_by_category)} budgets for user {user_id} in {budget_date}")
 
-    # Build categories prediction data from MySQL
+    # Build categories prediction data from MySQL or dynamic calculation
     categories_prediction = {}
 
-    for doojo in doojo_data:
-        # Skip "보험 / 세금" category
-        if doojo.category == "보험 / 세금":
-            continue
+    # Use doojo_data if available, otherwise use dynamic_doojo
+    if doojo_data:
+        for doojo in doojo_data:
+            # Skip "보험 / 세금" category
+            if doojo.category == "보험 / 세금":
+                continue
 
-        # Convert result string to boolean
-        result = None
-        if doojo.result == 'true':
-            result = True
-        elif doojo.result == 'false':
-            result = False
-
-        # Calculate avg (use historical average if available, otherwise use current threshold)
-        avg_value = historical_avg.get(doojo.category, float(doojo.current_threshold))
-
-        # Use real amount from transactions table if available
-        real_value = real_amounts.get(doojo.category, None)
-
-        # Use budget amount as current threshold if available, otherwise use Prophet prediction
-        current_value = budgets_by_category.get(doojo.category, float(doojo.current_threshold))
-
-        # Recalculate result based on real transactions data vs budget
-        if real_value is not None:
-            result = real_value > current_value
-        else:
-            # If no real data, result should be None or false
+            # Convert result string to boolean
             result = None
+            if doojo.result == 'true':
+                result = True
+            elif doojo.result == 'false':
+                result = False
 
-        categories_prediction[doojo.category] = CategoryDoojo(
-            min=float(doojo.min_amount),
-            max=float(doojo.max_amount),
-            current=current_value,  # Now uses budget amount if available
-            real=real_value,
-            result=result,
-            avg=avg_value
-        )
+            # Calculate avg (use historical average if available, otherwise use current threshold)
+            avg_value = historical_avg.get(doojo.category, float(doojo.current_threshold))
 
-        # Only add detail if we don't have real transaction data
-        # Don't create fake merchant names
-        if doojo.category not in categories_detail:
-            # Leave categories_detail empty for categories without transactions
-            pass
+            # Use real amount from transactions table if available
+            real_value = real_amounts.get(doojo.category, None)
+
+            # Use budget amount as current threshold if available, otherwise use Prophet prediction
+            current_value = budgets_by_category.get(doojo.category, float(doojo.current_threshold))
+
+            # Recalculate result based on real transactions data vs budget
+            if real_value is not None:
+                result = real_value > current_value
+            else:
+                # If no real data, result should be None or false
+                result = None
+
+            categories_prediction[doojo.category] = CategoryDoojo(
+                min=float(doojo.min_amount),
+                max=float(doojo.max_amount),
+                current=current_value,  # Now uses budget amount if available
+                real=real_value,
+                result=result,
+                avg=avg_value
+            )
+
+            # Only add detail if we don't have real transaction data
+            # Don't create fake merchant names
+            if doojo.category not in categories_detail:
+                # Leave categories_detail empty for categories without transactions
+                pass
+    else:
+        # Use dynamic_doojo when doojo_data is not available
+        for category, stats in dynamic_doojo.items():
+            # Skip "보험 / 세금" category
+            if category == "보험 / 세금":
+                continue
+
+            # Use real amount from transactions table if available
+            real_value = real_amounts.get(category, None)
+
+            # Use budget amount as current threshold if available, otherwise use dynamic threshold
+            current_value = budgets_by_category.get(
+                category,
+                stats.get('current_threshold', stats.get('avg_amount', 0))
+            )
+
+            # Calculate result based on real transactions data vs budget/threshold
+            result = None
+            if real_value is not None:
+                result = real_value > current_value
+
+            # Calculate avg (use historical average if available)
+            avg_value = historical_avg.get(category, stats.get('avg_amount', current_value))
+
+            categories_prediction[category] = CategoryDoojo(
+                min=stats.get('min_amount', 0.0),
+                max=stats.get('max_amount', 0.0),
+                current=current_value,
+                real=real_value,
+                result=result,
+                avg=avg_value
+            )
 
     # Create month data
     doojo_month = DoojoMonthData(
-        month=current_month,
-        year=current_year,
+        month=query_month,
+        year=query_year,
         categories_count=len(categories_prediction),
         categories_prediction=categories_prediction,
         categories_detail=categories_detail
