@@ -86,7 +86,7 @@
 .toad-happy-title {
   font-size: clamp(24px, 3vw, 38px);
   font-weight: 700;
-  color: #ffd400;
+  color: #fff;
   margin: 8px 0 4px;
   text-align: center;
 }

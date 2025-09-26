@@ -497,7 +497,9 @@ export default function ToadAdvice() {
 
   if (isLoading) {
     return (
-      <div className="toad-advice-container">
+      <div
+        className={`toad-advice-container ${hasAdvice ? "snap-container" : ""}`}
+      >
         <Header />
         <div style={{ padding: "2rem", textAlign: "center", color: "#fff" }}>
           <h2>두꺼비가 데이터를 분석하는 중...</h2>
@@ -510,7 +512,7 @@ export default function ToadAdvice() {
     return (
       <div className="toad-advice-container">
         <Header />
-        <div style={{ padding: "2rem", textAlign: "center", color: "#fff"}}>
+        <div style={{ padding: "2rem", textAlign: "center", color: "#fff" }}>
           <h2>두꺼비가 데이터를 정리하고 있습니다.</h2>
           <h2>잠시 후 방문해 주세요.</h2>
         </div>
@@ -583,101 +585,101 @@ export default function ToadAdvice() {
             </div>
             <div className="scroll-hint">아래로 스크롤</div>
           </>
-        ) : 
-        (
+        ) : (
           <div className="hero-bottom">
             <div className="toad-stack big">
-              <div className="toad-happy-title"> 
+              <div className="toad-happy-title">
                 훌륭하오! 과소비 항목이 없소!
               </div>
               <img
-                  src="/toadAdvice/happyToad.png"
-                  className="toad-happy"
-                  draggable={false}
-                />
+                src="/toadAdvice/happyToad.png"
+                className="toad-happy"
+                draggable={false}
+              />
             </div>
           </div>
-          )}
+        )}
       </section>
 
       {/* ===== Page 2 ===== */}
-      <section className="page page-cards">
-        <header className="cards-page-header">
-          <h2 className="cards-page-title">이번 달 과소비 요약</h2>
-          <div className="cards-page-stats">
-            <div className="cstat">
-              <div className="cstat-number">{allCards.length}개</div>
-              <div className="cstat-label">과소비 항목</div>
+      {hasAdvice && (
+        <section className="page page-cards">
+          <header className="cards-page-header">
+            <h2 className="cards-page-title">이번 달 과소비 요약</h2>
+            <div className="cards-page-stats">
+              <div className="cstat">
+                <div className="cstat-number">{allCards.length}개</div>
+                <div className="cstat-label">과소비 항목</div>
+              </div>
+              <div className="cstat">
+                <div className="cstat-number">{won(totalOverspend)}</div>
+                <div className="cstat-label">총 과소비 금액</div>
+              </div>
+              <div className="cstat">
+                <div className="cstat-number">{avgPct}%</div>
+                <div className="cstat-label">평균 초과율</div>
+              </div>
             </div>
-            <div className="cstat">
-              <div className="cstat-number">{won(totalOverspend)}</div>
-              <div className="cstat-label">총 과소비 금액</div>
-            </div>
-            <div className="cstat">
-              <div className="cstat-number">{avgPct}%</div>
-              <div className="cstat-label">평균 초과율</div>
-            </div>
-          </div>
-        </header>
+          </header>
 
-        <div className="cards-grid">
-          {allCards.map((advice, index) => (
-            <div
-              key={advice.id}
-              className="advice-card slide-in-up"
-              style={{ animationDelay: `${index * 60}ms` }}
-              onMouseEnter={() => setHoveredCard(advice.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-              onClick={() =>
-                setOpen({
-                  id: advice.id,
-                  title: advice.category,
-                  detail: advice.detail,
-                  over: advice.over,
-                })
-              }
-            >
-              <div className="card-inner">
-                <div className="severity-badge">!</div>
-                <div className="card-content">
-                  <div className="card-header">
-                    <img
-                      className="category-img"
-                      src={getCategoryImage(advice.category)}
-                      alt={advice.category}
-                      width={44}
-                      height={44}
-                      draggable={false}
-                    />
-                    <div className="amount-info">
-                      <div className="over-amount">-{won(advice.over)}</div>
-                      <div className="over-percent">
-                        {advice.pct === 0
-                          ? "평균과 같음"
-                          : `평균보다 ${Math.abs(advice.pct).toFixed(1)}% ${
-                              advice.pct > 0 ? "높음" : "낮음"
-                            }`}
+          <div className="cards-grid">
+            {allCards.map((advice, index) => (
+              <div
+                key={advice.id}
+                className="advice-card slide-in-up"
+                style={{ animationDelay: `${index * 60}ms` }}
+                onMouseEnter={() => setHoveredCard(advice.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                onClick={() =>
+                  setOpen({
+                    id: advice.id,
+                    title: advice.category,
+                    detail: advice.detail,
+                    over: advice.over,
+                  })
+                }
+              >
+                <div className="card-inner">
+                  <div className="severity-badge">!</div>
+                  <div className="card-content">
+                    <div className="card-header">
+                      <img
+                        className="category-img"
+                        src={getCategoryImage(advice.category)}
+                        alt={advice.category}
+                        width={44}
+                        height={44}
+                        draggable={false}
+                      />
+                      <div className="amount-info">
+                        <div className="over-amount">-{won(advice.over)}</div>
+                        <div className="over-percent">
+                          {advice.pct === 0
+                            ? "평균과 같음"
+                            : `평균보다 ${Math.abs(advice.pct).toFixed(1)}% ${
+                                advice.pct > 0 ? "높음" : "낮음"
+                              }`}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <h3 className="category-title">{advice.category}</h3>
-                  <div className="progress-container">
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${Math.min(100, (advice.pct / 50) * 100)}%`,
-                        }}
-                      />
+                    <h3 className="category-title">{advice.category}</h3>
+                    <div className="progress-container">
+                      <div className="progress-bar">
+                        <div
+                          className="progress-fill"
+                          style={{
+                            width: `${Math.min(100, (advice.pct / 50) * 100)}%`,
+                          }}
+                        />x
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
+            ))}
+          </div>
+        </section>
+      )}
       {/* ===== 모달 (좌/우 2컬럼) ===== */}
       {open && (
         <div className="modal-overlay">
