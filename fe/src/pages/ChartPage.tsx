@@ -734,7 +734,7 @@ export default function ChartPage() {
                 <div className="jp-toolbar">
                   <JPSelect
                     value={selectedCategory}
-                    onChange={(v) => setSelectedCategory(v as any)}
+                    onChange={(v) => setSelectedCategory(v as "전체" | Category)}
                     options={[
                       { label: "전체", value: "전체" },
                       ...CATEGORIES.map((c) => ({ label: c, value: c })),
