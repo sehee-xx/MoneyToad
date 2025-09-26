@@ -670,7 +670,7 @@ export default function ToadAdvice() {
                           style={{
                             width: `${Math.min(100, (advice.pct / 50) * 100)}%`,
                           }}
-                        />x
+                        />
                       </div>
                     </div>
                   </div>
