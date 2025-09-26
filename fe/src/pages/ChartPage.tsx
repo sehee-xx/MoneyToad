@@ -684,15 +684,6 @@ export default function ChartPage() {
                 />
                 <Line
                   type="monotone"
-                  dataKey="me"
-                  name="내 소비"
-                  stroke="#DCE775"
-                  strokeWidth={3}
-                  dot={MyConsumptionDot}
-                  activeDot={MyConsumptionDot}
-                />
-                <Line
-                  type="monotone"
                   dataKey="peers"
                   name="또래 소비"
                   stroke="#a47690ff"
@@ -700,6 +691,16 @@ export default function ChartPage() {
                   dot={PeerDot}
                   activeDot={{ r: 7 }}
                 />
+                <Line
+                  type="monotone"
+                  dataKey="me"
+                  name="내 소비"
+                  stroke="#DCE775"
+                  strokeWidth={3}
+                  dot={MyConsumptionDot}
+                  activeDot={MyConsumptionDot}
+                />
+                
               </LineChart>
             </ResponsiveContainer>
           </div>
