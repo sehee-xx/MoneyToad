@@ -1,11 +1,13 @@
 package com.potg.don.transaction.dto.response;
 
 // 베이스라인 응답
-import lombok.Data;
+
 import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import lombok.Data;
 
 @Data
 public class BaselineResponse {

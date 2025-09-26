@@ -5,7 +5,6 @@ import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -52,7 +51,8 @@ public class BudgetService {
 		Map<YearMonth, Map<String, Integer>> result = new HashMap<>();
 		for (Budget b : budgets) {
 			String mapped = LeakCategories.mapToAllowedOrNull(b.getCategory());
-			if (mapped == null) continue; // 보험/세금 등 12개 외는 제외
+			if (mapped == null)
+				continue; // 보험/세금 등 12개 외는 제외
 
 			YearMonth ym = YearMonth.from(b.getBudgetDate());
 			int amt = (b.getAmount() == null ? 0 : b.getAmount());

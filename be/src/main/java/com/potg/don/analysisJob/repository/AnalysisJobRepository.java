@@ -13,11 +13,11 @@ import com.potg.don.analysisJob.entity.AnalysisJob;
 public interface AnalysisJobRepository extends JpaRepository<AnalysisJob, Long> {
 
 	@Query("""
-      SELECT j FROM AnalysisJob j
-      WHERE (j.status = 'QUEUED' OR j.status = 'RUNNING')
-        AND (j.nextPollAt IS NULL OR j.nextPollAt <= :now)
-        AND (j.leasedUntil IS NULL OR j.leasedUntil < :now)
-      ORDER BY j.createdAt ASC
-      """)
+		SELECT j FROM AnalysisJob j
+		WHERE (j.status = 'QUEUED' OR j.status = 'RUNNING')
+		  AND (j.nextPollAt IS NULL OR j.nextPollAt <= :now)
+		  AND (j.leasedUntil IS NULL OR j.leasedUntil < :now)
+		ORDER BY j.createdAt ASC
+		""")
 	List<AnalysisJob> findPollableJobs(@Param("now") Instant now, Pageable pageable);
 }

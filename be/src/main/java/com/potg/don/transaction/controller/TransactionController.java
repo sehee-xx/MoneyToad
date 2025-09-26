@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.potg.don.auth.entity.CustomUserDetails;
-import com.potg.don.budget.dto.response.IsLeakedResponse;
 import com.potg.don.budget.entity.Budget;
 import com.potg.don.budget.service.BudgetService;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
@@ -65,8 +64,11 @@ public class TransactionController {
 			boolean leaked = false;
 			for (String cat : cats) {
 				int budget = bm.getOrDefault(cat, 0);
-				int spent  = sm.getOrDefault(cat, 0);
-				if (spent > budget) { leaked = true; break; }
+				int spent = sm.getOrDefault(cat, 0);
+				if (spent > budget) {
+					leaked = true;
+					break;
+				}
 			}
 
 			result.add(MonthlySpendingResponse.from(cursor.toString(), totalSpent, leaked));
@@ -108,7 +110,7 @@ public class TransactionController {
 		List<MonthlyCategorySpendingResponse> result = spendings.stream()
 			.map(r -> {
 				String cat = r.getCategory();
-				int spent  = r.getTotalAmount();
+				int spent = r.getTotalAmount();
 				int leaked = INS_TAX.equals(cat) ? 0
 					: Math.max(0, spent - budgetMap.getOrDefault(cat, 0));
 				return new MonthlyCategorySpendingResponse(cat, spent, leaked);
