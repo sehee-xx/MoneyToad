@@ -1,7 +1,9 @@
-import { useMemo, useState, useCallback } from "react";
 import type { ReactNode } from "react";
-import Header from "../components/Header";
+import { useCallback, useMemo, useState } from "react";
 import { useDoojoQuery } from "../api";
+import { useYearlyBudgetLeaksQuery } from '../api/queries/budgetQuery';
+import Header from "../components/Header";
+import type { YearlyBudgetLeakResponse } from '../types';
 import "./ToadAdvice.css";
 
 /* ===== 카테고리 아이콘 (.webp) ===== */
@@ -250,16 +252,21 @@ const MonthNavigation: React.FC<{
   selectedMonth: number;
   nowMonth: number;
   nowYear: number;
-  leakIndex: Map<string, boolean>;
+  leakMonthData: YearlyBudgetLeakResponse[] | undefined;
   onMonthChange: (month: number) => void;
-}> = ({ selectedMonth, nowMonth, nowYear, leakIndex, onMonthChange }) => {
+}> = ({ selectedMonth, nowMonth, nowYear, leakMonthData, onMonthChange }) => {
   return (
     <div className="ta-month-navigation">
       <div className="ta-month-grid">
         {MONTHS.map((m) => {
           const isLastYear = m.value > nowMonth;
           const yearForBtn = isLastYear ? nowYear - 1 : nowYear;
-          const leaked = !!leakIndex.get(`${yearForBtn}-${m.value}`);
+          const leaked = leakMonthData?.find(
+            (month) =>
+              month.budgetDate ===
+              `${yearForBtn}-${String(m.value).padStart(2, "0")}`
+          )?.leaked;
+
           const imgSrc = isLastYear
             ? leaked
               ? "/leakPot/bad_gray.webp"
@@ -294,6 +301,12 @@ export default function ToadAdvice() {
   const now = new Date();
   const nowMonth = now.getMonth() + 1;
   const nowYear = now.getFullYear();
+
+  const {
+      data: yearlyLeakData,
+      isLoading: isYearlyLeakLoading,
+      error: yearlyLeakError,
+    } = useYearlyBudgetLeaksQuery();
 
   // 선택 월 (기본: 현재 달) — "선택 안했을 때는 현재 달" 규칙
   const [selectedMonth, setSelectedMonth] = useState<number>(nowMonth);
@@ -354,14 +367,6 @@ export default function ToadAdvice() {
     [advices]
   );
 
-  // 월 아이콘 누수 인덱스
-  // API가 선택 월만 내려오는 환경을 고려해 현재 선택 월만 표기 (필요하면 서버에서 연간 요약 제공 시 확장)
-  const leakIndex = useMemo(() => {
-    const m = new Map<string, boolean>();
-    if (selectedSheet) m.set(`${selectedYear}-${selectedMonth}`, hasAdvice);
-    return m;
-  }, [selectedSheet, selectedYear, selectedMonth, hasAdvice]);
-
   // 모달
   const [open, setOpen] = useState<null | { id: string; title: string; detail: string; over: number }>(null);
   const openDetail: CategoryDetail | undefined = open ? detailsByCategory[normalizeKey(open.title)] : undefined;
@@ -371,7 +376,7 @@ export default function ToadAdvice() {
   const handleMonthChange = useCallback((m: number) => setSelectedMonth(m), []);
 
   // 로딩/에러 처리
-  if (isLoading) {
+  if (isLoading || isYearlyLeakLoading) {
     return (
       <div className="toad-advice-container snap-container">
         <Header />
@@ -381,7 +386,7 @@ export default function ToadAdvice() {
       </div>
     );
   }
-  if (error || !selectedSheet) {
+  if (error || !selectedSheet || yearlyLeakError) {
     return (
       <div className="toad-advice-container">
         <Header />
@@ -406,7 +411,7 @@ export default function ToadAdvice() {
             selectedMonth={selectedMonth}
             nowMonth={nowMonth}
             nowYear={nowYear}
-            leakIndex={leakIndex}
+            leakMonthData={yearlyLeakData}
             onMonthChange={handleMonthChange}
           />
 
