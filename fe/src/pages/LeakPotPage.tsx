@@ -57,6 +57,7 @@ interface Category {
   name: string;
   spending: number;
   threshold: number;
+  initialBudget: number;
 }
 interface LeakingCategory extends Category {
   originalIndex: number;
@@ -80,18 +81,18 @@ interface AbsPosition {
 
 /* ------------------------------ 데이터 ------------------------------ */
 const INITIAL_CATEGORIES: Category[] = [
-  { id: 1, name: "식비", spending: 300000, threshold: 300000 },
-  { id: 2, name: "쇼핑", spending: 220000, threshold: 220000 },
-  { id: 3, name: "교통", spending: 150000, threshold: 150000 },
-  { id: 4, name: "여가", spending: 100000, threshold: 100000 },
-  { id: 5, name: "주거", spending: 550000, threshold: 550000 },
-  { id: 6, name: "교육", spending: 280000, threshold: 280000 },
-  { id: 7, name: "통신", spending: 90000, threshold: 90000 },
-  { id: 8, name: "반려동물", spending: 100000, threshold: 100000 },
-  { id: 9, name: "의료/건강", spending: 80000, threshold: 80000 },
-  { id: 10, name: "경조사비", spending: 120000, threshold: 120000 },
-  { id: 11, name: "저축/투자", spending: 200000, threshold: 200000 },
-  { id: 12, name: "기타", spending: 50000, threshold: 50000 },
+  { id: 1, name: "식비", spending: 300000, threshold: 300000, initialBudget: 300000 },
+  { id: 2, name: "쇼핑", spending: 220000, threshold: 220000, initialBudget: 220000 },
+  { id: 3, name: "교통", spending: 150000, threshold: 150000, initialBudget: 150000 },
+  { id: 4, name: "여가", spending: 100000, threshold: 100000, initialBudget: 100000 },
+  { id: 5, name: "주거", spending: 550000, threshold: 550000, initialBudget: 550000 },
+  { id: 6, name: "교육", spending: 280000, threshold: 280000, initialBudget: 280000 },
+  { id: 7, name: "통신", spending: 90000, threshold: 90000, initialBudget: 90000 },
+  { id: 8, name: "반려동물", spending: 100000, threshold: 100000, initialBudget: 100000 },
+  { id: 9, name: "의료/건강", spending: 80000, threshold: 80000, initialBudget: 80000 },
+  { id: 10, name: "경조사비", spending: 120000, threshold: 120000, initialBudget: 120000 },
+  { id: 11, name: "저축/투자", spending: 200000, threshold: 200000, initialBudget: 200000 },
+  { id: 12, name: "기타", spending: 50000, threshold: 50000, initialBudget: 50000 },
 ];
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
@@ -614,6 +615,7 @@ const adaptBudgetDataToCategory = (data: MonthlyBudgetResponse): Category => ({
   name: data.category,
   spending: data.spending,
   threshold: data.budget,
+  initialBudget: data.initialBudget
 });
 
 /* ------------------------------ 년/월 계산 ------------------------------ */

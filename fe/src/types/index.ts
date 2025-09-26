@@ -31,6 +31,7 @@ export interface MonthlyBudgetResponse {
   budget: number;
   spending: number;
   category: string;
+  initialBudget: number;
 }
 
 export interface YearlyBudgetLeakResponse {
