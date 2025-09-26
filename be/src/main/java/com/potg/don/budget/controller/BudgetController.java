@@ -2,7 +2,6 @@ package com.potg.don.budget.controller;
 
 import java.time.YearMonth;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,7 +58,7 @@ public class BudgetController {
 
 			// 3) 하나라도 지출이 예산을 넘으면 누수
 			boolean leaked = monthly.stream().anyMatch(br -> {
-				int budget  = br.getBudget()  == null ? 0 : br.getBudget();
+				int budget = br.getBudget() == null ? 0 : br.getBudget();
 				int spending = br.getSpending() == null ? 0 : br.getSpending();
 				return spending > budget;
 			});

@@ -18,7 +18,7 @@ import lombok.Setter;
 @Setter
 public class AnalysisJob {
 
-	public enum Status { QUEUED, RUNNING, DONE, ERROR }
+	public enum Status {QUEUED, RUNNING, DONE, ERROR}
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

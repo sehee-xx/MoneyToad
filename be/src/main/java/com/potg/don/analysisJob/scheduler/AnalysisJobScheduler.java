@@ -37,7 +37,7 @@ public class AnalysisJobScheduler {
 			} catch (Exception e) {
 				// 실패 시 다음 재시도 예약
 				j.setLeasedUntil(null);
-				j.setRetryCount((j.getRetryCount()==null?0:j.getRetryCount())+1);
+				j.setRetryCount((j.getRetryCount() == null ? 0 : j.getRetryCount()) + 1);
 				j.setNextPollAt(now.plusSeconds(10));
 				j.setLastMessage("POLL_ERROR: " + e.getMessage());
 				j.setUpdatedAt(Instant.now());

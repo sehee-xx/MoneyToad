@@ -3,8 +3,6 @@ package com.potg.don.transaction.service;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -13,22 +11,18 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.potg.don.card.entity.Card;
 import com.potg.don.card.repository.CardRepository;
 import com.potg.don.global.util.LeakCategories;
 import com.potg.don.transaction.dto.request.UpdateCategoryRequest;
 import com.potg.don.transaction.dto.response.MonthlyCategorySpendingResponse;
-import com.potg.don.transaction.dto.response.MonthlySpendingResponse;
 import com.potg.don.transaction.dto.response.TransactionResponse;
 import com.potg.don.transaction.entity.Transaction;
 import com.potg.don.transaction.projection.CategoryTotalProjection;
 import com.potg.don.transaction.projection.MonthlyCategoryTotalRow;
-import com.potg.don.transaction.projection.MonthlyTotalProjection;
 import com.potg.don.transaction.repository.TransactionRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -109,7 +103,6 @@ public class TransactionService {
 			.build();
 	}
 
-
 	private static boolean includeForLeak(String category) {
 		return category != null && !EXCLUDED_FOR_LEAK.contains(category);
 	}
@@ -140,7 +133,8 @@ public class TransactionService {
 		for (MonthlyCategoryTotalRow r : rows) {
 			YearMonth ym = YearMonth.of(r.getY(), r.getM());
 			String mapped = LeakCategories.mapToAllowedOrNull(r.getCategory()); // '기타' 포함 12개
-			if (mapped == null) continue; // 방어적
+			if (mapped == null)
+				continue; // 방어적
 
 			int total = Math.toIntExact(Objects.requireNonNullElse(r.getTotal(), 0L));
 			result.computeIfAbsent(ym, k -> new HashMap<>())

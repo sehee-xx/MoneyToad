@@ -55,7 +55,7 @@ public class DummyService {
 	// ✅ 월 전체 최소 건수(설정)
 	private static final int MONTHLY_MIN_TX = 30; // 필요 시 조정
 
-	private static final int MONTH_SPAN = 15;
+	private static final int MONTH_SPAN = 24;
 
 	/**
 	 * 카드에 대해 기존 내역을 삭제하고,

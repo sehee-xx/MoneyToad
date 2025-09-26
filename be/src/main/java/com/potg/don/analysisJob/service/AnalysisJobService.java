@@ -33,7 +33,7 @@ public class AnalysisJobService {
 
 		User user = userRepo.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("사용자 없음: " + userId));
-		if (user.getFileId()==null || user.getFileId().isBlank()) {
+		if (user.getFileId() == null || user.getFileId().isBlank()) {
 			throw new IllegalStateException("file_id가 없습니다.");
 		}
 
@@ -49,7 +49,9 @@ public class AnalysisJobService {
 		return jobRepo.save(j);
 	}
 
-	/** 스케줄러가 호출: poll 대상 Job을 1건 처리 */
+	/**
+	 * 스케줄러가 호출: poll 대상 Job을 1건 처리
+	 */
 	@Transactional
 	public void pollOnce(AnalysisJob job) {
 		log.info("[Job] pollOnce start id={}, fileId={}", job.getId(), job.getFileId());
@@ -59,7 +61,7 @@ public class AnalysisJobService {
 
 		var status = csvClient.getCsvStatus(job.getFileId());
 		log.info("[Job] status={} for fileId={}", status != null ? status.getStatus() : "null", job.getFileId());
-		String s = status != null && status.getStatus()!=null ? status.getStatus().toLowerCase() : "";
+		String s = status != null && status.getStatus() != null ? status.getStatus().toLowerCase() : "";
 
 		if ("none".equals(s)) {
 			// 완료 → 결과 조회 & 저장
@@ -72,12 +74,12 @@ public class AnalysisJobService {
 		} else {
 			log.info("[Job] RUNNING retryCount={}, nextPollAt={}", job.getRetryCount(), job.getNextPollAt());
 			// 진행중 → 백오프 증가
-			int rc = (job.getRetryCount()==null?0:job.getRetryCount()) + 1;
+			int rc = (job.getRetryCount() == null ? 0 : job.getRetryCount()) + 1;
 			job.setRetryCount(rc);
 			job.setStatus(AnalysisJob.Status.RUNNING);
 			job.setLastMessage(status != null ? status.getStatus() : "UNKNOWN");
 
-			long delaySec = Math.min((long)Math.pow(2, rc-1), 60); // 1,2,4,8,16,32,60...
+			long delaySec = Math.min((long)Math.pow(2, rc - 1), 60); // 1,2,4,8,16,32,60...
 			job.setNextPollAt(Instant.now().plusSeconds(delaySec));
 		}
 
@@ -86,16 +88,20 @@ public class AnalysisJobService {
 		jobRepo.save(job);
 	}
 
-	/** 베이스라인을 불러와 Budget upsert */
+	/**
+	 * 베이스라인을 불러와 Budget upsert
+	 */
 	private void saveBaselineToBudgets(Long userId, String fileId) {
 		User user = userRepo.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("사용자 없음: " + userId));
 
 		BaselineResponse baseline = csvClient.getBaseline(fileId);
-		if (baseline == null || baseline.getBaselineMonths()==null) return;
+		if (baseline == null || baseline.getBaselineMonths() == null)
+			return;
 
 		for (BaselineResponse.BaselineMonth bm : baseline.getBaselineMonths()) {
-			if (bm.getCategoryPredictions()==null) continue;
+			if (bm.getCategoryPredictions() == null)
+				continue;
 			LocalDate budgetDate = LocalDate.of(bm.getYear(), bm.getMonth(), 1);
 
 			bm.getCategoryPredictions().forEach((category, pred) -> {
@@ -116,11 +122,14 @@ public class AnalysisJobService {
 	}
 
 	private int toInt(Double d) {
-		if (d == null) return 0;
+		if (d == null)
+			return 0;
 		long r = Math.round(d);
-		if (r > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-		if (r < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-		return (int) r;
+		if (r > Integer.MAX_VALUE)
+			return Integer.MAX_VALUE;
+		if (r < Integer.MIN_VALUE)
+			return Integer.MIN_VALUE;
+		return (int)r;
 	}
 }
 

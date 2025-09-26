@@ -34,7 +34,8 @@ public class CsvService {
 
 	@Transactional
 	public void saveBudgetsFromTriggerResponse(Long userId, AnalysisTriggerResponse resp) {
-		if (resp == null) throw new IllegalArgumentException("AnalysisTriggerResponse가 null입니다.");
+		if (resp == null)
+			throw new IllegalArgumentException("AnalysisTriggerResponse가 null입니다.");
 		if (resp.getDetails() == null || resp.getDetails().getCategoryPredictions() == null) {
 			// 저장할 내용 없음
 			return;
@@ -43,7 +44,7 @@ public class CsvService {
 		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("사용자 없음: " + userId));
 
-		Integer year  = resp.getYear();
+		Integer year = resp.getYear();
 		Integer month = resp.getMonth();
 		if (year == null || month == null) {
 			throw new IllegalStateException("응답에 year/month가 없습니다.");
@@ -69,7 +70,9 @@ public class CsvService {
 		});
 	}
 
-	/** 사용자의 현재 file_id로 분석을 트리거 */
+	/**
+	 * 사용자의 현재 file_id로 분석을 트리거
+	 */
 	@Transactional(readOnly = true)
 	public AnalysisTriggerResponse triggerAnalysis(Long userId) {
 		User user = userRepository.findById(userId)
@@ -160,10 +163,13 @@ public class CsvService {
 	}
 
 	private int toInt(Double d) {
-		if (d == null) return 0;
+		if (d == null)
+			return 0;
 		long r = Math.round(d);
-		if (r > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-		if (r < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-		return (int) r;
+		if (r > Integer.MAX_VALUE)
+			return Integer.MAX_VALUE;
+		if (r < Integer.MIN_VALUE)
+			return Integer.MIN_VALUE;
+		return (int)r;
 	}
 }
