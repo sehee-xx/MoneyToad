@@ -417,7 +417,11 @@ const buildInsights = (category: string, d?: CategoryDetail, over?: number) => {
 
 /* ===== 컴포넌트 ===== */
 export default function ToadAdvice() {
-  const { data: doojoData, isLoading, error } = useDoojoQuery();
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  const { data: doojoData, isLoading, error } = useDoojoQuery(currentYear, currentMonth);
 
   const [currentQuote, setCurrentQuote] = useState(0);
   const [showQuote, setShowQuote] = useState(false);
