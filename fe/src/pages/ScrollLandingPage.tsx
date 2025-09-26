@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./ScrollLandingPage.css";
 
 type Page = {
@@ -25,10 +26,24 @@ export const scrollLandingAssets = [
 ];
 
 export default function ScrollLandingPage() {
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef(0);
+  const [loggedIn, setLoggedIn] = useState<boolean>(() => !!localStorage.getItem("accessToken"));
+
+  useEffect(() => {
+    const recheck = () => setLoggedIn(!!localStorage.getItem("accessToken"));
+    window.addEventListener("storage", recheck);
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", recheck);
+    return () => {
+      window.removeEventListener("storage", recheck);
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", recheck);
+    };
+  }, []);
 
   const pages: Page[] = [
     {
@@ -120,14 +135,21 @@ export default function ScrollLandingPage() {
     "--offset": `${currentPage * 100}vh`,
   };
 
-  const handleLogin = async () => {
-    window.location.href = `https://j13a409.p.ssafy.io/api/oauth2/authorization/ssafy`;
+  const handlePrimary = () => {
+    if (loggedIn) {
+      const month = String(new Date().getMonth() + 1).padStart(2, "0");
+      // 장독대 라우트로 이동 (예: /pot/:month)
+      navigate(`/pot/${month}`);
+    } else {
+      window.location.href =
+        "https://j13a409.p.ssafy.io/api/oauth2/authorization/ssafy";
+    }
   };
 
   return (
     <div ref={containerRef} className="dk-landing">
-      <button className="dk-login" onClick={handleLogin}>
-        로그인
+      <button className="dk-login" onClick={handlePrimary}>
+        {loggedIn ? "장독대로 가기" : "로그인"}
       </button>
 
       {/* 슬라이드 트랙 */}

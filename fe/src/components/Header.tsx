@@ -1,6 +1,7 @@
-import { Link, NavLink, useMatch } from "react-router-dom";
+import { Link, NavLink, useMatch, useNavigate } from "react-router-dom";
 import { useLogoutMutation } from "../api/services/auth";
 import "./Header.css";
+import axios from "axios";
 
 export default function Header() {
   const thisMonth = new Date().getMonth() + 1; // 1..12
@@ -9,7 +10,17 @@ export default function Header() {
   const potActive = Boolean(useMatch("/pot/:month"));
 
   const logoutMutation = useLogoutMutation();
-  const handleLogout = () => logoutMutation.mutate();
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSettled: () => {
+        localStorage.removeItem("accessToken");
+        delete axios.defaults.headers.common.Authorization;
+        navigate("/", { replace: true });
+      },
+    });
+  };
+
+  const navigate = useNavigate();
 
   return (
     <header className="app-header">
