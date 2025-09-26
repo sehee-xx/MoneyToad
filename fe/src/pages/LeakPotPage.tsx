@@ -1,21 +1,21 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useMemo,
-} from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
-import Header from "../components/Header";
-import "./LeakPotPage.css";
-import LoadingOverlay from "../components/LoadingOverlay";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useUpdateBudgetMutation } from "../api/mutation/budgetMutation";
 import {
   useMonthlyBudgetsQuery,
   useYearlyBudgetLeaksQuery,
 } from "../api/queries/budgetQuery";
-import { useUpdateBudgetMutation } from "../api/mutation/budgetMutation";
+import Header from "../components/Header";
+import LoadingOverlay from "../components/LoadingOverlay";
 import type { MonthlyBudgetResponse, YearlyBudgetLeakResponse } from "../types";
+import "./LeakPotPage.css";
 
 /* ------------------------------ 이미지 & 애니메이션 ------------------------------ */
 const cryingKongjwi = "/leakPot/cryingKongjwi.webp";
@@ -171,7 +171,6 @@ const MonthNavigation: React.FC<{
 
           // 낙관적 반영은 "선택된 달"만
           if (
-            yearForBtn === nowYear &&
             m.value === selectedMonth &&
             typeof optimisticCurrentMonthLeaked === "boolean"
           ) {
