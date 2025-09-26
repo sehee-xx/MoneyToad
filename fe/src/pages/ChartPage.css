@@ -196,6 +196,7 @@ body,
 }
 .recharts-surface {
   overflow: visible;
+  outline: none;
 }
 .recharts-default-legend {
   color: #e0ffff !important;
