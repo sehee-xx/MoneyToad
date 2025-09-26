@@ -562,6 +562,15 @@ export default function ChartPage() {
     );
   };
 
+  const handleClickCategory = (categoryName: string) => {
+    if(categoryName === "나머지") {
+      setSelectedCategory("전체");
+      return;
+    }
+    
+    setSelectedCategory(categoryName as Category);
+  }
+
   /* 화면1이 보일 때만 애니메이션 실행 */
   useEffect(() => {
     const el = screen1Ref.current;
@@ -768,6 +777,7 @@ export default function ChartPage() {
                             }
                             stroke="transparent"
                             strokeWidth={0}
+                            onClick={() => handleClickCategory(entry.name)}
                           />
                         ))}
                       </Pie>
