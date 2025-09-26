@@ -295,6 +295,36 @@ export default function ChartPage() {
       })),
     [myMonthly, peerMonthly, yearTransactionData, apiMonthlyData]
   );
+  /* 커스텀 X축 Tick */
+  const CustomXAxisTick = (props: Record<string, unknown>) => {
+    const { x, y, payload } = props as {
+      x: number;
+      y: number;
+      payload: { value: string; index: number };
+    };
+
+    const monthIndex = payload.index;
+
+    // 현재 월 이후의 달(과거 데이터)이면 회색으로 표시
+    const isLastYear = yearTransactionData && yearTransactionData.length > 0
+      ? apiMonthlyData[monthIndex]?.isLastYear
+      : false;
+
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          dy={11}
+          textAnchor="middle"
+          fill={isLastYear ? "#999999" : "#ffffff"}
+          fontSize={16}
+        >
+          {payload.value}
+        </text>
+      </g>
+    );
+  };
 
   /* 상세 상태 */
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -636,7 +666,7 @@ export default function ChartPage() {
                 <CartesianGrid stroke="#fff" strokeDasharray="3 3" />
                 <XAxis
                   dataKey="month"
-                  tick={{ fill: "#ffffff" }}
+                  tick={<CustomXAxisTick />}
                   axisLine={false}
                   tickLine={false}
                   padding={{ left: 20, right: 20 }}
