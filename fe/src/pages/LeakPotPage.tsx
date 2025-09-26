@@ -535,9 +535,10 @@ const CustomSlider: React.FC<{
   formatter: Intl.NumberFormat;
 }> = ({ cat, isLeaking, handleThresholdChange, formatter }) => {
 
-  const max = Math.max(600000, cat.spending * 1.5, cat.threshold * 1.5);
+  const max = Math.max(600000, cat.spending * 1.5);
   const spendingPct = (cat.spending / max) * 100;
-  const thresholdPct = (cat.threshold / max) * 100;
+  // const thresholdPct = (cat.threshold / max) * 100;
+  const thresholdPct = Math.min((cat.threshold / max) * 100, 100);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleThresholdChange(cat.id, parseInt(e.target.value, 10));
