@@ -18,20 +18,20 @@ import { useUpdateBudgetMutation } from "../api/mutation/budgetMutation";
 import type { MonthlyBudgetResponse, YearlyBudgetLeakResponse } from "../types";
 
 /* ------------------------------ 이미지 & 애니메이션 ------------------------------ */
-const cryingKongjwi = "/leakPot/cryingKongjwi.png";
-const happyKongjwi = "/leakPot/happyKongjwi.png";
-const happyToad = "/leakPot/happyToad.png";
-const angryToad = "/leakPot/angryToad.png";
-const bgImage = "/leakPot/joseon-bg.png";
-const customPointer = "/leakPot/money.png";
-const paper = "/leakPot/paper.png";
-const potImage = "/leakPot/pot.png";
-const broken = "/leakPot/broken.png";
-const monthGood = "/leakPot/good.png";
-const monthBad = "/leakPot/bad.png";
-const badGray = "/leakPot/bad_gray.png";
-const goodGray = "/leakPot/good_gray.png";
-const tooltipToad = "/leakPot/tooltip.png";
+const cryingKongjwi = "/leakPot/cryingKongjwi.webp";
+const happyKongjwi = "/leakPot/happyKongjwi.webp";
+const happyToad = "/leakPot/happyToad.webp";
+const angryToad = "/leakPot/angryToad.webp";
+const bgImage = "/leakPot/joseon-bg.webp";
+const customPointer = "/leakPot/money.webp";
+const paper = "/leakPot/paper.webp";
+const potImage = "/leakPot/pot.webp";
+const broken = "/leakPot/broken.webp";
+const monthGood = "/leakPot/good.webp";
+const monthBad = "/leakPot/bad.webp";
+const badGray = "/leakPot/bad_gray.webp";
+const goodGray = "/leakPot/good_gray.webp";
+const tooltipToad = "/leakPot/tooltip.webp";
 
 export const leakPotAssets = [
   cryingKongjwi,

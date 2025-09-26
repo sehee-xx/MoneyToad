@@ -1,7 +1,7 @@
 import "./LoadingOverlay.css";
 
-const toad = "/loading/toad.png";   // 아까 올려주신 두꺼비 이미지 경로
-const kong = "/loading/kongjwi.png";   // 아까 올려주신 콩쥐 이미지 경로
+const toad = "/loading/toad.webp";   // 아까 올려주신 두꺼비 이미지 경로
+const kong = "/loading/kongjwi.webp";   // 아까 올려주신 콩쥐 이미지 경로
 
 export default function LoadingOverlay() {
   return (

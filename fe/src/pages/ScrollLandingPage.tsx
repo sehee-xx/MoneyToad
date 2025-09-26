@@ -19,10 +19,10 @@ type PageVars = React.CSSProperties & {
 };
 
 export const scrollLandingAssets = [
-  "/landing/landing1.png",
-  "/landing/landing2.png",
-  "/landing/landing3.png",
-  "/landing/landing4.png",
+  "/landing/landing1.webp",
+  "/landing/landing2.webp",
+  "/landing/landing3.webp",
+  "/landing/landing4.webp",
 ];
 
 export default function ScrollLandingPage() {
@@ -51,27 +51,27 @@ export default function ScrollLandingPage() {
       title: "콩쥐의 꿈",
       description:
         "콩쥐는 부자가 되고 싶었습니다.\n매일매일 가난한 생활에 지친 콩쥐는\n언젠가는 꼭 부자가 되어 행복하게 살고 싶다고 생각했어요.",
-      backgroundImage: "/landing/landing1.png",
+      backgroundImage: "/landing/landing1.webp",
     },
     {
       id: 2,
       title: "두꺼비를 만나다",
       description:
         "그래서 마을에서 유명한 자산관리사 두꺼비를 찾아갔습니다.\n두꺼비 선생님은 콩쥐의 소비 습관을 분석하기 시작했어요",
-      backgroundImage: "/landing/landing2.png",
+      backgroundImage: "/landing/landing2.webp",
     },
     {
       id: 3,
       title: "장독대의 비밀",
       description: `두꺼비 선생님은 콩쥐에게 말했습니다.\n"콩쥐야, 먼저 네 장독대의 누수를 막아야 한단다.\n새는 곳을 막지 않으면 아무리 많이 담아도 소용없어."`,
-      backgroundImage: "/landing/landing3.png",
+      backgroundImage: "/landing/landing3.webp",
     },
     {
       id: 4,
       title: "콩쥐의 장독대",
       description:
         "과연 콩쥐가 장독대의 누수를 모두 막아\n마을 최고의 부자가 될 수 있을까요?",
-      backgroundImage: "/landing/landing4.png",
+      backgroundImage: "/landing/landing4.webp",
     },
   ];
 

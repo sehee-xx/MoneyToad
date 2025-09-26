@@ -17,16 +17,16 @@ type LocalUserInfo = {
   cvc?: string;     // 저장/표시는 숫자 3자리
 };
 
-const IMG_CLOSE  = "/mypage/close.png";
-const IMG_OPEN   = "/mypage/open.png";
-const IMG_SIT    = "/mypage/sitting.png";
-const IMG_PAPER  = "/mypage/paper.png";
+const IMG_CLOSE  = "/mypage/close.webp";
+const IMG_OPEN   = "/mypage/open.webp";
+const IMG_SIT    = "/mypage/sitting.webp";
+const IMG_PAPER  = "/mypage/paper.webp";
 
 export const mypageAssets = [
-  "/mypage/close.png",
-  "/mypage/open.png",
-  "/mypage/sitting.png",
-  "/mypage/paper.png",
+  "/mypage/close.webp",
+  "/mypage/open.webp",
+  "/mypage/sitting.webp",
+  "/mypage/paper.webp",
 ];
 
 // ---- utils (간단 버전) ----
