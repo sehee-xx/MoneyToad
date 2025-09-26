@@ -591,7 +591,7 @@ const CustomSlider: React.FC<{
           type="range"
           min={0}
           max={max}
-          step={500}
+          step={1000}
           value={cat.threshold}
           onChange={handleChange}
           aria-label={`${cat.name} 한도`}
