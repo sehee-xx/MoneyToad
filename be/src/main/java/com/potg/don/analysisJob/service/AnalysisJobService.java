@@ -2,6 +2,7 @@ package com.potg.don.analysisJob.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,21 +92,24 @@ public class AnalysisJobService {
 	/**
 	 * 베이스라인을 불러와 Budget upsert
 	 */
-	private void saveBaselineToBudgets(Long userId, String fileId) {
+	@Transactional
+	public void saveBaselineToBudgets(Long userId, String fileId) {
 		User user = userRepo.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("사용자 없음: " + userId));
 
 		BaselineResponse baseline = csvClient.getBaseline(fileId);
-		if (baseline == null || baseline.getBaselineMonths() == null)
-			return;
+		if (baseline == null || baseline.getBaselineMonths() == null) return;
+
+		final LocalDateTime now = LocalDateTime.now();
 
 		for (BaselineResponse.BaselineMonth bm : baseline.getBaselineMonths()) {
-			if (bm.getCategoryPredictions() == null)
-				continue;
+			if (bm.getCategoryPredictions() == null || bm.getCategoryPredictions().isEmpty()) continue;
+
 			LocalDate budgetDate = LocalDate.of(bm.getYear(), bm.getMonth(), 1);
 
 			bm.getCategoryPredictions().forEach((category, pred) -> {
-				int amount = toInt(pred.getPredictedAmount());
+				int predicted = toInt(pred.getPredictedAmount());
+
 				Budget budget = budgetRepo
 					.findByUser_IdAndBudgetDateAndCategory(userId, budgetDate, category)
 					.orElseGet(() -> {
@@ -115,7 +119,9 @@ public class AnalysisJobService {
 						b.setCategory(category);
 						return b;
 					});
-				budget.updateBudget(amount);
+
+				// ✅ 항상 초기화 후 새 예측으로 덮어쓰기
+				budget.resetFromPrediction(predicted, fileId, now);
 				budgetRepo.save(budget);
 			});
 		}

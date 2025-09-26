@@ -10,6 +10,7 @@ import lombok.Getter;
 public class BudgetResponse {
 	private Long id;
 	private Integer budget;
+	private Integer initialBudget;
 	private Integer spending;
 	private String category;
 
@@ -17,15 +18,17 @@ public class BudgetResponse {
 		return BudgetResponse.builder()
 			.id(budget.getId())
 			.budget(budget.getAmount())
+			.initialBudget(budget.getInitialAmount())
 			.spending(spending)
 			.category(budget.getCategory())
 			.build();
 	}
 
-	public static BudgetResponse of(String category, Integer budget, Integer spending) {
+	public static BudgetResponse of(String category, Integer budget, Integer initialBudget, Integer spending) {
 		return BudgetResponse.builder()
 			.category(category)
 			.budget(budget)
+			.initialBudget(initialBudget)
 			.spending(spending)
 			.build();
 	}

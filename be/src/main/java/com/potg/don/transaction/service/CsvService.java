@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
@@ -51,7 +52,7 @@ public class CsvService {
 		}
 
 		LocalDate budgetDate = LocalDate.of(year, month, 1);
-
+		final LocalDateTime now = LocalDateTime.now();
 		resp.getDetails().getCategoryPredictions().forEach((category, pred) -> {
 			int amount = toInt(pred.getPredictedAmount()); // Double → int(반올림)
 
@@ -65,7 +66,7 @@ public class CsvService {
 					return b;
 				});
 
-			budget.updateBudget(amount);
+			budget.resetFromPrediction(amount, resp.getFileId(), now);
 			budgetRepository.save(budget);
 		});
 	}
