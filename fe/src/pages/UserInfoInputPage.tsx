@@ -288,10 +288,12 @@ export default function UserInfoInputPage() {
                   className="btn primary"
                   type="button"
                   onClick={goFinish}
-                  disabled={!allValid}
-                  aria-disabled={!allValid}
+                  disabled={!allValid || registerCardMutation.isPending || updateUserBasicInfoMutation.isPending}
+                  aria-disabled={!allValid || registerCardMutation.isPending || updateUserBasicInfoMutation.isPending}
                 >
-                  정보 입력 완료
+                  {registerCardMutation.isPending || updateUserBasicInfoMutation.isPending
+                    ? "등록 중..."
+                    : "정보 입력 완료"}
                 </button>
               </div>
             </>
