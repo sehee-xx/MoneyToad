@@ -36,30 +36,31 @@ public class DummyService {
 
 	static {
 		Map<String, CatRule> m = new LinkedHashMap<>();
-		m.put("식비", new CatRule(2, 6, 5_000, 30_000));
-		m.put("카페", new CatRule(1, 5, 2_000, 9_000));
-		m.put("마트 / 편의점", new CatRule(2, 6, 2_000, 60_000));
-		m.put("문화생활", new CatRule(1, 3, 7_000, 70_000));
-		m.put("교통 / 차량", new CatRule(1, 4, 1_250, 50_000));
-		m.put("패션 / 미용", new CatRule(0, 3, 8_000, 150_000));
-		m.put("생활용품", new CatRule(1, 3, 3_000, 80_000));
+		// 보통 프로필: 월별 최소/최대 건수 조정 (금액 범위는 유지)
+		m.put("식비", new CatRule(8, 20, 5_000, 30_000));
+		m.put("카페", new CatRule(5, 15, 2_000, 9_000));
+		m.put("마트 / 편의점", new CatRule(4, 12, 2_000, 60_000));
+		m.put("문화생활", new CatRule(1, 4, 7_000, 70_000));
+		m.put("교통 / 차량", new CatRule(4, 12, 1_250, 50_000));
+		m.put("패션 / 미용", new CatRule(0, 4, 8_000, 150_000));
+		m.put("생활용품", new CatRule(1, 6, 3_000, 80_000));
 		m.put("주거 / 통신", new CatRule(1, 2, 10_000, 200_000));
-		m.put("건강 / 병원", new CatRule(1, 2, 10_000, 200_000));
-		m.put("교육", new CatRule(1, 2, 10_000, 300_000));
-		m.put("경조사 / 회비", new CatRule(1, 2, 10_000, 200_000));
-		m.put("보험 / 세금", new CatRule(1, 2, 10_000, 300_000));
-		m.put("기타", new CatRule(1, 3, 1_000, 100_000));
+		m.put("건강 / 병원", new CatRule(0, 2, 10_000, 200_000));
+		m.put("교육", new CatRule(0, 2, 10_000, 300_000));
+		m.put("경조사 / 회비", new CatRule(0, 1, 10_000, 200_000));
+		m.put("보험 / 세금", new CatRule(1, 1, 10_000, 300_000));
+		m.put("기타", new CatRule(1, 4, 1_000, 100_000));
 		RULES = java.util.Collections.unmodifiableMap(m);
 	}
 
 	// ✅ 월 전체 최소 건수(설정)
-	private static final int MONTHLY_MIN_TX = 30; // 필요 시 조정
+	private static final int MONTHLY_MIN_TX = 60; // 보통 프로필 권장: 55~60 중 60 선택
 
-	private static final int MONTH_SPAN = 24;
+	private static final int MONTH_SPAN = 15;
 
 	/**
 	 * 카드에 대해 기존 내역을 삭제하고,
-	 * 최근 12개월 × 카테고리별 [min~max] 규칙 + 월별 최소 건수 보정으로 더미풀에서 복사 생성합니다.
+	 * 최근 MONTH_SPAN개월 × 카테고리별 [min~max] 규칙 + 월별 최소 건수 보정으로 더미풀에서 복사 생성합니다.
 	 */
 	@Transactional
 	public void populateFromPool(Long cardId) {
@@ -72,7 +73,7 @@ public class DummyService {
 		ThreadLocalRandom rng = ThreadLocalRandom.current();
 		YearMonth nowYm = YearMonth.now();
 
-		// 2) 최근 12개월 반복
+		// 2) 최근 MONTH_SPAN개월 반복
 		for (int m = 0; m < MONTH_SPAN; m++) {
 			YearMonth ym = nowYm.minusMonths(m);
 			int daysInMonth = ym.lengthOfMonth();
