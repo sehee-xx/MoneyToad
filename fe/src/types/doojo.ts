@@ -31,12 +31,14 @@ export interface ApiCategoryMostSpent {
   merchant: string;
   amount: number;
   date: string;
+  msg: string;
 }
 
 export interface ApiCategoryMostFrequent {
   merchant: string;
   count: number;
   total_amount: number;
+  msg: string;
 }
 
 export interface ApiCategoryDetail {
@@ -72,12 +74,14 @@ export interface CategoryMostSpent {
   amount: number;
   /** ISO 8601 문자열. 예: "2025-08-15T10:30" */
   date: string;
+  msg: string;
 }
 
 export interface CategoryMostFrequent {
   merchant: string;
   count: number;
   totalAmount: number;
+  msg: string;
 }
 
 export interface CategoryDetail {
@@ -104,6 +108,7 @@ export const adaptDoojoResponse = (apiResponse: ApiDoojoResponse): DoojoResponse
     merchant: api.merchant,
     count: api.count,
     totalAmount: api.total_amount,
+    msg: api.msg
   });
 
   const adaptCategoryDetail = (api: ApiCategoryDetail): CategoryDetail => ({
@@ -111,6 +116,7 @@ export const adaptDoojoResponse = (apiResponse: ApiDoojoResponse): DoojoResponse
       merchant: api.most_spent.merchant,
       amount: api.most_spent.amount,
       date: api.most_spent.date,
+      msg: api.most_spent.msg,
     },
     mostFrequent: adaptCategoryMostFrequent(api.most_frequent),
   });

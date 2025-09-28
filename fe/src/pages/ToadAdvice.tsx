@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useDoojoQuery } from "../api";
 import { useYearlyBudgetLeaksQuery } from '../api/queries/budgetQuery';
 import Header from "../components/Header";
-import type { YearlyBudgetLeakResponse } from '../types';
+import { type YearlyBudgetLeakResponse } from '../types';
 import "./ToadAdvice.css";
 
 /* ===== 카테고리 아이콘 (.webp) ===== */
@@ -101,8 +101,8 @@ const pctLabel = (pct: number) =>
         pct > 0 ? "높음" : "낮음"
       }`;
 
-type MostSpent = { merchant: string; amount: number; date: string };
-type MostFrequent = { merchant: string; count: number; totalAmount: number };
+type MostSpent = { merchant: string; amount: number; date: string; msg: string };
+type MostFrequent = { merchant: string; count: number; totalAmount: number; msg: string };
 type CategoryDetail = { mostSpent: MostSpent; mostFrequent: MostFrequent };
 type DetailMap = Record<string, CategoryDetail>;
 type SpentCtx = {
@@ -366,11 +366,10 @@ export default function ToadAdvice() {
     () => (advices.length > 0 ? Math.round(advices.reduce((s, a) => s + a.pct, 0) / advices.length) : 0),
     [advices]
   );
-
   // 모달
   const [open, setOpen] = useState<null | { id: string; title: string; detail: string; over: number }>(null);
   const openDetail: CategoryDetail | undefined = open ? detailsByCategory[normalizeKey(open.title)] : undefined;
-  const insight = open ? buildInsights(open.title, openDetail, open.over) : null;
+  const aiInsight = open ? buildInsights(open.title, openDetail, open.over) : null;
 
   // 월 변경 핸들러
   const handleMonthChange = useCallback((m: number) => setSelectedMonth(m), []);
@@ -563,7 +562,7 @@ export default function ToadAdvice() {
                         <span className="dot">•</span>
                         <span>{fmtDate(openDetail.mostSpent.date)}</span>
                       </div>
-                      <p className="insight-ai">{multiline(insight?.spentText)}</p>
+                      <p className="insight-ai">{openDetail.mostSpent.msg || multiline(aiInsight?.spentText)}</p>
                     </>
                   ) : (
                     <div className="insight-empty">데이터가 없소.</div>
@@ -580,7 +579,7 @@ export default function ToadAdvice() {
                         <span className="dot">•</span>
                         <span>총 {won(openDetail.mostFrequent.totalAmount)}</span>
                       </div>
-                      <p className="insight-ai">{multiline(insight?.freqText)}</p>
+                      <p className="insight-ai">{openDetail.mostFrequent.msg || multiline(aiInsight?.freqText)}</p>
                     </>
                   ) : (
                     <div className="insight-empty">데이터가 없소.</div>
