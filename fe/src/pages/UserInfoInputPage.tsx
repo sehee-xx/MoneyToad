@@ -122,6 +122,11 @@ export default function UserInfoInputPage() {
     setTouched(true);
     if (!allValid) return;
     
+    // API 호출이 진행 중인 경우 중복 호출 방지
+    if (registerCardMutation.isPending || updateUserBasicInfoMutation.isPending) {
+      return;
+    }
+    
     try {
       await registerCardMutation.mutateAsync({
         cardNo: account,
@@ -140,7 +145,7 @@ export default function UserInfoInputPage() {
       console.error('API 호출 실패:', error);
       alert('정보 등록 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
-  };
+  };;
 
   const cancel = () => navigate("/");
 
