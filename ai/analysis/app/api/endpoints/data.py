@@ -15,6 +15,8 @@ from app.services.s3_client import S3Client
 from app.db.database import get_db
 from app.db import models
 from app.deps.auth import get_current_user_id
+import csv
+import os
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -1062,29 +1064,37 @@ async def get_doojo_data(
                 # Find most frequent merchant
                 most_freq_merchant = max(merchant_stats.keys(), key=lambda m: merchant_stats[m]['count'])
 
-                # Get messages for merchants
-                most_spent_msg = db.query(models.MerchantMessage).filter(
-                    models.MerchantMessage.merchant == max_txn['merchant'],
-                    models.MerchantMessage.message_type == 'most_spent'
-                ).first()
+                # Load messages from CSV file
+                merchant_messages = {}
+                csv_path = os.path.join(os.path.dirname(__file__), '../../../sample_data/merchant_messages_sample.csv')
+                try:
+                    with open(csv_path, 'r', encoding='utf-8-sig') as csvfile:
+                        reader = csv.DictReader(csvfile)
+                        for row in reader:
+                            key = f"{row['merchant']}_{row['message_type']}"
+                            merchant_messages[key] = row['message']
+                except Exception as e:
+                    logger.error(f"Failed to read merchant messages CSV: {e}")
                 
-                most_freq_msg = db.query(models.MerchantMessage).filter(
-                    models.MerchantMessage.merchant == most_freq_merchant,
-                    models.MerchantMessage.message_type == 'most_frequent'
-                ).first()
+                # Get messages for merchants from CSV data
+                most_spent_key = f"{max_txn['merchant']}_most_spent"
+                most_freq_key = f"{most_freq_merchant}_most_frequent"
+                
+                most_spent_msg = merchant_messages.get(most_spent_key)
+                most_freq_msg = merchant_messages.get(most_freq_key)
                 
                 categories_detail[category] = CategoryDetail(
                     most_spent=MostSpentDetail(
                         merchant=max_txn['merchant'],
                         amount=float(max_txn['amount']),
                         date=max_txn['date'].isoformat(),
-                        msg=most_spent_msg.message if most_spent_msg else None
+                        msg=most_spent_msg if most_spent_msg else None
                     ),
                     most_frequent=MostFrequentDetail(
                         merchant=most_freq_merchant,
                         count=merchant_stats[most_freq_merchant]['count'],
                         total_amount=float(merchant_stats[most_freq_merchant]['total']),
-                        msg=most_freq_msg.message if most_freq_msg else None
+                        msg=most_freq_msg if most_freq_msg else None
                     )
                 )
 
@@ -1127,29 +1137,37 @@ async def get_doojo_data(
                             merchant_counts.columns = ['merchant', 'count', 'total_amount']
                             most_frequent = merchant_counts.loc[merchant_counts['count'].idxmax()]
 
-                            # Get messages for merchants from S3 data
-                            most_spent_msg_s3 = db.query(models.MerchantMessage).filter(
-                                models.MerchantMessage.merchant == str(max_transaction['merchant']),
-                                models.MerchantMessage.message_type == 'most_spent'
-                            ).first()
+                            # Load messages from CSV file for S3 data
+                            merchant_messages_s3 = {}
+                            csv_path_s3 = os.path.join(os.path.dirname(__file__), '../../../sample_data/merchant_messages_sample.csv')
+                            try:
+                                with open(csv_path_s3, 'r', encoding='utf-8-sig') as csvfile:
+                                    reader = csv.DictReader(csvfile)
+                                    for row in reader:
+                                        key = f"{row['merchant']}_{row['message_type']}"
+                                        merchant_messages_s3[key] = row['message']
+                            except Exception as e:
+                                logger.error(f"Failed to read merchant messages CSV for S3: {e}")
                             
-                            most_freq_msg_s3 = db.query(models.MerchantMessage).filter(
-                                models.MerchantMessage.merchant == str(most_frequent['merchant']),
-                                models.MerchantMessage.message_type == 'most_frequent'
-                            ).first()
+                            # Get messages for merchants from CSV data
+                            most_spent_key_s3 = f"{str(max_transaction['merchant'])}_most_spent"
+                            most_freq_key_s3 = f"{str(most_frequent['merchant'])}_most_frequent"
+                            
+                            most_spent_msg_s3 = merchant_messages_s3.get(most_spent_key_s3)
+                            most_freq_msg_s3 = merchant_messages_s3.get(most_freq_key_s3)
                             
                             categories_detail[category] = CategoryDetail(
                                 most_spent=MostSpentDetail(
                                     merchant=str(max_transaction['merchant']),
                                     amount=float(max_transaction['amount']),
                                     date=max_transaction['transaction_date_time'].isoformat(),
-                                    msg=most_spent_msg_s3.message if most_spent_msg_s3 else None
+                                    msg=most_spent_msg_s3 if most_spent_msg_s3 else None
                                 ),
                                 most_frequent=MostFrequentDetail(
                                     merchant=str(most_frequent['merchant']),
                                     count=int(most_frequent['count']),
                                     total_amount=float(most_frequent['total_amount']),
-                                    msg=most_freq_msg_s3.message if most_freq_msg_s3 else None
+                                    msg=most_freq_msg_s3 if most_freq_msg_s3 else None
                                 )
                             )
 
