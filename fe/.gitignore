@@ -11,9 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
 
 .serena
 .claude
+claude.md
 
 # Editor directories and files
 .vscode/*
