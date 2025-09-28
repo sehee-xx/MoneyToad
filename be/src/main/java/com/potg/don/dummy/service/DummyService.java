@@ -42,12 +42,12 @@ public class DummyService {
 		m.put("마트 / 편의점", new CatRule(4, 12, 2_000, 60_000));
 		m.put("문화생활", new CatRule(1, 4, 7_000, 70_000));
 		m.put("교통 / 차량", new CatRule(4, 12, 1_250, 50_000));
-		m.put("패션 / 미용", new CatRule(0, 4, 8_000, 150_000));
+		m.put("패션 / 미용", new CatRule(1, 4, 8_000, 150_000));
 		m.put("생활용품", new CatRule(1, 6, 3_000, 80_000));
 		m.put("주거 / 통신", new CatRule(1, 2, 10_000, 200_000));
-		m.put("건강 / 병원", new CatRule(0, 2, 10_000, 200_000));
-		m.put("교육", new CatRule(0, 2, 10_000, 300_000));
-		m.put("경조사 / 회비", new CatRule(0, 1, 10_000, 200_000));
+		m.put("건강 / 병원", new CatRule(1, 2, 10_000, 200_000));
+		m.put("교육", new CatRule(1, 2, 10_000, 300_000));
+		m.put("경조사 / 회비", new CatRule(1, 1, 10_000, 200_000));
 		m.put("보험 / 세금", new CatRule(1, 1, 10_000, 300_000));
 		m.put("기타", new CatRule(1, 4, 1_000, 100_000));
 		RULES = java.util.Collections.unmodifiableMap(m);
