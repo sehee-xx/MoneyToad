@@ -98,3 +98,19 @@ class DoojoAnalysis(Base):
     __table_args__ = (
         UniqueConstraint('file_id', 'category', 'year', 'month', name='uq_doojo_file_cat_year_month'),
     )
+
+
+class MerchantMessage(Base):
+    """Model for storing merchant-specific messages for doojo advice"""
+    __tablename__ = "merchant_messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    merchant = Column(String(255), nullable=False, index=True)
+    message_type = Column(String(50), nullable=False)  # 'most_spent' or 'most_frequent'
+    message = Column(String(500), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    __table_args__ = (
+        UniqueConstraint('merchant', 'message_type', name='uq_merchant_type'),
+    )

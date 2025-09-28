@@ -821,6 +821,7 @@ class MostSpentDetail(BaseModel):
     merchant: str
     amount: float
     date: str
+    msg: Optional[str] = None
 
 
 class MostFrequentDetail(BaseModel):
@@ -828,6 +829,7 @@ class MostFrequentDetail(BaseModel):
     merchant: str
     count: int
     total_amount: float
+    msg: Optional[str] = None
 
 
 class CategoryDetail(BaseModel):
@@ -1060,16 +1062,29 @@ async def get_doojo_data(
                 # Find most frequent merchant
                 most_freq_merchant = max(merchant_stats.keys(), key=lambda m: merchant_stats[m]['count'])
 
+                # Get messages for merchants
+                most_spent_msg = db.query(models.MerchantMessage).filter(
+                    models.MerchantMessage.merchant == max_txn['merchant'],
+                    models.MerchantMessage.message_type == 'most_spent'
+                ).first()
+                
+                most_freq_msg = db.query(models.MerchantMessage).filter(
+                    models.MerchantMessage.merchant == most_freq_merchant,
+                    models.MerchantMessage.message_type == 'most_frequent'
+                ).first()
+                
                 categories_detail[category] = CategoryDetail(
                     most_spent=MostSpentDetail(
                         merchant=max_txn['merchant'],
                         amount=float(max_txn['amount']),
-                        date=max_txn['date'].isoformat()
+                        date=max_txn['date'].isoformat(),
+                        msg=most_spent_msg.message if most_spent_msg else None
                     ),
                     most_frequent=MostFrequentDetail(
                         merchant=most_freq_merchant,
                         count=merchant_stats[most_freq_merchant]['count'],
-                        total_amount=float(merchant_stats[most_freq_merchant]['total'])
+                        total_amount=float(merchant_stats[most_freq_merchant]['total']),
+                        msg=most_freq_msg.message if most_freq_msg else None
                     )
                 )
 
@@ -1112,16 +1127,29 @@ async def get_doojo_data(
                             merchant_counts.columns = ['merchant', 'count', 'total_amount']
                             most_frequent = merchant_counts.loc[merchant_counts['count'].idxmax()]
 
+                            # Get messages for merchants from S3 data
+                            most_spent_msg_s3 = db.query(models.MerchantMessage).filter(
+                                models.MerchantMessage.merchant == str(max_transaction['merchant']),
+                                models.MerchantMessage.message_type == 'most_spent'
+                            ).first()
+                            
+                            most_freq_msg_s3 = db.query(models.MerchantMessage).filter(
+                                models.MerchantMessage.merchant == str(most_frequent['merchant']),
+                                models.MerchantMessage.message_type == 'most_frequent'
+                            ).first()
+                            
                             categories_detail[category] = CategoryDetail(
                                 most_spent=MostSpentDetail(
                                     merchant=str(max_transaction['merchant']),
                                     amount=float(max_transaction['amount']),
-                                    date=max_transaction['transaction_date_time'].isoformat()
+                                    date=max_transaction['transaction_date_time'].isoformat(),
+                                    msg=most_spent_msg_s3.message if most_spent_msg_s3 else None
                                 ),
                                 most_frequent=MostFrequentDetail(
                                     merchant=str(most_frequent['merchant']),
                                     count=int(most_frequent['count']),
-                                    total_amount=float(most_frequent['total_amount'])
+                                    total_amount=float(most_frequent['total_amount']),
+                                    msg=most_freq_msg_s3.message if most_freq_msg_s3 else None
                                 )
                             )
 
