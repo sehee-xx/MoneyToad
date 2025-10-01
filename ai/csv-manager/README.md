@@ -343,9 +343,29 @@ docker exec redis redis-cli ping
 - **Classifier Service**: 업로드된 CSV 분류
 - **Analysis Service**: CSV 데이터 분석
 
+## 📝 주요 변경사항
+
+### v2.0.0 (현재)
+- ✅ 중복 파일명 허용 (file_id 기반 관리)
+- ✅ Redis를 primary storage로 변경
+- ✅ 비동기 업로드/교체 구현
+- ✅ 백그라운드 태스크 처리
+- ✅ 4-state 시스템 (uploading, ingesting, analyzing, none)
+- ✅ Prophet 분석 준비 상태 검증
+
+### v1.0.0
+- 초기 릴리스
+- MinIO 통합
+- 기본 CRUD 작업
+
 ## 🔗 관련 문서
 
 - [Main README](../README.md)
 - [API Gateway](../gateway/README.md)
 - [Classifier Service](../classifier/README.md)
 - [Analysis Service](../analysis/README.md)
+
+---
+
+**Version**: 2.0.0
+**Last Updated**: 2025-10-01

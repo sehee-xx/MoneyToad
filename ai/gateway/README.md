@@ -251,9 +251,28 @@ docker-compose up -d gateway
 }
 ```
 
+## 📝 주요 변경사항
+
+### v2.0.0 (현재)
+- ✅ GPT-5-nano 기반 Classifier 서비스 통합
+- ✅ Analysis doojo 엔드포인트 라우팅 추가
+- ✅ Structured Outputs 지원
+- ✅ 통합 API 문서 개선
+- ✅ 서비스별 헬스체크 강화
+
+### v1.0.0
+- 초기 릴리스
+- 기본 라우팅 기능
+- OpenAPI 스키마 병합
+
 ## 🔗 관련 문서
 
 - [Main README](../README.md)
 - [CSV Manager Service](../csv-manager/README.md)
 - [Classifier Service](../classifier/README.md)
 - [Analysis Service](../analysis/README.md)
+
+---
+
+**Version**: 2.0.0
+**Last Updated**: 2025-10-01

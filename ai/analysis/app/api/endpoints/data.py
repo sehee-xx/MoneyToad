@@ -858,59 +858,42 @@ class DoojoResponse(BaseModel):
 @router.get(
     "/doojo",
     response_model=DoojoResponse,
-    summary="Get doojo (stamp breaking) data 🔒",
-    description="Get category spending analysis with min/max ranges and leak thresholds from MySQL. **Requires JWT Bearer token**",
+    summary="Get doojo (stamp breaking) data",
+    description="Get category spending analysis with min/max ranges from S3 CSV data",
     responses={
-        401: {"description": "Unauthorized - Invalid or missing JWT token"},
-        404: {"description": "User not found or no analysis data"}
-    },
-    tags=["Protected"]
+        404: {"description": "File not found or no analysis data"}
+    }
 )
 async def get_doojo_data(
+    file_id: str = Query(..., description="File ID for CSV data"),
     year: Optional[int] = Query(None, description="Year to query (default: current year)"),
-    month: Optional[int] = Query(None, ge=1, le=12, description="Month to query (1-12, default: current month)"),
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db)
+    month: Optional[int] = Query(None, ge=1, le=12, description="Month to query (1-12, default: current month)")
 ) -> DoojoResponse:
     """
-    두꺼비 조언 데이터 조회 - JWT 토큰의 user_id를 통해 카테고리별 지출 분석 조회
+    두꺼비 조언 데이터 조회 - S3 CSV 파일 기반 카테고리별 지출 분석
 
-    JWT 토큰에서 user_id를 추출하고, users 테이블에서 해당 user의 file_id를 찾아
-    doojo analysis 데이터를 조회합니다.
+    S3 CSV 데이터에서 카테고리별 지출 통계를 계산하여 제공합니다.
 
     각 카테고리별로 다음 정보를 제공:
     - min: 과거 12개월간 최소 지출액
     - max: 과거 12개월간 최대 지출액
-    - current: 이번달 누수 기준 (예측값)
+    - current: 이번달 누수 기준 (평균값)
     - real: 실제 사용 금액
     - result: real > current 이면 true, 아니면 false
+    - avg: 평균 지출액
 
     Args:
+        file_id: CSV 파일 ID
         year: 조회할 연도 (선택, 기본값: 현재 연도)
         month: 조회할 월 (선택, 1-12, 기본값: 현재 월)
-        user_id: JWT 토큰에서 추출한 사용자 ID
-        db: Database session
 
     Returns:
-        DoojoResponse with category analysis from MySQL
+        DoojoResponse with category analysis from S3 CSV
 
     Raises:
-        401: Invalid or missing JWT token
-        404: User not found or no analysis data
+        404: File not found or no analysis data
     """
-    # Get user's file_id from users table (using parameterized query to prevent SQL injection)
-    from sqlalchemy import text
-    user_query = text("SELECT file_id FROM users WHERE id = :user_id")
-    result = db.execute(user_query, {"user_id": user_id}).first()
-
-    if not result or not result.file_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No analysis file found for user {user_id}. Please upload and analyze transaction data first."
-        )
-
-    file_id = result.file_id
-    logger.info(f"User {user_id} has file_id: {file_id}")
+    import pandas as pd
 
     # Check if analysis is in progress
     analysis_status = redis_client.get_csv_status(file_id)
@@ -920,391 +903,164 @@ async def get_doojo_data(
             detail="Analysis is still in progress. Please try again later."
         )
 
+    # Get file metadata from Redis
+    file_metadata = redis_client.get_file_metadata(file_id)
+    if not file_metadata:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File {file_id} not found"
+        )
+
+    s3_key = file_metadata.get('s3_key')
+    if not s3_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No S3 key found for file {file_id}"
+        )
+
+    # Fetch CSV data from S3
+    csv_data = await s3_client.fetch_csv_data(file_id, s3_key)
+    if csv_data is None or csv_data.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No data found for file {file_id}"
+        )
+
+    # Rename merchant_name to merchant for consistency
+    if 'merchant_name' in csv_data.columns:
+        csv_data = csv_data.rename(columns={'merchant_name': 'merchant'})
+
     # Use provided year/month or default to current
     current_date = datetime.now()
     query_year = year if year is not None else current_date.year
     query_month = month if month is not None else current_date.month
 
-    # Get doojo data from MySQL using file_id
-    doojo_data = db.query(models.DoojoAnalysis).filter(
-        models.DoojoAnalysis.file_id == file_id,
-        models.DoojoAnalysis.year == query_year,
-        models.DoojoAnalysis.month == query_month
-    ).all()
+    # Ensure transaction_date_time is datetime
+    csv_data['transaction_date_time'] = pd.to_datetime(csv_data['transaction_date_time'])
 
-    # If no doojo data, we'll calculate it dynamically
-    dynamic_doojo = {}
+    # Add year_month column
+    csv_data['year_month'] = csv_data['transaction_date_time'].dt.to_period('M')
 
-    # Get user's cards to fetch transactions from MySQL
-    from sqlalchemy import text, and_, extract
-    from sqlalchemy.sql import func
+    # Calculate monthly spending per category
+    monthly_spending = csv_data.groupby(['category', 'year_month'])['amount'].sum().reset_index()
 
-    # Get all card_ids for this user
-    cards_query = text("SELECT c.id FROM cards c JOIN users u ON c.user_id = u.id WHERE u.id = :user_id")
-    card_results = db.execute(cards_query, {"user_id": user_id}).fetchall()
-    card_ids = [row[0] for row in card_results]
-
-    categories_detail = {}
-    real_amounts = {}
-    historical_avg = {}
-
-    # If no doojo data exists, calculate min/max dynamically from transactions
-    if not doojo_data and card_ids:
-        # Calculate min/max for each category from past 12 months
-        past_12_months_query = text("""
-            SELECT
-                category,
-                DATE_FORMAT(transaction_date_time, '%Y-%m') as month,
-                SUM(amount) as monthly_total
-            FROM transactions
-            WHERE card_id IN :card_ids
-            AND transaction_date_time >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-            AND category != '보험 / 세금'
-            GROUP BY category, DATE_FORMAT(transaction_date_time, '%Y-%m')
-        """)
-
-        past_data = db.execute(
-            past_12_months_query,
-            {"card_ids": tuple(card_ids)}
-        ).fetchall()
-
-        # Group by category to find min/max
-        category_stats = {}
-        for row in past_data:
-            if row.category not in category_stats:
-                category_stats[row.category] = []
-            category_stats[row.category].append(float(row.monthly_total))
-
-        # Calculate min/max for each category
-        for category, amounts in category_stats.items():
-            if amounts:
-                dynamic_doojo[category] = {
-                    'min_amount': min(amounts),
-                    'max_amount': max(amounts),
-                    'avg_amount': sum(amounts) / len(amounts)
-                }
-
-        # Get predictions for current threshold
-        predictions = db.query(models.Prediction).filter(
-            models.Prediction.file_id == file_id,
-            models.Prediction.prediction_date == f"{query_year}-{query_month:02d}-01"
-        ).all()
-
-        for pred in predictions:
-            if pred.category in dynamic_doojo:
-                dynamic_doojo[pred.category]['current_threshold'] = float(pred.predicted_amount)
-            else:
-                # If category not in historical data, use prediction as baseline
-                dynamic_doojo[pred.category] = {
-                    'min_amount': 0.0,
-                    'max_amount': float(pred.predicted_amount) * 1.5,  # Estimate max as 1.5x prediction
-                    'avg_amount': float(pred.predicted_amount),
-                    'current_threshold': float(pred.predicted_amount)
-                }
-
-    if card_ids:
-        # Import Transaction model if not already imported
-        from sqlalchemy.orm import aliased
-        import pandas as pd
-
-        # Get transactions for the specified month from transactions table
-        # Using DATE_FORMAT for better compatibility
-        transactions_query = text("""
-            SELECT category, merchant_name, amount, transaction_date_time
-            FROM transactions
-            WHERE card_id IN :card_ids
-            AND DATE_FORMAT(transaction_date_time, '%Y-%m') = :year_month
-        """)
-
-        year_month = f"{query_year}-{query_month:02d}"
-        current_month_transactions = db.execute(
-            transactions_query,
-            {"card_ids": tuple(card_ids), "year_month": year_month}
-        ).fetchall()
-
-        # Calculate real_amount and details per category
-        category_data = {}
-
-        for txn in current_month_transactions:
-            category = txn.category
-            if category not in category_data:
-                category_data[category] = {
-                    'total': 0,
-                    'transactions': []
-                }
-
-            category_data[category]['total'] += txn.amount
-            category_data[category]['transactions'].append({
-                'merchant': txn.merchant_name,
-                'amount': txn.amount,
-                'date': txn.transaction_date_time
-            })
-
-        # Process each category
-        for category, data in category_data.items():
-            # Skip "보험 / 세금" category
-            if category == "보험 / 세금":
-                continue
-
-            real_amounts[category] = data['total']
-
-            if data['transactions']:
-                # Find most spent transaction
-                max_txn = max(data['transactions'], key=lambda x: x['amount'])
-
-                # Calculate most frequent merchant
-                merchant_stats = {}
-                for txn in data['transactions']:
-                    merchant = txn['merchant']
-                    if merchant not in merchant_stats:
-                        merchant_stats[merchant] = {'count': 0, 'total': 0}
-                    merchant_stats[merchant]['count'] += 1
-                    merchant_stats[merchant]['total'] += txn['amount']
-
-                # Find most frequent merchant
-                most_freq_merchant = max(merchant_stats.keys(), key=lambda m: merchant_stats[m]['count'])
-
-                # Load messages from CSV file
-                merchant_messages = {}
-                csv_path = os.path.join(os.path.dirname(__file__), '../../../sample_data/merchant_messages_sample.csv')
-                try:
-                    with open(csv_path, 'r', encoding='utf-8-sig') as csvfile:
-                        reader = csv.DictReader(csvfile)
-                        for row in reader:
-                            key = f"{row['merchant']}_{row['message_type']}"
-                            merchant_messages[key] = row['message']
-                except Exception as e:
-                    logger.error(f"Failed to read merchant messages CSV: {e}")
-                
-                # Get messages for merchants from CSV data
-                most_spent_key = f"{max_txn['merchant']}_most_spent"
-                most_freq_key = f"{most_freq_merchant}_most_frequent"
-                
-                most_spent_msg = merchant_messages.get(most_spent_key)
-                most_freq_msg = merchant_messages.get(most_freq_key)
-                
-                categories_detail[category] = CategoryDetail(
-                    most_spent=MostSpentDetail(
-                        merchant=max_txn['merchant'],
-                        amount=float(max_txn['amount']),
-                        date=max_txn['date'].isoformat(),
-                        msg=most_spent_msg if most_spent_msg else None
-                    ),
-                    most_frequent=MostFrequentDetail(
-                        merchant=most_freq_merchant,
-                        count=merchant_stats[most_freq_merchant]['count'],
-                        total_amount=float(merchant_stats[most_freq_merchant]['total']),
-                        msg=most_freq_msg if most_freq_msg else None
-                    )
-                )
-
-        # Calculate historical average for each category
-        avg_query = text("""
-            SELECT category, AVG(amount) as avg_amount
-            FROM transactions
-            WHERE card_id IN :card_ids
-            GROUP BY category
-        """)
-
-        avg_results = db.execute(avg_query, {"card_ids": tuple(card_ids)}).fetchall()
-        for row in avg_results:
-            historical_avg[row.category] = float(row.avg_amount) if row.avg_amount else 0.0
-
-    # Fallback to S3 data if no transactions in MySQL
-    if not categories_detail or (not doojo_data and not card_ids):
-        file_metadata = redis_client.get_file_metadata(file_id)
-        s3_key = file_metadata.get('s3_key') if file_metadata else None
-
-        if s3_key:
-            try:
-                csv_data = await s3_client.fetch_csv_data(file_id, s3_key)
-                if csv_data is not None:
-                    import pandas as pd
-                    csv_data['transaction_date_time'] = pd.to_datetime(csv_data['transaction_date_time'])
-                    current_month_data = csv_data[
-                        (csv_data['transaction_date_time'].dt.year == query_year) &
-                        (csv_data['transaction_date_time'].dt.month == query_month)
-                    ]
-
-                    for category in csv_data['category'].unique():
-                        cat_data = current_month_data[current_month_data['category'] == category]
-                        if not cat_data.empty:
-                            real_amounts[category] = float(cat_data['amount'].sum())
-                            max_transaction = cat_data.loc[cat_data['amount'].idxmax()]
-                            merchant_counts = cat_data.groupby('merchant').agg({
-                                'amount': ['count', 'sum']
-                            }).reset_index()
-                            merchant_counts.columns = ['merchant', 'count', 'total_amount']
-                            most_frequent = merchant_counts.loc[merchant_counts['count'].idxmax()]
-
-                            # Load messages from CSV file for S3 data
-                            merchant_messages_s3 = {}
-                            csv_path_s3 = os.path.join(os.path.dirname(__file__), '../../../sample_data/merchant_messages_sample.csv')
-                            try:
-                                with open(csv_path_s3, 'r', encoding='utf-8-sig') as csvfile:
-                                    reader = csv.DictReader(csvfile)
-                                    for row in reader:
-                                        key = f"{row['merchant']}_{row['message_type']}"
-                                        merchant_messages_s3[key] = row['message']
-                            except Exception as e:
-                                logger.error(f"Failed to read merchant messages CSV for S3: {e}")
-                            
-                            # Get messages for merchants from CSV data
-                            most_spent_key_s3 = f"{str(max_transaction['merchant'])}_most_spent"
-                            most_freq_key_s3 = f"{str(most_frequent['merchant'])}_most_frequent"
-                            
-                            most_spent_msg_s3 = merchant_messages_s3.get(most_spent_key_s3)
-                            most_freq_msg_s3 = merchant_messages_s3.get(most_freq_key_s3)
-                            
-                            categories_detail[category] = CategoryDetail(
-                                most_spent=MostSpentDetail(
-                                    merchant=str(max_transaction['merchant']),
-                                    amount=float(max_transaction['amount']),
-                                    date=max_transaction['transaction_date_time'].isoformat(),
-                                    msg=most_spent_msg_s3 if most_spent_msg_s3 else None
-                                ),
-                                most_frequent=MostFrequentDetail(
-                                    merchant=str(most_frequent['merchant']),
-                                    count=int(most_frequent['count']),
-                                    total_amount=float(most_frequent['total_amount']),
-                                    msg=most_freq_msg_s3 if most_freq_msg_s3 else None
-                                )
-                            )
-
-                    historical_avg = csv_data.groupby('category')['amount'].mean().to_dict()
-
-                    # If no doojo data and no card_ids, calculate dynamic_doojo from S3 data
-                    if not doojo_data and not dynamic_doojo:
-                        # Calculate min/max per category from past 12 months
-                        csv_data['year_month'] = csv_data['transaction_date_time'].dt.to_period('M')
-                        monthly_spending = csv_data.groupby(['category', 'year_month'])['amount'].sum().reset_index()
-
-                        for category in csv_data['category'].unique():
-                            if category == "보험 / 세금":
-                                continue
-
-                            cat_monthly = monthly_spending[monthly_spending['category'] == category]['amount'].tolist()
-                            if cat_monthly:
-                                dynamic_doojo[category] = {
-                                    'min_amount': min(cat_monthly),
-                                    'max_amount': max(cat_monthly),
-                                    'avg_amount': sum(cat_monthly) / len(cat_monthly),
-                                    'current_threshold': sum(cat_monthly) / len(cat_monthly)  # Use avg as default
-                                }
-
-                        # Update with predictions if available
-                        predictions = db.query(models.Prediction).filter(
-                            models.Prediction.file_id == file_id,
-                            models.Prediction.prediction_date == f"{query_year}-{query_month:02d}-01"
-                        ).all()
-
-                        for pred in predictions:
-                            if pred.category in dynamic_doojo:
-                                dynamic_doojo[pred.category]['current_threshold'] = float(pred.predicted_amount)
-            except Exception as e:
-                logger.warning(f"Could not fetch CSV data for detailed analysis: {e}")
-
-    # Get budget data from budgets table for specified month
-    # budget_date is stored as DATE in format 'YYYY-MM-DD'
-    budget_date = f"{query_year}-{query_month:02d}-01"
-    budgets_query = text("""
-        SELECT category, amount
-        FROM budgets
-        WHERE user_id = :user_id
-        AND budget_date = :budget_date
-        AND category IS NOT NULL
-    """)
-
-    budget_results = db.execute(
-        budgets_query,
-        {"user_id": user_id, "budget_date": budget_date}
-    ).fetchall()
-
-    # Create budget dictionary
-    budgets_by_category = {}
-    for budget in budget_results:
-        budgets_by_category[budget.category] = float(budget.amount)
-
-    logger.info(f"Found {len(budgets_by_category)} budgets for user {user_id} in {budget_date}")
-
-    # Build categories prediction data from MySQL or dynamic calculation
+    # Initialize result structures
     categories_prediction = {}
+    categories_detail = {}
 
-    # Use doojo_data if available, otherwise use dynamic_doojo
-    if doojo_data:
-        for doojo in doojo_data:
-            # Skip "보험 / 세금" category
-            if doojo.category == "보험 / 세금":
-                continue
+    # Get current month data
+    current_month_data = csv_data[
+        (csv_data['transaction_date_time'].dt.year == query_year) &
+        (csv_data['transaction_date_time'].dt.month == query_month)
+    ]
 
-            # Convert result string to boolean
-            result = None
-            if doojo.result == 'true':
-                result = True
-            elif doojo.result == 'false':
-                result = False
+    # Initialize OpenAI client for message generation
+    from openai import OpenAI
+    gms_client = OpenAI(
+        api_key=os.getenv('GMS_API_KEY'),
+        base_url=os.getenv('GMS_BASE_URL', 'https://gms.ssafy.io/gmsapi/api.openai.com/v1')
+    )
 
-            # Calculate avg (use historical average if available, otherwise use current threshold)
-            avg_value = historical_avg.get(doojo.category, float(doojo.current_threshold))
+    def generate_merchant_message(category: str, merchant: str, message_type: str, amount: float = None, count: int = None) -> str:
+        """Generate personalized advice message using GPT-5-nano"""
+        try:
+            if message_type == 'most_spent':
+                prompt = f"{category} 카테고리 '{merchant}'에서 {amount:,.0f}원 지출했어. 한 줄로 조언해줘 (반말, 이모지 없이)"
+            else:  # most_frequent
+                prompt = f"{category} 카테고리 '{merchant}'에 {count}회 방문해서 총 {amount:,.0f}원 썼어. 한 줄로 조언해줘 (반말, 이모지 없이)"
 
-            # Use real amount from transactions table if available
-            real_value = real_amounts.get(doojo.category, None)
+            response = gms_client.chat.completions.create(
+                model="gpt-5-nano",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_completion_tokens=1000
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"Failed to generate message for {merchant}: {e}")
+            return None
 
-            # Use budget amount as current threshold if available, otherwise use Prophet prediction
-            current_value = budgets_by_category.get(doojo.category, float(doojo.current_threshold))
+    # Process each category
+    for category in csv_data['category'].unique():
+        # Skip "보험 / 세금" category
+        if category == "보험 / 세금":
+            continue
 
-            # Recalculate result based on real transactions data vs budget
-            if real_value is not None:
-                result = real_value > current_value
-            else:
-                # If no real data, result should be None or false
-                result = None
+        # Calculate min/max/avg from monthly spending
+        cat_monthly = monthly_spending[monthly_spending['category'] == category]['amount'].tolist()
+        if not cat_monthly:
+            continue
 
-            categories_prediction[doojo.category] = CategoryDoojo(
-                min=float(doojo.min_amount),
-                max=float(doojo.max_amount),
-                current=current_value,  # Now uses budget amount if available
-                real=real_value,
-                result=result,
-                avg=avg_value
+        min_amount = float(min(cat_monthly))
+        max_amount = float(max(cat_monthly))
+        avg_amount = float(sum(cat_monthly) / len(cat_monthly))
+
+        # Current threshold is the average
+        current_threshold = avg_amount
+
+        # Get real amount for current month
+        cat_current = current_month_data[current_month_data['category'] == category]
+        real_amount = float(cat_current['amount'].sum()) if not cat_current.empty else None
+
+        # Calculate result
+        result = None
+        if real_amount is not None:
+            result = real_amount > current_threshold
+
+        # Build category prediction
+        categories_prediction[category] = CategoryDoojo(
+            min=min_amount,
+            max=max_amount,
+            current=current_threshold,
+            real=real_amount,
+            result=result,
+            avg=avg_amount
+        )
+
+        # Build category detail (most_spent and most_frequent)
+        if not cat_current.empty:
+            # Find most spent transaction
+            max_txn_idx = cat_current['amount'].idxmax()
+            max_txn = cat_current.loc[max_txn_idx]
+
+            # Calculate most frequent merchant
+            merchant_counts = cat_current.groupby('merchant').agg({
+                'amount': ['count', 'sum']
+            }).reset_index()
+            merchant_counts.columns = ['merchant', 'count', 'total_amount']
+            most_freq_idx = merchant_counts['count'].idxmax()
+            most_frequent = merchant_counts.loc[most_freq_idx]
+
+            # Generate personalized messages using GPT-5-nano
+            most_spent_msg = generate_merchant_message(
+                category=category,
+                merchant=str(max_txn['merchant']),
+                message_type='most_spent',
+                amount=float(max_txn['amount'])
             )
 
-            # Only add detail if we don't have real transaction data
-            # Don't create fake merchant names
-            if doojo.category not in categories_detail:
-                # Leave categories_detail empty for categories without transactions
-                pass
-    else:
-        # Use dynamic_doojo when doojo_data is not available
-        for category, stats in dynamic_doojo.items():
-            # Skip "보험 / 세금" category
-            if category == "보험 / 세금":
-                continue
-
-            # Use real amount from transactions table if available
-            real_value = real_amounts.get(category, None)
-
-            # Use budget amount as current threshold if available, otherwise use dynamic threshold
-            current_value = budgets_by_category.get(
-                category,
-                stats.get('current_threshold', stats.get('avg_amount', 0))
+            most_freq_msg = generate_merchant_message(
+                category=category,
+                merchant=str(most_frequent['merchant']),
+                message_type='most_frequent',
+                amount=float(most_frequent['total_amount']),
+                count=int(most_frequent['count'])
             )
 
-            # Calculate result based on real transactions data vs budget/threshold
-            result = None
-            if real_value is not None:
-                result = real_value > current_value
-
-            # Calculate avg (use historical average if available)
-            avg_value = historical_avg.get(category, stats.get('avg_amount', current_value))
-
-            categories_prediction[category] = CategoryDoojo(
-                min=stats.get('min_amount', 0.0),
-                max=stats.get('max_amount', 0.0),
-                current=current_value,
-                real=real_value,
-                result=result,
-                avg=avg_value
+            categories_detail[category] = CategoryDetail(
+                most_spent=MostSpentDetail(
+                    merchant=str(max_txn['merchant']),
+                    amount=float(max_txn['amount']),
+                    date=max_txn['transaction_date_time'].isoformat(),
+                    msg=most_spent_msg
+                ),
+                most_frequent=MostFrequentDetail(
+                    merchant=str(most_frequent['merchant']),
+                    count=int(most_frequent['count']),
+                    total_amount=float(most_frequent['total_amount']),
+                    msg=most_freq_msg
+                )
             )
 
     # Create month data

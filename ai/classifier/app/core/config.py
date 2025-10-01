@@ -28,10 +28,11 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = "expense-classifier-bucket"
     AWS_REGION: str = "us-east-1"
     
-    # OpenAI GPT Configuration
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4-turbo-preview"
-    OPENAI_MAX_TOKENS: int = 200
+    # OpenAI GPT Configuration (via GMS)
+    GMS_API_KEY: Optional[str] = None
+    GMS_BASE_URL: str = "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-5-nano"
+    OPENAI_MAX_TOKENS: int = 4000
     OPENAI_TEMPERATURE: float = 0.3
     
     # Classification Settings

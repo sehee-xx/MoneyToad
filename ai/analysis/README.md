@@ -14,6 +14,12 @@ Analysis Service는 Facebook Prophet을 활용하여 사용자의 금융 거래 
 - **11개월 베이스라인**: 과거 11개월 소비 기준 금액
 - **누수 분석**: 예측 대비 실제 지출 초과분 계산
 - **신뢰구간**: 95% 상한/하한 예측 범위
+- **두꺼비 조언 (doojo)**: S3 CSV 기반 실시간 지출 패턴 분석
+
+### GPT 기반 개인화 조언
+- **가맹점 분석**: 카테고리별 최다 지출/방문 가맹점 추출
+- **맞춤형 조언**: GPT-5-nano 기반 한국어 금융 조언 자동 생성
+- **실시간 생성**: 사용자 소비 패턴에 맞춘 실시간 메시지
 
 ### 모델 최적화
 - **카테고리별 커스터마이징**: 지출 패턴별 최적 파라미터
@@ -109,6 +115,53 @@ GET /api/ai/data/baseline?file_id=abc-123&category=식비
 
 # Response: 식비 카테고리만 필터링된 11개월 베이스라인
 ```
+
+### 5. 두꺼비 조언 (doojo) - GPT 기반 개인화 조언
+```bash
+GET /api/ai/data/doojo?file_id=abc-123&year=2025&month=1
+
+# Response
+{
+  "file_id": "abc-123",
+  "doojo": [{
+    "year": 2025,
+    "month": 1,
+    "categories_count": 5,
+    "categories_prediction": {
+      "카페": {
+        "min": 50000,
+        "max": 120000,
+        "current": 82000,    # 평균값 기준
+        "real": 75000,
+        "result": false,     # 예산 초과 여부
+        "avg": 82000
+      }
+    },
+    "categories_detail": {
+      "카페": {
+        "most_spent": {
+          "merchant": "스타벅스",
+          "amount": 12000,
+          "date": "2025-01-15",
+          "msg": "다음 달 스타벅스 지출을 월 2만 원 이하로 제한하고..."  # GPT 생성
+        },
+        "most_frequent": {
+          "merchant": "이디야",
+          "count": 8,
+          "total_amount": 32000,
+          "msg": "이디야 방문을 주 2회로 줄이고 집에서 만든 커피로..."  # GPT 생성
+        }
+      }
+    }
+  }]
+}
+```
+
+**doojo 특징:**
+- ✅ S3 CSV 기반: MySQL 없이 순수 CSV 데이터만 사용
+- ✅ GPT-5-nano 조언: 가맹점별 개인화된 한국어 조언 자동 생성
+- ✅ 실시간 분석: 카테고리별 min/max/avg 계산
+- ✅ 월별 쿼리: year/month 파라미터로 특정 월 분석
 
 ## 📁 Project Structure
 
@@ -216,6 +269,57 @@ for target_year, target_month in months_to_calculate:
         prediction = model.predict(target_month)
 ```
 
+### GPT Message Generator - 개인화 조언
+```python
+from openai import OpenAI
+
+# GMS (SSAFY GPT Model Service) 클라이언트
+gms_client = OpenAI(
+    api_key=os.getenv('GMS_API_KEY'),
+    base_url=os.getenv('GMS_BASE_URL')
+)
+
+def generate_merchant_message(
+    category: str,
+    merchant: str,
+    message_type: str,
+    amount: float = None,
+    count: int = None
+) -> str:
+    """GPT-5-nano 기반 개인화 조언 생성"""
+
+    if message_type == 'most_spent':
+        prompt = f"{category} 카테고리 '{merchant}'에서 {amount:,.0f}원 지출했어. 한 줄로 조언해줘 (반말, 이모지 없이)"
+    else:  # most_frequent
+        prompt = f"{category} 카테고리 '{merchant}'에 {count}회 방문해서 총 {amount:,.0f}원 썼어. 한 줄로 조언해줘 (반말, 이모지 없이)"
+
+    response = gms_client.chat.completions.create(
+        model="gpt-5-nano",
+        messages=[{"role": "user", "content": prompt}],
+        max_completion_tokens=1000  # 충분한 토큰으로 응답 보장
+    )
+
+    return response.choices[0].message.content.strip()
+
+# 조언 생성 예시
+most_spent_msg = generate_merchant_message(
+    category="카페",
+    merchant="스타벅스",
+    message_type="most_spent",
+    amount=5939.0
+)
+# → "다음 달 스타벅스 지출을 월 2만 원 이하로 제한하고, 필요하면 집에서 만든 커피나 대체 음료로 대체해봐."
+
+most_freq_msg = generate_merchant_message(
+    category="카페",
+    merchant="스타벅스",
+    message_type="most_frequent",
+    amount=22740.0,
+    count=5
+)
+# → "다음 달 스타벅스 방문을 주 1회로 줄이고, 집에서 만든 커피나 텀블러 사용으로 지출을 줄여봐."
+```
+
 ## 💾 Database Schema
 
 ### predictions 테이블
@@ -290,6 +394,10 @@ S3_ENDPOINT=http://minio:9000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 S3_BUCKET=csv-uploads
+
+# GMS (SSAFY GPT Model Service) for doojo
+GMS_API_KEY=S13P22A409-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+GMS_BASE_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1
 
 # Service
 SERVICE_PORT=8002
@@ -399,6 +507,10 @@ GET /health
 - ✅ 다음월 예측 제거
 - ✅ Azure MySQL 마이그레이션 (로컬 → 클라우드)
 - ✅ 순차 실행 최적화
+- ✅ **doojo 엔드포인트 추가** (S3 CSV 기반)
+- ✅ **GPT-5-nano 조언 생성** (개인화 금융 조언)
+- ✅ **merchant_name 컬럼 지원** (CSV 표준화)
+- ✅ **openai 1.55.3** 라이브러리 추가
 
 ### v1.0.0
 - 초기 릴리스
@@ -432,6 +544,26 @@ docker-compose logs analysis --tail 50
 # database.py에 SSL context 설정이 있어야 함
 ```
 
+### GPT 조언 생성 실패
+```bash
+# GMS API Key 확인
+echo $GMS_API_KEY
+
+# 토큰 문제 (빈 응답)
+# gpt-5-nano는 reasoning token을 많이 사용
+# max_completion_tokens을 1000 이상으로 설정 권장
+
+# 연결 테스트
+curl -H "Authorization: Bearer $GMS_API_KEY" \
+  https://gms.ssafy.io/gmsapi/api.openai.com/v1/models
+```
+
+### doojo 엔드포인트 에러
+- **원인**: merchant_name 컬럼 누락
+- **해결**: CSV에 merchant_name 컬럼 포함 확인
+- **원인**: 데이터 부족 (< 30 거래)
+- **해결**: 최소 30개 거래 데이터 필요
+
 ## 🤝 Integration
 
 이 서비스는 다음 서비스들과 통합됩니다:
@@ -448,3 +580,9 @@ docker-compose logs analysis --tail 50
 - [API Gateway](../gateway/README.md)
 - [CSV Manager Service](../csv-manager/README.md)
 - [Classifier Service](../classifier/README.md)
+
+---
+
+**Version**: 2.0.0
+**Last Updated**: 2025-10-01
+**GPT Model**: GPT-5-nano (doojo advice generation)
