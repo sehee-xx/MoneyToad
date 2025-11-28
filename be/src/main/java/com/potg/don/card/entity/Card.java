@@ -12,11 +12,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 
 @Entity
 @Getter
-@Table(name = "cards")
+@Table(name = "cards", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id"}))
 public class Card extends BaseTimeEntity {
 
 	@Id
