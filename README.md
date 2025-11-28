@@ -79,14 +79,28 @@
 
 ## 서비스 화면
 
+### 인트로
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/754abb0b-be06-4daa-9b71-3d967fc5b811" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f603cd46-1808-46e5-b207-65ede4b5a55b" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9a632a88-1ff6-4c8c-8021-9c5cb4fad272" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/13d1f96e-d75b-4a81-a30a-43d40ba1dfe2" />
+
+### 카드 정보 입력
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/1d9873bf-20dd-4f1e-943e-17a4ad2abcf1" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/dea24acd-c7b0-4f61-972d-b89e9f424560" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cc33f187-f502-4f00-809c-9ade10c70ac0" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/bf2fdae3-38c5-4ebc-9449-a62c4518e45a" />
+
 ### 누수 장독대 화면
-<img width="478" height="235" alt="image" src="https://github.com/user-attachments/assets/df15ece9-5084-40d4-ab21-7c5100f30728" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/df15ece9-5084-40d4-ab21-7c5100f30728" />
 
 ### 연간, 월간 소비 차트 화면
-<img width="478" height="235" alt="image" src="https://github.com/user-attachments/assets/b4d443c9-e75f-4335-970c-43ffc13085f5" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b4d443c9-e75f-4335-970c-43ffc13085f5" />
 
 ### 카테고리별 AI 절약 추천 화면
-<img width="478" height="235" alt="image" src="https://github.com/user-attachments/assets/0bbdb86c-6898-4840-a1db-4f3f43ac65bd" />
+<img width="1345" height="647" alt="image" src="https://github.com/user-attachments/assets/92e70713-16e1-41c6-a74c-f671db2cd92b" />
+<img width="1420" height="640" alt="image" src="https://github.com/user-attachments/assets/c75d246b-b096-494c-bb64-dea58223b95d" />
+
 
 ---
 
@@ -103,7 +117,7 @@
 ### 기술 스택
 
 #### Frontend
-![React Native](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
 
 #### Backend
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=spring-boot&logoColor=white)
