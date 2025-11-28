@@ -3,7 +3,7 @@
 <div align="center">
 
 ![MoneyToad](https://img.shields.io/badge/MoneyToad-AI%20Financial%20Assistant-4CAF50?style=for-the-badge)
-![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![Vector DB](https://img.shields.io/badge/Vector_DB-FF6B6B?style=for-the-badge)
