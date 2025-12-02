@@ -92,15 +92,22 @@
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/bf2fdae3-38c5-4ebc-9449-a62c4518e45a" />
 
 ### 누수 장독대 화면
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/df15ece9-5084-40d4-ab21-7c5100f30728" />
+<img width="1920" height="1080" alt="image (2)" src="https://github.com/user-attachments/assets/a452e196-816b-4e10-a5ff-adfcbd02225f" />
 
 ### 연간, 월간 소비 차트 화면
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b4d443c9-e75f-4335-970c-43ffc13085f5" />
+<img width="1920" height="1080" alt="image (9)" src="https://github.com/user-attachments/assets/83d5e6da-d530-4ccb-a461-9f98858f8b3d" />
+<img width="1920" height="1080" alt="image (4)" src="https://github.com/user-attachments/assets/dc131204-7bd2-4ed1-851b-0788124a7c84" />
+<img width="1920" height="1080" alt="image (10)" src="https://github.com/user-attachments/assets/1b5023e1-4158-4ba4-a99a-efdae94fa1a2" />
 
 ### 카테고리별 AI 절약 추천 화면
 <img width="1345" height="647" alt="image" src="https://github.com/user-attachments/assets/92e70713-16e1-41c6-a74c-f671db2cd92b" />
 <img width="1420" height="640" alt="image" src="https://github.com/user-attachments/assets/c75d246b-b096-494c-bb64-dea58223b95d" />
 
+### 마이페이지
+<img width="1920" height="1080" alt="image (5)" src="https://github.com/user-attachments/assets/4f58a2d3-8057-4ac5-aa53-1ba2180f3d1e" />
+<img width="1920" height="1080" alt="image (6)" src="https://github.com/user-attachments/assets/dcc3286b-29a7-4961-aac1-bf78a30a0d04" />
+<img width="1920" height="1080" alt="image (7)" src="https://github.com/user-attachments/assets/8202b624-e531-4279-aa7a-e12ff7e1ada1" />
+<img width="1920" height="1080" alt="image (8)" src="https://github.com/user-attachments/assets/57c72a76-1f15-4ef4-b4f2-95c34e1b54da" />
 
 ---
 
